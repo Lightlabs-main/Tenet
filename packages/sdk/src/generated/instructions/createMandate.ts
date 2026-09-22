@@ -6,11 +6,11 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { addDecoderSizePrefix, addEncoderSizePrefix, combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getI64Decoder, getI64Encoder, getStructDecoder, getStructEncoder, getU16Decoder, getU16Encoder, getU32Decoder, getU32Encoder, getU64Decoder, getU64Encoder, getUtf8Decoder, getUtf8Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type Codec, type Decoder, type Encoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
+import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type Codec, type Decoder, type Encoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { getAccountMetaFactory, getAddressFromResolvedInstructionAccount, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
 import { findMandatePda } from '../pdas';
 import { TENET_PROGRAM_ADDRESS } from '../programs';
-import { getMembershipPolicyDecoder, getMembershipPolicyEncoder, type MembershipPolicy, type MembershipPolicyArgs } from '../types';
+import { getMandateParamsDecoder, getMandateParamsEncoder, type MandateParams, type MandateParamsArgs } from '../types';
 
 export const CREATE_MANDATE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([230, 170, 158, 68, 33, 169, 16, 158]);
 
@@ -19,16 +19,16 @@ export function getCreateMandateDiscriminatorBytes(): ReadonlyUint8Array { retur
 export type CreateMandateInstruction<TProgram extends string = typeof TENET_PROGRAM_ADDRESS, TAccountAuthor extends string | AccountMeta<string> = string, TAccountMandateSeed extends string | AccountMeta<string> = string, TAccountMandate extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAuthor extends string ? WritableSignerAccount<TAccountAuthor> & AccountSignerMeta<TAccountAuthor> : TAccountAuthor, TAccountMandateSeed extends string ? ReadonlyAccount<TAccountMandateSeed> : TAccountMandateSeed, TAccountMandate extends string ? WritableAccount<TAccountMandate> : TAccountMandate, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>;
 
-export type CreateMandateInstructionData = { discriminator: ReadonlyUint8Array; name: string; description: string; maxWeightPerAssetBps: number; maxPreIpoWeightBps: number; maxIssuerWeightBps: number; maxUnderlyingWeightBps: number; maxSupplyConsumptionBps: number; maxPriceImpactBps: number; minContributionUsdc: bigint; maxPoolSizeUsdc: bigint; epochDuration: bigint; membershipPolicy: MembershipPolicy; amendmentThresholdBps: number; amendmentDelaySeconds: bigint;  };
+export type CreateMandateInstructionData = { discriminator: ReadonlyUint8Array; params: MandateParams;  };
 
-export type CreateMandateInstructionDataArgs = { name: string; description: string; maxWeightPerAssetBps: number; maxPreIpoWeightBps: number; maxIssuerWeightBps: number; maxUnderlyingWeightBps: number; maxSupplyConsumptionBps: number; maxPriceImpactBps: number; minContributionUsdc: number | bigint; maxPoolSizeUsdc: number | bigint; epochDuration: number | bigint; membershipPolicy: MembershipPolicyArgs; amendmentThresholdBps: number; amendmentDelaySeconds: number | bigint;  };
+export type CreateMandateInstructionDataArgs = { params: MandateParamsArgs;  };
 
 export function getCreateMandateInstructionDataEncoder(): Encoder<CreateMandateInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())], ['description', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())], ['maxWeightPerAssetBps', getU16Encoder()], ['maxPreIpoWeightBps', getU16Encoder()], ['maxIssuerWeightBps', getU16Encoder()], ['maxUnderlyingWeightBps', getU16Encoder()], ['maxSupplyConsumptionBps', getU16Encoder()], ['maxPriceImpactBps', getU16Encoder()], ['minContributionUsdc', getU64Encoder()], ['maxPoolSizeUsdc', getU64Encoder()], ['epochDuration', getI64Encoder()], ['membershipPolicy', getMembershipPolicyEncoder()], ['amendmentThresholdBps', getU16Encoder()], ['amendmentDelaySeconds', getI64Encoder()]]), (value) => ({ ...value, discriminator: CREATE_MANDATE_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['params', getMandateParamsEncoder()]]), (value) => ({ ...value, discriminator: CREATE_MANDATE_DISCRIMINATOR }));
 }
 
 export function getCreateMandateInstructionDataDecoder(): Decoder<CreateMandateInstructionData> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())], ['description', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())], ['maxWeightPerAssetBps', getU16Decoder()], ['maxPreIpoWeightBps', getU16Decoder()], ['maxIssuerWeightBps', getU16Decoder()], ['maxUnderlyingWeightBps', getU16Decoder()], ['maxSupplyConsumptionBps', getU16Decoder()], ['maxPriceImpactBps', getU16Decoder()], ['minContributionUsdc', getU64Decoder()], ['maxPoolSizeUsdc', getU64Decoder()], ['epochDuration', getI64Decoder()], ['membershipPolicy', getMembershipPolicyDecoder()], ['amendmentThresholdBps', getU16Decoder()], ['amendmentDelaySeconds', getI64Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['params', getMandateParamsDecoder()]]);
 }
 
 export function getCreateMandateInstructionDataCodec(): Codec<CreateMandateInstructionDataArgs, CreateMandateInstructionData> {
@@ -40,20 +40,7 @@ export type CreateMandateAsyncInput<TAccountAuthor extends InstructionSignerInpu
 mandateSeed: TAccountMandateSeed;
 mandate?: TAccountMandate;
 systemProgram?: TAccountSystemProgram;
-name: CreateMandateInstructionDataArgs["name"];
-description: CreateMandateInstructionDataArgs["description"];
-maxWeightPerAssetBps: CreateMandateInstructionDataArgs["maxWeightPerAssetBps"];
-maxPreIpoWeightBps: CreateMandateInstructionDataArgs["maxPreIpoWeightBps"];
-maxIssuerWeightBps: CreateMandateInstructionDataArgs["maxIssuerWeightBps"];
-maxUnderlyingWeightBps: CreateMandateInstructionDataArgs["maxUnderlyingWeightBps"];
-maxSupplyConsumptionBps: CreateMandateInstructionDataArgs["maxSupplyConsumptionBps"];
-maxPriceImpactBps: CreateMandateInstructionDataArgs["maxPriceImpactBps"];
-minContributionUsdc: CreateMandateInstructionDataArgs["minContributionUsdc"];
-maxPoolSizeUsdc: CreateMandateInstructionDataArgs["maxPoolSizeUsdc"];
-epochDuration: CreateMandateInstructionDataArgs["epochDuration"];
-membershipPolicy: CreateMandateInstructionDataArgs["membershipPolicy"];
-amendmentThresholdBps: CreateMandateInstructionDataArgs["amendmentThresholdBps"];
-amendmentDelaySeconds: CreateMandateInstructionDataArgs["amendmentDelaySeconds"];
+params: CreateMandateInstructionDataArgs["params"];
 }
 
 export async function getCreateMandateInstructionAsync<TAccountAuthor extends InstructionSignerInput, TAccountMandateSeed extends InstructionAccountInput, TAccountMandate extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof TENET_PROGRAM_ADDRESS>(input: CreateMandateAsyncInput<TAccountAuthor, TAccountMandateSeed, TAccountMandate, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): Promise<CreateMandateInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthor, InstructionAccountInputAddress<TAccountAuthor>>, ResolvedInstructionAccountMeta<TAccountMandateSeed, InstructionAccountInputAddress<TAccountMandateSeed>>, ResolvedInstructionAccountMeta<TAccountMandate, InstructionAccountInputAddress<TAccountMandate>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>> {
@@ -88,20 +75,7 @@ export type CreateMandateInput<TAccountAuthor extends InstructionSignerInput = I
 mandateSeed: TAccountMandateSeed;
 mandate: TAccountMandate;
 systemProgram?: TAccountSystemProgram;
-name: CreateMandateInstructionDataArgs["name"];
-description: CreateMandateInstructionDataArgs["description"];
-maxWeightPerAssetBps: CreateMandateInstructionDataArgs["maxWeightPerAssetBps"];
-maxPreIpoWeightBps: CreateMandateInstructionDataArgs["maxPreIpoWeightBps"];
-maxIssuerWeightBps: CreateMandateInstructionDataArgs["maxIssuerWeightBps"];
-maxUnderlyingWeightBps: CreateMandateInstructionDataArgs["maxUnderlyingWeightBps"];
-maxSupplyConsumptionBps: CreateMandateInstructionDataArgs["maxSupplyConsumptionBps"];
-maxPriceImpactBps: CreateMandateInstructionDataArgs["maxPriceImpactBps"];
-minContributionUsdc: CreateMandateInstructionDataArgs["minContributionUsdc"];
-maxPoolSizeUsdc: CreateMandateInstructionDataArgs["maxPoolSizeUsdc"];
-epochDuration: CreateMandateInstructionDataArgs["epochDuration"];
-membershipPolicy: CreateMandateInstructionDataArgs["membershipPolicy"];
-amendmentThresholdBps: CreateMandateInstructionDataArgs["amendmentThresholdBps"];
-amendmentDelaySeconds: CreateMandateInstructionDataArgs["amendmentDelaySeconds"];
+params: CreateMandateInstructionDataArgs["params"];
 }
 
 export function getCreateMandateInstruction<TAccountAuthor extends InstructionSignerInput, TAccountMandateSeed extends InstructionAccountInput, TAccountMandate extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof TENET_PROGRAM_ADDRESS>(input: CreateMandateInput<TAccountAuthor, TAccountMandateSeed, TAccountMandate, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): CreateMandateInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthor, InstructionAccountInputAddress<TAccountAuthor>>, ResolvedInstructionAccountMeta<TAccountMandateSeed, InstructionAccountInputAddress<TAccountMandateSeed>>, ResolvedInstructionAccountMeta<TAccountMandate, InstructionAccountInputAddress<TAccountMandate>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>> {

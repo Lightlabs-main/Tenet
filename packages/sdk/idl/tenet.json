@@ -1964,6 +1964,105 @@
       "args": []
     },
     {
+      "name": "execute_amendment",
+      "discriminator": [
+        39,
+        225,
+        117,
+        218,
+        208,
+        88,
+        195,
+        175
+      ],
+      "accounts": [
+        {
+          "name": "executor",
+          "signer": true
+        },
+        {
+          "name": "proposal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  109,
+                  101,
+                  110,
+                  100,
+                  109,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "proposal.mandate",
+                "account": "AmendmentProposal"
+              },
+              {
+                "kind": "account",
+                "path": "proposal.proposal_id",
+                "account": "AmendmentProposal"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "finalize_epoch",
       "discriminator": [
         159,
@@ -2971,6 +3070,146 @@
       "args": []
     },
     {
+      "name": "propose_amendment",
+      "discriminator": [
+        237,
+        97,
+        111,
+        166,
+        137,
+        200,
+        30,
+        39
+      ],
+      "accounts": [
+        {
+          "name": "proposer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mandate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "proposer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "proposal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  109,
+                  101,
+                  110,
+                  100,
+                  109,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              },
+              {
+                "kind": "arg",
+                "path": "proposal_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "proposal_id",
+          "type": "u64"
+        },
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "MandateParams"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "record_asset_nav",
       "discriminator": [
         87,
@@ -3805,9 +4044,204 @@
           }
         }
       ]
+    },
+    {
+      "name": "vote_amendment",
+      "discriminator": [
+        14,
+        102,
+        159,
+        183,
+        147,
+        96,
+        85,
+        96
+      ],
+      "accounts": [
+        {
+          "name": "voter",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "proposal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  109,
+                  101,
+                  110,
+                  100,
+                  109,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "proposal.mandate",
+                "account": "AmendmentProposal"
+              },
+              {
+                "kind": "account",
+                "path": "proposal.proposal_id",
+                "account": "AmendmentProposal"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "voter"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  109,
+                  101,
+                  110,
+                  100,
+                  109,
+                  101,
+                  110,
+                  116,
+                  95,
+                  118,
+                  111,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "proposal"
+              },
+              {
+                "kind": "account",
+                "path": "voter"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "support",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "AmendmentProposal",
+      "discriminator": [
+        203,
+        70,
+        172,
+        180,
+        240,
+        196,
+        239,
+        185
+      ]
+    },
+    {
+      "name": "AmendmentVote",
+      "discriminator": [
+        234,
+        39,
+        120,
+        70,
+        138,
+        68,
+        243,
+        28
+      ]
+    },
     {
       "name": "AssetRegistryEntry",
       "discriminator": [
@@ -4413,9 +4847,170 @@
       "code": 6086,
       "name": "PriceImpactExceeded",
       "msg": "Actual output is below the Mandate's Pyth price-impact floor"
+    },
+    {
+      "code": 6087,
+      "name": "AmendmentRequiresMember",
+      "msg": "An amendment proposal requires a current Circle member"
+    },
+    {
+      "code": 6088,
+      "name": "AmendmentSnapshotChanged",
+      "msg": "The Circle share snapshot changed while the amendment was open"
+    },
+    {
+      "code": 6089,
+      "name": "AmendmentAlreadyExecuted",
+      "msg": "This amendment proposal has already executed"
     }
   ],
   "types": [
+    {
+      "name": "AmendmentProposal",
+      "docs": [
+        "A governance proposal is a bounded snapshot of a possible Mandate update.",
+        "Voting power is measured against the Circle share total captured here; the",
+        "Circle must remain unchanged through execution, so late contributions or",
+        "exits cannot silently alter the electorate underneath a proposal."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mandate",
+            "type": "pubkey"
+          },
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "proposer",
+            "type": "pubkey"
+          },
+          {
+            "name": "proposal_id",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "execute_after",
+            "type": "i64"
+          },
+          {
+            "name": "total_shares_at_proposal",
+            "type": "u64"
+          },
+          {
+            "name": "for_shares",
+            "type": "u64"
+          },
+          {
+            "name": "executed",
+            "type": "bool"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "max_weight_per_asset_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_pre_ipo_weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_issuer_weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_underlying_weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_supply_consumption_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_price_impact_bps",
+            "type": "u16"
+          },
+          {
+            "name": "min_contribution_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "max_pool_size_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_duration",
+            "type": "i64"
+          },
+          {
+            "name": "membership_policy",
+            "type": {
+              "defined": {
+                "name": "MembershipPolicy"
+              }
+            }
+          },
+          {
+            "name": "amendment_threshold_bps",
+            "type": "u16"
+          },
+          {
+            "name": "amendment_delay_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmendmentVote",
+      "docs": [
+        "One vote per proposal/member. A separate PDA makes double voting",
+        "structurally impossible without growing the proposal account."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proposal",
+            "type": "pubkey"
+          },
+          {
+            "name": "voter",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          },
+          {
+            "name": "support",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "AssetClass",
       "type": {

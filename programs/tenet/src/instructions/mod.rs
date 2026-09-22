@@ -1,5 +1,6 @@
 pub mod circle;
 pub mod config;
+pub mod amendment;
 pub mod epoch;
 pub mod execution;
 pub mod mandate;
@@ -11,6 +12,7 @@ pub mod valuation;
 // generated client modules through the crate root, so they are re-exported.
 pub use circle::*;
 pub use config::*;
+pub use amendment::*;
 pub use epoch::*;
 pub use execution::*;
 pub use mandate::*;

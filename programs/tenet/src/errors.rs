@@ -211,4 +211,10 @@ pub enum TenetError {
     PriceArithmeticOverflow,
     #[msg("Actual output is below the Mandate's Pyth price-impact floor")]
     PriceImpactExceeded,
+    #[msg("An amendment proposal requires a current Circle member")]
+    AmendmentRequiresMember,
+    #[msg("The Circle share snapshot changed while the amendment was open")]
+    AmendmentSnapshotChanged,
+    #[msg("This amendment proposal has already executed")]
+    AmendmentAlreadyExecuted,
 }

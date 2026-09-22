@@ -2,12 +2,13 @@
 
 **Artifact B of the six pre-implementation artifacts.**
 
-**Implementation status (2026-09-21):** the current source implements the
+**Implementation status (2026-09-22):** the current source implements the
 configuration, registry, Mandate/Circle setup, Epoch 0 pool flow, staged
-redemption subset, the first Fork path and the source-level live metadata
-refresh path. Execution, amendments and automatic contributions remain
-release-gated until their instructions and tests exist. The committed IDL/SDK
-still needs regeneration after the next successful Anchor build.
+redemption subset, the Fork path, live metadata refresh and amendment
+governance. Execution remains deliberately fail-closed until target pricing
+and route verification are complete. Automatic contributions remain gated on a
+real revocable Solana authorization path. The IDL/SDK is regenerated from the
+current Anchor artifact.
 
 Every instruction in the planned program surface, with its signers, account mutability, PDA constraints, failure branches and state transitions. Each failure branch listed here becomes a named test (RULE 7).
 
@@ -515,21 +516,34 @@ Same shape against `active_usdc_vault`. Excludes `epoch_escrow` entirely (INV-00
 
 ---
 
-## 7. Amendments *(Phase 8 — architecture only, not implemented before core mechanics)*
+## 7. Amendments *(Phase 8 — implemented, UI exposure remains gated)*
 
 `propose_amendment` · `vote_amendment` · `execute_amendment`.
 
-Attack surface to defend **before** any of this is written (spec §39):
+Each proposal is a bounded PDA keyed by `(Mandate, proposal_id)` and stores a
+complete candidate constitution plus the Circle share total captured at
+creation. Each voter has one `AmendmentVote` PDA keyed by `(proposal, voter)`.
+The current Mandate's delay controls the proposal's execution window; the
+proposed delay only applies after approval. Execution is permissionless after
+the delay, but requires the captured share total, no reserved/pending exit
+state, no execution freeze, and the current amendment threshold. The Mandate
+version increments exactly once on execution. Exit has no dependency on any
+amendment account.
 
-| attack | planned defence |
+Attack surface defended by the implementation:
+
+| attack | implemented defence |
 |---|---|
-| double voting | `Vote` PDA `["vote", proposal, member]` — second vote cannot init |
-| vote then exit | voting weight snapshotted at proposal creation; `initiate_redemption` subtracts from live weight, not snapshot weight |
-| last-second contribution | only shares settled **before** `proposal.created_at` count |
-| stale weight | proposal stores `total_shares_at_proposal` |
-| threshold error | `for_shares * 10_000 / total_shares_at_proposal >= amendment_threshold_bps`, `u128`, no float |
-| replay | proposal account consumed on execution |
+| double voting | `AmendmentVote` PDA `["amendment_vote", proposal, voter]` — second vote cannot init |
+| vote then exit or contribute | proposal stores `total_shares_at_proposal`; any Circle share-total change invalidates the proposal rather than changing voting power |
+| reserved or pending exit state | proposal and execution reject reserved shares, pending reservations and execution freeze |
+| threshold error | `for_shares * 10_000 >= total_shares_at_proposal * amendment_threshold_bps`, `u128`, no float |
+| replay | `executed` flag rejects a second execution |
 | governance defeating exit | `initiate_redemption` has **no** dependency on proposal state — structurally cannot be blocked |
+
+Program-level coverage: `test_amendment_requires_threshold_and_delay`,
+`test_amendment_vote_is_unique_and_uses_settled_shares`, and
+`test_amendment_rejects_non_member`.
 
 ---
 
@@ -561,7 +575,9 @@ Attack surface to defend **before** any of this is written (spec §39):
 | 21 | `begin_execution` | 4 | executor | **yes** |
 | 22 | `end_execution` | 4 | executor | **yes** |
 | 23 | `fork_mandate` | 7 | anyone | no |
-| 24–26 | amendment instructions | 8 | member | no |
+| 24 | `propose_amendment` | 8 | member | no |
+| 25 | `vote_amendment` | 8 | member | no |
+| 26 | `execute_amendment` | 8 | anyone after delay | no |
 | 26 | `create_contribution_rule` | 9 | member | no |
 | 27 | `pause_contribution_rule` / `resume` | 9 | member | no |
 | 28 | `close_contribution_rule` | 9 | member | no |

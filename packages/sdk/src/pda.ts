@@ -40,6 +40,8 @@ export const SEED = {
   redemption: utf8("redemption"),
   redemptionAsset: utf8("redemption_asset"),
   execAuth: utf8("exec_auth"),
+  amendment: utf8("amendment"),
+  amendmentVote: utf8("amendment_vote"),
 } as const;
 
 const U64_MAX = (1n << 64n) - 1n;
@@ -81,4 +83,8 @@ export const seeds = {
   /** `epoch` is the Epoch ACCOUNT address, not its index. */
   execAuth: (circle: Key, epoch: Key, nonce: bigint) =>
     [SEED.execAuth, key(circle), key(epoch), u64le(nonce)],
+  amendment: (mandate: Key, proposalId: bigint) =>
+    [SEED.amendment, key(mandate), u64le(proposalId)],
+  amendmentVote: (proposal: Key, voter: Key) =>
+    [SEED.amendmentVote, key(proposal), key(voter)],
 } satisfies Record<string, (...a: never[]) => Uint8Array[]>;

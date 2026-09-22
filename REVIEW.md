@@ -12,7 +12,7 @@ Every finding must identify: **file · function/symbol · issue · exploit or fa
 
 ## Status
 
-**Full audit — 2026-09-21, continued 2026-09-22.** The repository contains a real devnet-oriented POOL with Epoch 0 and rolling-epoch NAV snapshot admission, plus staged EXIT implementation and a tested chain-free accounting model. Source-level Fork and permissionless live metadata-refresh paths are implemented: Fork creates an independent child Mandate and copies dedicated asset-rule PDAs without accepting parent custody accounts; refresh reads current mint facts into the registry. The source now also contains a fail-closed EXECUTE boundary: nonce-seeded authorization, Jupiter-window introspection, exact vault binding and raw pre/post delta checks. Price-dependent execution activation, amendments and automatic contributions remain incomplete. VALUE now has both an exact off-chain boundary and an on-chain Pyth snapshot path; target-feed/Jupiter verification still gates production execution. No production sign-off is granted.
+**Full audit — 2026-09-21, continued 2026-09-22.** The repository contains a real devnet-oriented POOL with Epoch 0 and rolling-epoch NAV snapshot admission, plus staged EXIT implementation and a tested chain-free accounting model. Source-level Fork, permissionless live metadata-refresh and amendment-governance paths are implemented: Fork creates an independent child Mandate and copies dedicated asset-rule PDAs without accepting parent custody accounts; refresh reads current mint facts into the registry; amendments use bounded proposal/vote PDAs and a share-stable execution snapshot. The source also contains a fail-closed EXECUTE boundary: nonce-seeded authorization, Jupiter-window introspection, exact vault binding and raw pre/post delta checks. Price-dependent execution activation and automatic contributions remain incomplete. VALUE has both an exact off-chain boundary and an on-chain Pyth snapshot path; target-feed/Jupiter verification still gates production execution. No production sign-off is granted.
 
 ### Fork implementation pass — 2026-09-21
 
@@ -59,11 +59,11 @@ evidence  target/idl/tenet.json instruction list
 status    RELEASE BLOCKER — not an exploit in the implemented Epoch 0 path
 ```
 
-The program source now also exports `fork_mandate`, `fork_mandate_asset`, and `refresh_asset_metadata`; the generated IDL and deployable artifact were regenerated and checked on the VPS. The source now includes a structural `begin_execution` / `end_execution` boundary with Jupiter-window and raw vault-delta checks, plus a verified Pyth admission and on-chain NAV snapshot path. `begin_execution` still intentionally fails closed before price-dependent execution. Amendment governance and automatic contribution authorization remain incomplete. The committed IDL correctly describes the current source and does not invent those absent capabilities.
+The program source now also exports `fork_mandate`, `fork_mandate_asset`, `refresh_asset_metadata`, `propose_amendment`, `vote_amendment` and `execute_amendment`; the generated IDL and deployable artifact were regenerated and checked on the VPS. The source includes a structural `begin_execution` / `end_execution` boundary with Jupiter-window and raw vault-delta checks, plus a verified Pyth admission and on-chain NAV snapshot path. `begin_execution` still intentionally fails closed before price-dependent execution. Automatic contribution authorization remains incomplete. The committed IDL correctly describes the current source and does not invent absent capabilities.
 
 **Impact.** The repository cannot honestly be deployed or presented as the complete `POOL → EXECUTE → VALUE → EXIT → FORK` product. The missing paths are not safe to infer from the design docs or generated error names.
 
-**Required correction.** Keep the current POOL/EXIT implementation and source-level Fork path scoped as devnet/staged functionality. Regenerate and test the IDL/deployable artifact, then adversarially review each missing path before removing the release gate; do not expose UI controls or claims for absent instructions.
+**Required correction.** Keep the current POOL/EXIT/Fork/amendment implementation scoped as devnet/staged functionality. The IDL/deployable artifact and adversarial tests are current; retain the release gate for the still-missing or unverified execution/value/automation paths, and do not expose UI controls or claims for absent instructions.
 
 ### H-05 — Live asset facts have no production refresh path
 
@@ -73,7 +73,7 @@ symbol    upsert_handler()
 status    OPEN — blocks any live execution/value/cap enforcement
 ```
 
-`AssetRegistryEntry` stores `raw_supply`, multiplier, active transfer fee, issuer controls and verification slot/time. `upsert_handler()` remains classification-only, while the new permissionless `refresh_asset_metadata` source handler reads the current mint state into those live-fact fields. This path is not signed off until it is present in a freshly generated IDL/deployable artifact and exercised against extension-bearing fixtures.
+`AssetRegistryEntry` stores `raw_supply`, multiplier, active transfer fee, issuer controls and verification slot/time. `upsert_handler()` remains classification-only, while the permissionless `refresh_asset_metadata` handler reads the current mint state into those live-fact fields. The path is present in the freshly generated IDL/deployable artifact and covered by extension-bearing fixture tests; production consumers still need an explicit freshness policy before execution or rolling issuance.
 
 **Impact.** Those fields remain default/unverified. Any future consumer that treats them as current facts could calculate wrong supply consumption, transfer-fee behavior, ScaledUiAmount display, or issuer-control risk.
 
@@ -223,7 +223,7 @@ files     README.md:112; docs/instructions.md; docs/threat-model.md; PROGRESS.md
 status    OPEN DOCUMENTATION DRIFT
 ```
 
-The README says twenty invariants “each has tests,” while many still refer to absent execution, oracle and amendment paths. Fork tests now exist in the source tree but have not run against a freshly built `.so` in this environment. The instruction and threat-model docs describe planned instructions as if they were already available. `PROGRESS.md` also retains historical “53 checks passing” and build claims that could not be reproduced in this audit environment.
+The README says twenty invariants “each has tests,” while several still refer to absent execution and automation paths. Fork and amendment tests now run against a freshly built `.so` on the VPS. The instruction and threat-model docs were updated to distinguish implemented governance from the remaining release gates. `PROGRESS.md` retains historical validation entries, but the latest continuation entry records current evidence separately.
 
 **Required correction.** Label design-only controls explicitly, keep historical results dated, and publish current reproducible command results separately from prior milestone claims.
 
@@ -256,7 +256,7 @@ These are verified for the reviewed implemented paths, subject to the test limit
 
 ### Design-only, not code-verified
 
-The following claims appear in the architecture/specification but cannot be signed off because their instructions are absent, fail-closed, or unverified: production execution activation, target-feed/Jupiter route verification, issuer/pre-IPO concentration enforcement, corporate-action handling, amendment threshold/delay, and automatic-contribution authorization/revocation. Raw supply-consumption enforcement, the Pyth admission boundary, and the on-chain NAV snapshot path are implemented, but the overall execution path remains fail-closed. The exact off-chain valuation boundary, bounded rolling snapshot, and structural execution window now exist and are tested; target tokenized-equity feeds and controlled production routes remain open. Fork parent immutability and metadata refresh are implemented in source and covered by the rebuilt artifact suite.
+The following claims remain open because they are fail-closed or unverified: production execution activation, target-feed/Jupiter route verification, issuer/pre-IPO concentration enforcement, corporate-action handling, and automatic-contribution authorization/revocation. Amendment threshold/delay governance is implemented and artifact-tested, with the conservative share-stability rule documented above. Raw supply-consumption enforcement, the Pyth admission boundary, and the on-chain NAV snapshot path are implemented, but the overall execution path remains fail-closed. The exact off-chain valuation boundary, bounded rolling snapshot, and structural execution window now exist and are tested; target tokenized-equity feeds and controlled production routes remain open. Fork parent immutability and metadata refresh are implemented in source and covered by the rebuilt artifact suite.
 
 ---
 
@@ -276,9 +276,16 @@ Passed in this audit environment:
 Remote verification additionally passed:
 
 - `cargo test -p tenet --lib` — 21/21.
-- `cargo test -p tenet-program-tests` — 51/51, including `test_execution_window_is_fail_closed`.
+- `cargo test -p tenet-program-tests` — 54/54, including the three amendment tests and `test_execution_window_is_fail_closed`.
 - `anchor build` — passed with the canonical program keypair/ID; regenerated SDK is current at 68 files.
 - Read-only mainnet harness — 61 checks, 0 blocking failures; 8 warnings are the intentionally unverified Swap V2 probes without `JUPITER_API_KEY`.
+
+Latest continuation evidence (2026-09-22):
+
+- VPS `anchor build` — passed after amendment governance; generated IDL and deployable artifact match the source.
+- VPS `cargo test -p tenet --lib` — 25/25 passed.
+- VPS `cargo test --manifest-path tests/program/Cargo.toml -- --test-threads=1` — 54/54 passed.
+- Local SDK client/PDA suite — 12/12 passed under the supported package `tsx` runner.
 
 Not reproducible here:
 

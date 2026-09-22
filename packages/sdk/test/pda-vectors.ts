@@ -119,6 +119,8 @@ export function generatePdaVectors(perFunction = 6): { programId: string; vector
     add("redemption", [a, b, n], seeds.redemption(a, b, n));
     add("redemption_asset", [a, b], seeds.redemptionAsset(a, b));
     add("exec_auth", [a, b, n], seeds.execAuth(a, b, n));
+    add("amendment", [a, n], seeds.amendment(a, n));
+    add("amendment_vote", [a, b], seeds.amendmentVote(a, b));
   }
   return { programId: PROGRAM_ID, vectors };
 }

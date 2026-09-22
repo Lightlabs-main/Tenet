@@ -189,6 +189,56 @@ pub struct MandateAsset {
     pub bump: u8,
 }
 
+// ---------------------------------------------------------------- governance
+
+/// A governance proposal is a bounded snapshot of a possible Mandate update.
+/// Voting power is measured against the Circle share total captured here; the
+/// Circle must remain unchanged through execution, so late contributions or
+/// exits cannot silently alter the electorate underneath a proposal.
+#[account]
+#[derive(InitSpace)]
+pub struct AmendmentProposal {
+    pub mandate: Pubkey,
+    pub circle: Pubkey,
+    pub proposer: Pubkey,
+    pub proposal_id: u64,
+    pub created_at: i64,
+    pub execute_after: i64,
+    pub total_shares_at_proposal: u64,
+    pub for_shares: u64,
+    pub executed: bool,
+
+    #[max_len(MAX_MANDATE_NAME_LEN)]
+    pub name: String,
+    #[max_len(MAX_MANDATE_DESCRIPTION_LEN)]
+    pub description: String,
+    pub max_weight_per_asset_bps: u16,
+    pub max_pre_ipo_weight_bps: u16,
+    pub max_issuer_weight_bps: u16,
+    pub max_underlying_weight_bps: u16,
+    pub max_supply_consumption_bps: u16,
+    pub max_price_impact_bps: u16,
+    pub min_contribution_usdc: u64,
+    pub max_pool_size_usdc: u64,
+    pub epoch_duration: i64,
+    pub membership_policy: MembershipPolicy,
+    pub amendment_threshold_bps: u16,
+    pub amendment_delay_seconds: i64,
+    pub bump: u8,
+}
+
+/// One vote per proposal/member. A separate PDA makes double voting
+/// structurally impossible without growing the proposal account.
+#[account]
+#[derive(InitSpace)]
+pub struct AmendmentVote {
+    pub proposal: Pubkey,
+    pub voter: Pubkey,
+    pub shares: u64,
+    pub support: bool,
+    pub bump: u8,
+}
+
 // ---------------------------------------------------------------- circle
 
 /// Pooled capital governed by one Mandate.
@@ -427,6 +477,8 @@ mod tests {
             ("AssetRegistryEntry", AssetRegistryEntry::DISCRIMINATOR, AssetRegistryEntry::INIT_SPACE),
             ("Mandate", Mandate::DISCRIMINATOR, Mandate::INIT_SPACE),
             ("MandateAsset", MandateAsset::DISCRIMINATOR, MandateAsset::INIT_SPACE),
+            ("AmendmentProposal", AmendmentProposal::DISCRIMINATOR, AmendmentProposal::INIT_SPACE),
+            ("AmendmentVote", AmendmentVote::DISCRIMINATOR, AmendmentVote::INIT_SPACE),
             ("Circle", Circle::DISCRIMINATOR, Circle::INIT_SPACE),
             ("CircleAsset", CircleAsset::DISCRIMINATOR, CircleAsset::INIT_SPACE),
             ("Member", Member::DISCRIMINATOR, Member::INIT_SPACE),

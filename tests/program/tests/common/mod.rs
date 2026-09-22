@@ -364,6 +364,77 @@ pub fn register_fixture(e: &mut Env, symbol: &str, class: tenet::state::AssetCla
     mint
 }
 
+// ---------------------------------------------------------------- amendments
+
+pub fn propose_amendment_ix(
+    proposer: &Pubkey,
+    mandate: &Pubkey,
+    circle: &Pubkey,
+    proposal_id: u64,
+    params: tenet::MandateParams,
+) -> Instruction {
+    Instruction {
+        program_id: tenet::ID,
+        accounts: tenet::accounts::ProposeAmendment {
+            proposer: *proposer,
+            mandate: *mandate,
+            circle: *circle,
+            member: tenet::pda::member(circle, proposer).0,
+            proposal: tenet::pda::amendment(mandate, proposal_id).0,
+            system_program: system_program(),
+        }
+        .to_account_metas(None),
+        data: tenet::instruction::ProposeAmendment {
+            proposal_id,
+            params,
+        }
+        .data(),
+    }
+}
+
+pub fn vote_amendment_ix(
+    voter: &Pubkey,
+    mandate: &Pubkey,
+    circle: &Pubkey,
+    proposal_id: u64,
+    support: bool,
+) -> Instruction {
+    let proposal = tenet::pda::amendment(mandate, proposal_id).0;
+    Instruction {
+        program_id: tenet::ID,
+        accounts: tenet::accounts::VoteAmendment {
+            voter: *voter,
+            proposal,
+            mandate: *mandate,
+            circle: *circle,
+            member: tenet::pda::member(circle, voter).0,
+            vote: tenet::pda::amendment_vote(&proposal, voter).0,
+            system_program: system_program(),
+        }
+        .to_account_metas(None),
+        data: tenet::instruction::VoteAmendment { support }.data(),
+    }
+}
+
+pub fn execute_amendment_ix(
+    executor: &Pubkey,
+    mandate: &Pubkey,
+    circle: &Pubkey,
+    proposal_id: u64,
+) -> Instruction {
+    Instruction {
+        program_id: tenet::ID,
+        accounts: tenet::accounts::ExecuteAmendment {
+            executor: *executor,
+            proposal: tenet::pda::amendment(mandate, proposal_id).0,
+            mandate: *mandate,
+            circle: *circle,
+        }
+        .to_account_metas(None),
+        data: tenet::instruction::ExecuteAmendment {}.data(),
+    }
+}
+
 // ---------------------------------------------------------------- circle
 
 pub fn create_circle_ix(creator: &Pubkey, mandate: &Pubkey, usdc_mint: &Pubkey, token_program: &Pubkey) -> Instruction {

@@ -26,6 +26,8 @@ pub const NAV_SNAPSHOT_SEED: &[u8] = b"nav_snapshot";
 pub const REDEMPTION_SEED: &[u8] = b"redemption";
 pub const REDEMPTION_ASSET_SEED: &[u8] = b"redemption_asset";
 pub const EXEC_AUTH_SEED: &[u8] = b"exec_auth";
+pub const AMENDMENT_SEED: &[u8] = b"amendment";
+pub const AMENDMENT_VOTE_SEED: &[u8] = b"amendment_vote";
 
 /// Jupiter's current aggregator program, verified in V-020. The execution
 /// window accepts only this program between `begin_execution` and

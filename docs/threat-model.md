@@ -4,10 +4,11 @@
 
 Tenet holds real user funds. Each risk below names a concrete failure, the invariant that must hold, the mitigation, the **residual** risk that remains after mitigation, and the test that proves it.
 
-**Implementation status (2026-09-21):** this register covers the target
-architecture. Risks for absent execution, oracle, Fork, amendment and
-automatic-contribution instructions are design requirements, not claims that
-the current devnet program already mitigates them.
+**Implementation status (2026-09-22):** this register covers the target
+architecture. The current devnet program now includes Fork and amendment
+instructions with artifact-level tests. Execution remains fail-closed pending
+target pricing/route verification, and automatic-contribution authorization
+is still a design requirement rather than a shipped capability.
 
 Severity is `impact × reachability`. "Residual" is what is still true after we have done everything we can — several residuals are irreducible and must be *disclosed* rather than claimed away.
 

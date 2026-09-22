@@ -164,7 +164,7 @@ Not yet deployed. Upgrade-authority policy must be resolved first (Trust assumpt
 
 ## Future work
 
-Amendments · automatic contributions · richer corporate-action automation · fork visual diff · discovery filters. The safe source-level Fork path is now present; deployment/IDL regeneration and the visual diff remain deferred until the toolchain and remaining core mechanics are ready.
+Amendments · automatic contributions · richer corporate-action automation · fork visual diff · discovery filters. The safe Fork path and amendment governance are now present in the rebuilt program/IDL; automatic contributions remain gated until a real revocable authorization path is verified.
 
 ## Third-party data
 

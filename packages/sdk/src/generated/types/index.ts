@@ -10,6 +10,7 @@ export * from './assetClass';
 export * from './assetStatus';
 export * from './circleState';
 export * from './epochState';
+export * from './mandateParams';
 export * from './mandateState';
 export * from './membershipPolicy';
 export * from './priceFeedMessage';

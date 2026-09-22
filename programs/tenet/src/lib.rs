@@ -103,6 +103,24 @@ pub mod tenet {
         instructions::mandate::finalize_handler(ctx)
     }
 
+    // ---- amendment governance ---------------------------------------------
+
+    pub fn propose_amendment(
+        ctx: Context<ProposeAmendment>,
+        proposal_id: u64,
+        params: MandateParams,
+    ) -> Result<()> {
+        instructions::amendment::propose_handler(ctx, proposal_id, params)
+    }
+
+    pub fn vote_amendment(ctx: Context<VoteAmendment>, support: bool) -> Result<()> {
+        instructions::amendment::vote_handler(ctx, support)
+    }
+
+    pub fn execute_amendment(ctx: Context<ExecuteAmendment>) -> Result<()> {
+        instructions::amendment::execute_handler(ctx)
+    }
+
     // ---- circle -------------------------------------------------------------
 
     pub fn create_circle(ctx: Context<CreateCircle>) -> Result<()> {

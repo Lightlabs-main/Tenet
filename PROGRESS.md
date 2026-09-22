@@ -24,7 +24,7 @@ Needs correction:
 Needs implementation:
 - Verified public-equity EXECUTE and Pyth-backed VALUE.
 - PreStocks market-vs-mark execution/value/corporate-action surfaces.
-- Fork IDL/deploy regeneration and amendment governance.
+- Consumer-facing amendment UI and proposal history.
 - Optional automatic contribution rail, starting with one real recurring path only after its Solana authorization behavior is verified.
 
 Latest VALUE increment:
@@ -50,6 +50,14 @@ Latest VALUE increment:
   account/feed verification and Anchor compatibility.
 
 Latest implementation increment:
+- Added amendment governance with `AmendmentProposal` and `AmendmentVote`
+  PDAs, complete constitution snapshots, settled-share voting, current-delay
+  execution, checked `u128` threshold arithmetic, and explicit invalidation
+  when the Circle share total or exit state changes.
+- Regenerated the Anchor IDL/Codama SDK from the rebuilt artifact and added
+  checked SDK builders. The remote LiteSVM suite now passes **54/54**,
+  including the three amendment tests; Rust unit tests pass **25/25** and SDK
+  client/PDA tests pass **12/12**.
 - Added source-level `fork_mandate` and `fork_mandate_asset` instructions.
 - Forks copy constitution fields and dedicated asset rules into a new child
   Mandate, bind the child to the forker, preserve parent immutability, and
@@ -99,7 +107,7 @@ Adversarial audit recorded in [REVIEW.md](REVIEW.md). No production sign-off.
 
 Open high-severity gates:
 - H-03: corrected in the domain model and on-chain `NavSnapshot`; rolling issuance still requires current verified feeds and refreshed metadata.
-- H-04: EXECUTE, amendments and automatic contributions remain absent from the program/IDL; the IDL now matches the current source and Fork/live metadata refresh are artifact-tested remotely.
+- H-04: EXECUTE remains fail-closed pending target pricing/route verification; amendment governance is implemented and artifact-tested, while automatic contributions remain absent until a real revocable authorization path is verified.
 - H-05: source-level registry live-fact refresh now reads supply, multiplier, fee and issuer-control observations; fresh artifact testing passed, while extension-specific production integration remains a gate.
 - H-06: upgrade-authority policy is unresolved for production.
 

@@ -66,6 +66,8 @@ fn rust_derivations_match_the_sdk_seed_builders() {
             "redemption" => pda::redemption(&key(a, 0), &key(a, 1), int(a, 2)),
             "redemption_asset" => pda::redemption_asset(&key(a, 0), &key(a, 1)),
             "exec_auth" => pda::exec_auth(&key(a, 0), &key(a, 1), int(a, 2)),
+            "amendment" => pda::amendment(&key(a, 0), int(a, 1)),
+            "amendment_vote" => pda::amendment_vote(&key(a, 0), &key(a, 1)),
             other => panic!("vector {i}: unknown derivation {other}"),
         };
         let want_addr = v["address"].as_str().unwrap();

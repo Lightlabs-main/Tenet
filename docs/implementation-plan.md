@@ -149,7 +149,14 @@ Live NAV · holdings · member position · Pyth divergence (tokenized vs underly
 
 ## Phase 8 — Amendments
 
-Only after POOL, EXECUTE, VALUE, EXIT and FORK work safely. The attack table in `docs/instructions.md §7` is defended **before** any voting code is written. If time runs short, amendments are deferred — **not faked, and not removed from the architecture** (spec §39).
+The program implementation is now present after POOL, EXIT and FORK artifact
+coverage. `propose_amendment`, `vote_amendment` and `execute_amendment` use
+bounded proposal/vote PDAs, settled Member shares, a share-total snapshot and
+the current Mandate delay. The proposal is invalidated by any share-total or
+reserved-exit change, which keeps the electorate stable without adding a
+permission gate to exit. The generated IDL/SDK and remote LiteSVM tests are
+current. Remaining work is consumer UI and the broader EXECUTE/VALUE release
+gate, not a simulated governance path.
 
 ---
 

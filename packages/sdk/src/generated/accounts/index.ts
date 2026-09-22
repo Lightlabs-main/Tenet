@@ -6,6 +6,8 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './amendmentProposal';
+export * from './amendmentVote';
 export * from './assetRegistryEntry';
 export * from './circle';
 export * from './circleAsset';

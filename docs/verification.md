@@ -1039,7 +1039,7 @@ solana_version = "4.1.2"    # pin explicitly — Anchor otherwise infers it
 - **Network:** authorized Qevor VPS build environment; no deployment or transaction
 - **Source:** repository `programs/tenet/src/instructions/valuation.rs`, `epoch.rs`, and `execution.rs`; Pyth Receiver SDK 2.0.0
 - **Request/account:** Anchor IDL/build plus Rust unit and LiteSVM integration suites
-- **Observed result:** `open_nav_snapshot`, `record_asset_nav`, `cancel_epoch`, and rolling `finalize_epoch` compile; 25 Rust unit tests and 51 program tests pass. The generated IDL exposes optional snapshot accounts for Epoch 0 and required rolling behavior in the handler.
+- **Observed result:** `open_nav_snapshot`, `record_asset_nav`, `cancel_epoch`, rolling `finalize_epoch`, and amendment governance compile; 25 Rust unit tests and 54 program tests pass. The generated IDL exposes optional snapshot accounts for Epoch 0, required rolling behavior in the handler, and the proposal/vote/execute amendment surface.
 - **Slot where relevant:** live slot is read at snapshot open/record/finalize; no live slot was claimed in this build record
 - **Conclusion:** on-chain NAV admission is implemented with registry-bound Pyth freshness/confidence checks, raw vault balances, reserved-claim exclusion, bitmap de-duplication, and refreshed multiplier metadata. Production execution remains gated pending live target-feed and controlled Jupiter-route verification.
 - **Code depending on it:** rolling epoch finalization, `packages/sdk` generated instruction bindings, and the consumer dashboard's staged execution/value status.

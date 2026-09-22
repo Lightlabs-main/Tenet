@@ -15,13 +15,19 @@
 import {
   getContributeInstructionAsync,
   getCreateMandateInstructionAsync,
+  getExecuteAmendmentInstructionAsync,
   getInitiateRedemptionInstructionAsync,
   getOpenEpochInstructionAsync,
+  getProposeAmendmentInstructionAsync,
+  getVoteAmendmentInstructionAsync,
   type ContributeAsyncInput,
   type CreateMandateAsyncInput,
   type InitiateRedemptionAsyncInput,
+  type ProposeAmendmentAsyncInput,
   type OpenEpochAsyncInput,
+  type VoteAmendmentAsyncInput,
 } from "./generated/index";
+import type { MandateParamsArgs } from "./generated/types";
 
 // Account decoders, errors, PDAs, program metadata and enums are data-only
 // exports. Amount-bearing instruction builders are exposed only through the
@@ -62,6 +68,10 @@ export {
   getInitializeConfigInstructionAsync,
   getOpenNavSnapshotInstruction,
   getOpenNavSnapshotInstructionAsync,
+  getExecuteAmendmentInstruction,
+  getExecuteAmendmentInstructionAsync,
+  getProposeAmendmentInstruction,
+  getProposeAmendmentInstructionAsync,
   getRecordAssetNavInstruction,
   getRecordAssetNavInstructionAsync,
   getReserveRedemptionAssetInstruction,
@@ -70,6 +80,8 @@ export {
   getSettleContributionInstruction,
   getUpsertRegistryEntryInstruction,
   getUpsertRegistryEntryInstructionAsync,
+  getVoteAmendmentInstruction,
+  getVoteAmendmentInstructionAsync,
 } from "./generated/instructions/index";
 
 export type {
@@ -77,6 +89,8 @@ export type {
   CreateMandateAsyncInput,
   InitiateRedemptionAsyncInput,
   OpenEpochAsyncInput,
+  ProposeAmendmentAsyncInput,
+  VoteAmendmentAsyncInput,
 } from "./generated/instructions/index";
 export { PROGRAM_ID, SEED, seeds, u64le } from "./pda";
 
@@ -118,17 +132,67 @@ export function openEpoch(input: WithBigint<OpenEpochAsyncInput, "index">) {
   return getOpenEpochInstructionAsync({ ...input, index: u64(input.index, "index") });
 }
 
+type MandateParamsInput = Omit<
+  MandateParamsArgs,
+  "minContributionUsdc" | "maxPoolSizeUsdc" | "epochDuration" | "amendmentDelaySeconds"
+> & {
+  minContributionUsdc: bigint;
+  maxPoolSizeUsdc: bigint;
+  epochDuration: bigint;
+  amendmentDelaySeconds: bigint;
+};
+
 export function createMandate(
-  input: WithBigint<
-    CreateMandateAsyncInput,
-    "minContributionUsdc" | "maxPoolSizeUsdc" | "epochDuration" | "amendmentDelaySeconds"
-  >,
+  input: Omit<CreateMandateAsyncInput, "params"> & MandateParamsInput,
 ) {
   return getCreateMandateInstructionAsync({
-    ...input,
-    minContributionUsdc: u64(input.minContributionUsdc, "minContributionUsdc"),
-    maxPoolSizeUsdc: u64(input.maxPoolSizeUsdc, "maxPoolSizeUsdc"),
-    epochDuration: i64(input.epochDuration, "epochDuration"),
-    amendmentDelaySeconds: i64(input.amendmentDelaySeconds, "amendmentDelaySeconds"),
+    author: input.author,
+    mandateSeed: input.mandateSeed,
+    mandate: input.mandate,
+    systemProgram: input.systemProgram,
+    params: {
+      name: input.name,
+      description: input.description,
+      maxWeightPerAssetBps: input.maxWeightPerAssetBps,
+      maxPreIpoWeightBps: input.maxPreIpoWeightBps,
+      maxIssuerWeightBps: input.maxIssuerWeightBps,
+      maxUnderlyingWeightBps: input.maxUnderlyingWeightBps,
+      maxSupplyConsumptionBps: input.maxSupplyConsumptionBps,
+      maxPriceImpactBps: input.maxPriceImpactBps,
+      minContributionUsdc: u64(input.minContributionUsdc, "minContributionUsdc"),
+      maxPoolSizeUsdc: u64(input.maxPoolSizeUsdc, "maxPoolSizeUsdc"),
+      epochDuration: i64(input.epochDuration, "epochDuration"),
+      membershipPolicy: input.membershipPolicy,
+      amendmentThresholdBps: input.amendmentThresholdBps,
+      amendmentDelaySeconds: i64(input.amendmentDelaySeconds, "amendmentDelaySeconds"),
+    },
   });
+}
+
+/** Propose a Mandate change without allowing numeric money fields to lose precision. */
+export function proposeAmendment(
+  input: Omit<ProposeAmendmentAsyncInput, "proposalId" | "params"> & {
+    proposalId: bigint;
+    params: MandateParamsInput;
+  },
+) {
+  return getProposeAmendmentInstructionAsync({
+    ...input,
+    proposalId: u64(input.proposalId, "proposalId"),
+    params: {
+      ...input.params,
+      minContributionUsdc: u64(input.params.minContributionUsdc, "params.minContributionUsdc"),
+      maxPoolSizeUsdc: u64(input.params.maxPoolSizeUsdc, "params.maxPoolSizeUsdc"),
+      epochDuration: i64(input.params.epochDuration, "params.epochDuration"),
+      amendmentDelaySeconds: i64(input.params.amendmentDelaySeconds, "params.amendmentDelaySeconds"),
+    },
+  });
+}
+
+export function voteAmendment(input: VoteAmendmentAsyncInput) {
+  return getVoteAmendmentInstructionAsync(input);
+}
+
+export function executeAmendment(input: Parameters<typeof getExecuteAmendmentInstructionAsync>[0]) {
+  return getExecuteAmendmentInstructionAsync(input);
 }

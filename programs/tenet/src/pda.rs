@@ -102,3 +102,13 @@ pub fn redemption_asset(redemption: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
 pub fn exec_auth(circle: &Pubkey, epoch: &Pubkey, nonce: u64) -> (Pubkey, u8) {
     find(&[EXEC_AUTH_SEED, circle.as_ref(), epoch.as_ref(), &nonce.to_le_bytes()])
 }
+
+/// One governance proposal per caller-chosen id. The id is explicit so the
+/// fixed Mandate account never grows a proposal list.
+pub fn amendment(mandate: &Pubkey, proposal_id: u64) -> (Pubkey, u8) {
+    find(&[AMENDMENT_SEED, mandate.as_ref(), &proposal_id.to_le_bytes()])
+}
+
+pub fn amendment_vote(proposal: &Pubkey, voter: &Pubkey) -> (Pubkey, u8) {
+    find(&[AMENDMENT_VOTE_SEED, proposal.as_ref(), voter.as_ref()])
+}
