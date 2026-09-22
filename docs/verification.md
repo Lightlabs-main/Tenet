@@ -1033,6 +1033,18 @@ solana_version = "4.1.2"    # pin explicitly — Anchor otherwise infers it
 | V-017 | Multipliers are non-integer decimals; 2 of 8 assets carry the naive-read trap |
 | V-018 | `res.json()` silently corrupts u64 values above 2^53 — banned codebase-wide |
 | V-019 | All 8 PreStocks assets routable; issuer controls uniform across the universe |
+
+## Credentialed replay after verifier environment fix — 2026-09-22T17:12:02Z
+
+| field | observation |
+|---|---|
+| Timestamp | `2026-09-22T17:12:02Z` |
+| Network | Solana mainnet-beta; observed slot `449442471` |
+| Source | `scripts/verify-integrations.ts` on the authorized Qevor VPS, loading `/opt/tenet/.env` without printing secret values |
+| Request/account | Live PreStocks endpoint; authenticated Pyth Hermes; Jupiter Swap V2 `/order` and `/build` |
+| Observed result | **67 checks, 0 blocking failures, 3 warnings**. Eight assets were dynamically discovered; Token-2022 controls, raw supply reconciliation, and effective multipliers passed. Authenticated Pyth Hermes replay passed. Jupiter v2 Router `/build` passed for all eight assets. Three route observations were rate-limited with HTTP 429. |
+| Conclusion | The verifier's prior “missing credentials” result was an environment-loading defect and is corrected. API-level evidence is now current; V-007 remains open for target tokenized-equity feed IDs/layout, and V-008 remains open for the current Jupiter on-chain program/CPI/account contract and a controlled vault-delta transaction. |
+| Code depending on it | `.env` loader in `scripts/verify-integrations.ts`; no production execution instruction was enabled. |
 ## On-chain NAV snapshot build — 2026-09-22T16:00:00+01:00
 
 - **Timestamp:** 2026-09-22T16:00:00+01:00

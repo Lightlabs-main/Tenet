@@ -613,3 +613,10 @@ Full register in [docs/threat-model.md](docs/threat-model.md).
 - Kept `test_execution_window_is_fail_closed` fail-closed: LiteSVM does not load the real Jupiter program, so the fixture does not pretend a Jupiter route is executable.
 - VPS `cargo test --manifest-path tests/program/Cargo.toml -- --test-threads=1`: **55 passed, 0 failed**.
 - No mainnet transaction, signer, funded swap, or production execution enablement was performed.
+
+## INTEGRATION VERIFIER ENVIRONMENT FIX — 2026-09-22
+
+- Confirmed the authorized VPS already contains `JUPITER_API_KEY` and `PYTH_API_KEY` in `/opt/tenet/.env`; the prior warning came from the verifier not loading `.env`.
+- Updated `scripts/verify-integrations.ts` with a minimal non-executing `.env` loader. Explicitly exported variables still take precedence, and secret values are never logged.
+- Credentialed read-only replay: **67 checks, 0 blocking failures, 3 warnings**. Pyth Hermes authentication passed; Jupiter v2 Router `/build` passed for all 8 dynamically discovered PreStocks assets.
+- Remaining release gates are target-asset Pyth feed binding, current Jupiter on-chain program/CPI/account verification, and controlled vault-delta evidence. No swap or signer was used.

@@ -349,6 +349,13 @@ These are the design's soft spots. Each must be closed before the dependent code
 - VPS program suite passed **55/55** after the regression addition.
 - Release remains blocked on verified target Pyth feeds and a controlled Jupiter route with actual vault-delta evidence. No production sign-off.
 
+## Latest integration evidence — 2026-09-22
+
+- The verifier now loads the existing VPS `.env` without exposing secrets; the previous missing-key warning was a harness defect, not evidence that the credentials were absent.
+- Credentialed read-only replay passed **67/67 checks with 0 blocking failures and 3 warnings**. Pyth Hermes authentication passed, and Jupiter v2 Router `/build` passed for all eight discovered PreStocks assets.
+- The three warnings are HTTP 429 route observations for OpenAI, Polymarket, and SpaceX. They do not authorize execution.
+- V-007 and V-008 remain open for target feed binding/layout, the current Jupiter on-chain program/CPI/account contract, and a controlled Token-2022 vault-delta transaction.
+
 Worked in this order as code lands (mirrors `docs/threat-model.md`, highest value first):
 
 1. Fix and re-test H-03: reserved-NAV rolling issuance.
