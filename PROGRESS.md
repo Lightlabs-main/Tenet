@@ -620,3 +620,14 @@ Full register in [docs/threat-model.md](docs/threat-model.md).
 - Updated `scripts/verify-integrations.ts` with a minimal non-executing `.env` loader. Explicitly exported variables still take precedence, and secret values are never logged.
 - Credentialed read-only replay: **67 checks, 0 blocking failures, 3 warnings**. Pyth Hermes authentication passed; Jupiter v2 Router `/build` passed for all 8 dynamically discovered PreStocks assets.
 - Remaining release gates are target-asset Pyth feed binding, current Jupiter on-chain program/CPI/account verification, and controlled vault-delta evidence. No swap or signer was used.
+- The three warnings are HTTP 429 route observations for OpenAI, Polymarket, and SpaceX. They do not authorize execution.
+- V-007 and V-008 remain open for target feed binding/layout, the current Jupiter on-chain program/CPI/account contract, and a controlled Token-2022 vault-delta transaction.
+
+## UI REFERENCE / WORKSPACE PASS — 2026-09-22
+
+- Classified 18 supplied reference PNGs as 11 unique references across light/dark landing, dashboard, Explore, Circle detail, Mandate/Fork, mobile, and the design system. Exact duplicates remain preserved in the repository.
+- Added [docs/ui-reference-map.md](docs/ui-reference-map.md) with the source-to-screen map and the rule that illustrative screenshot values must never enter production data paths.
+- Replaced the old jade/black visual foundation with shared Inkberry, Deep Plum, Peach, Warm Mist, positive, negative, market-data, warning, and neutral semantic tokens. Added persisted System / Light / Dark selection without changing financial logic.
+- Added a responsive desktop Circle workspace rail and a live-data-only Explore surface. Explore renders the loaded on-chain Circle and clearly reports when directory indexing or performance data is unavailable; it does not fabricate discovery results.
+- Browser validation passed on a clean Vite preview at `http://127.0.0.1:5175/`: light mode, Circle workspace, Explore navigation, devnet notice, and unavailable-price states rendered correctly. The old 5173 process had a stale Vite module graph and was not used as validation evidence.
+- Web TypeScript check, Vite production build, money-lint, domain/PDA suite (**48 passed, 0 failed**), and SDK generation check pass. The local SDK client test command remains environment-blocked because the workspace root has no resolvable `tsx` package; no source failure was inferred from that missing dependency.

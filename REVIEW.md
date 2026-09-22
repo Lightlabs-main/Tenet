@@ -356,6 +356,14 @@ These are the design's soft spots. Each must be closed before the dependent code
 - The three warnings are HTTP 429 route observations for OpenAI, Polymarket, and SpaceX. They do not authorize execution.
 - V-007 and V-008 remain open for target feed binding/layout, the current Jupiter on-chain program/CPI/account contract, and a controlled Token-2022 vault-delta transaction.
 
+## Latest UI review — 2026-09-22
+
+- The supplied visual references are mapped in `docs/ui-reference-map.md`; 18 files were classified as 11 unique references. Screenshot-only values were not copied into runtime data.
+- Light mode and the persisted theme selector were checked in a clean browser preview. Dark-mode tokens remain available through the same semantic token system.
+- Desktop workspace rail and Explore surface were checked against the reference direction. Explore is explicitly live-data-only and reports the missing directory/indexer rather than presenting fabricated cards or performance.
+- Circle workspace still renders real devnet account state, exact raw quantities, unavailable pricing notices, contribution automation as manual-only until authorization is verified, and the existing exit/fork safeguards.
+- Local web typecheck, production build, money-lint, and domain/PDA tests passed. SDK generation is current; the local SDK client test invocation is blocked only by the missing root `tsx` dependency.
+
 Worked in this order as code lands (mirrors `docs/threat-model.md`, highest value first):
 
 1. Fix and re-test H-03: reserved-NAV rolling issuance.
