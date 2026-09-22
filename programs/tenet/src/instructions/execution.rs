@@ -203,6 +203,7 @@ pub struct BeginExecution<'info> {
         bump = epoch.bump,
         constraint = epoch.circle == circle.key() @ TenetError::AccountSubstitution,
         constraint = epoch.state == crate::state::EpochState::Completed @ TenetError::EpochNotFinalized,
+        constraint = epoch.state == crate::state::EpochState::Completed @ TenetError::EpochNotFinalized,
     )]
     pub epoch: Box<Account<'info, Epoch>>,
 
@@ -282,11 +283,25 @@ pub fn begin_handler(
     min_out: u64,
     expires_at: i64,
 ) -> Result<()> {
-    let _ = nonce;
     require!(max_in > 0, TenetError::AboveMaximumInput);
     require!(min_out > 0, TenetError::BelowMinimumOutput);
     require!(expires_at >= Clock::get()?.unix_timestamp, TenetError::AuthorizationExpired);
     require!(ctx.accounts.source_vault.delegate.is_none(), TenetError::ExistingVaultDelegate);
+    require_keys_eq!(
+        ctx.accounts.source_vault.owner,
+        ctx.accounts.vault_authority.key(),
+        TenetError::AccountSubstitution,
+    );
+    require_keys_eq!(
+        ctx.accounts.dest_vault.owner,
+        ctx.accounts.vault_authority.key(),
+        TenetError::AccountSubstitution,
+    );
+    require_keys_eq!(
+        ctx.accounts.circle_asset_out.token_program,
+        *ctx.accounts.dest_vault.to_account_info().owner,
+        TenetError::TokenProgramMismatch,
+    );
 
     let available = ctx
         .accounts
@@ -296,6 +311,20 @@ pub fn begin_handler(
         .ok_or(TenetError::InsufficientUnreservedBalance)?;
     require!(max_in <= available, TenetError::InsufficientUnreservedBalance);
     validate_jupiter_window(&ctx.accounts.instructions_sysvar.to_account_info())?;
+
+    let auth = &mut ctx.accounts.execution_auth;
+    auth.circle = ctx.accounts.circle.key();
+    auth.epoch = ctx.accounts.epoch.key();
+    auth.nonce = nonce;
+    auth.executor = ctx.accounts.executor.key();
+    auth.in_mint = ctx.accounts.in_mint.key();
+    auth.out_mint = ctx.accounts.out_mint.key();
+    auth.max_in = max_in;
+    auth.min_out = min_out;
+    auth.pre_in_balance = ctx.accounts.source_vault.amount;
+    auth.pre_out_balance = ctx.accounts.dest_vault.amount;
+    auth.expires_at = expires_at;
+    auth.bump = ctx.bumps.execution_auth;
 
     // Until verified price observations are wired into the instruction, do not
     // authorize a production swap. This keeps the new boundary present in the
@@ -333,6 +362,7 @@ pub struct EndExecution<'info> {
         seeds = [EPOCH_SEED, circle.key().as_ref(), epoch.index.to_le_bytes().as_ref()],
         bump = epoch.bump,
         constraint = epoch.circle == circle.key() @ TenetError::AccountSubstitution,
+        constraint = epoch.state == crate::state::EpochState::Completed @ TenetError::EpochNotFinalized,
     )]
     pub epoch: Box<Account<'info, Epoch>>,
 
@@ -363,7 +393,6 @@ pub struct EndExecution<'info> {
         mut,
         seeds = [USDC_VAULT_SEED, circle.key().as_ref()],
         bump,
-        address = execution_auth.in_mint @ TenetError::MintMismatch,
     )]
     pub source_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -372,6 +401,7 @@ pub struct EndExecution<'info> {
         bump = circle_asset_out.bump,
         constraint = circle_asset_out.circle == circle.key() @ TenetError::AccountSubstitution,
         constraint = circle_asset_out.mint == execution_auth.out_mint @ TenetError::MintMismatch,
+        constraint = circle_asset_out.status == AssetStatus::Active @ TenetError::RegistryEntryInactive,
     )]
     pub circle_asset_out: Box<Account<'info, CircleAsset>>,
 
@@ -401,6 +431,11 @@ pub fn end_handler(ctx: Context<EndExecution>) -> Result<()> {
     require_keys_eq!(
         ctx.accounts.registry_entry.token_program,
         *ctx.accounts.out_mint.to_account_info().owner,
+        TenetError::TokenProgramMismatch,
+    );
+    require_keys_eq!(
+        ctx.accounts.circle_asset_out.token_program,
+        *ctx.accounts.dest_vault.to_account_info().owner,
         TenetError::TokenProgramMismatch,
     );
 

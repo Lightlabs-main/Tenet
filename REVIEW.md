@@ -59,7 +59,7 @@ evidence  target/idl/tenet.json instruction list
 status    RELEASE BLOCKER — not an exploit in the implemented Epoch 0 path
 ```
 
-The program source now also exports `fork_mandate`, `fork_mandate_asset`, `refresh_asset_metadata`, `propose_amendment`, `vote_amendment` and `execute_amendment`; the generated IDL and deployable artifact were regenerated and checked on the VPS. The source includes a structural `begin_execution` / `end_execution` boundary with Jupiter-window and raw vault-delta checks, plus a verified Pyth admission and on-chain NAV snapshot path. `begin_execution` still intentionally fails closed before price-dependent execution. Automatic contribution authorization remains incomplete. The committed IDL correctly describes the current source and does not invent absent capabilities.
+The program source now also exports `fork_mandate`, `fork_mandate_asset`, `refresh_asset_metadata`, `propose_amendment`, `vote_amendment` and `execute_amendment`; the generated IDL and deployable artifact were regenerated and checked on the VPS. The source includes a structural `begin_execution` / `end_execution` boundary with Jupiter-window and raw vault-delta checks, plus a verified Pyth admission and on-chain NAV snapshot path. The execution boundary now derives the Circle USDC vault correctly, binds vault owners and stored token programs, and snapshots replay authorization fields before the price-policy gate. `begin_execution` still intentionally fails closed before price-dependent execution. Automatic contribution authorization remains incomplete. The committed IDL correctly describes the current source and does not invent absent capabilities.
 
 **Impact.** The repository cannot honestly be deployed or presented as the complete `POOL → EXECUTE → VALUE → EXIT → FORK` product. The missing paths are not safe to infer from the design docs or generated error names.
 
@@ -286,6 +286,7 @@ Latest continuation evidence (2026-09-22):
 - VPS `cargo test -p tenet --lib` — 25/25 passed.
 - VPS `cargo test --manifest-path tests/program/Cargo.toml -- --test-threads=1` — 54/54 passed.
 - Local SDK client/PDA suite — 12/12 passed under the supported package `tsx` runner.
+- Web TypeScript check — passed after the execution-boundary source update.
 
 Not reproducible here:
 

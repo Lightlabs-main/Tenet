@@ -50,6 +50,15 @@ Latest VALUE increment:
   account/feed verification and Anchor compatibility.
 
 Latest implementation increment:
+- Corrected the EXECUTE boundary's source-vault binding: `end_execution` now
+  derives the Circle USDC vault instead of incorrectly comparing its address
+  to the USDC mint. Begin/end also bind vault owners, stored token programs,
+  completed Epoch state, and populate the replay authorization snapshot before
+  the price-policy gate.
+- Rebuilt the Anchor artifact and reran the complete LiteSVM suite: **54/54**
+  passed. The execution path remains deliberately fail-closed until target
+  Pyth feeds and a controlled Jupiter Token-2022 vault-delta route are
+  verified.
 - Added amendment governance with `AmendmentProposal` and `AmendmentVote`
   PDAs, complete constitution snapshots, settled-share voting, current-delay
   execution, checked `u128` threshold arithmetic, and explicit invalidation
