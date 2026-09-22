@@ -365,6 +365,7 @@ These are the design's soft spots. Each must be closed before the dependent code
 - Local web typecheck, production build, money-lint, and domain/PDA tests passed. SDK generation is current; the local SDK client test invocation is blocked only by the missing root `tsx` dependency.
 - Added a landing surface that states the collective-investing thesis and five mechanics without invented performance or private-share ownership language. Its only Circle card is populated from the live loaded account.
 - Added a dedicated Mandate inspection surface that reads caps, permitted assets, fork lineage, Epoch controls, membership, and amendment parameters from chain state. Fork navigation continues through the existing on-chain flow.
+- Added a persistent mobile primary tab bar with a safe-area inset and route-aware scrolling; the browser confirmed route navigation updates the selected surface and URL without retaining a stale section position. Desktop typecheck and build pass after the navigation change.
 - Browser inspection confirmed the development Circle's real Mandate values render. The production readiness caveats above remain unchanged.
 
 Worked in this order as code lands (mirrors `docs/threat-model.md`, highest value first):

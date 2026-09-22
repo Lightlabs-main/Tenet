@@ -33,6 +33,15 @@ function Shell() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const navigate = (next: Surface) => {
+    setSurface(next);
+    const targetId = next === "circle" ? "top" : next === "mandate" ? "mandate-detail" : next;
+    window.setTimeout(() => {
+      window.history.replaceState(null, "", `#${targetId}`);
+      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
+
   const reload = useCallback(async () => {
     if (!circle) return;
     setLoading(true);
@@ -67,7 +76,7 @@ function Shell() {
   return (
     <>
       <nav className="nav">
-        <button className="brand" type="button" onClick={() => setSurface("home")} aria-label="Tenet home">
+        <button className="brand" type="button" onClick={() => navigate("home")} aria-label="Tenet home">
           <div className="brand-mark">T</div>
           <div className="brand-copy">
             <span className="brand-name">Tenet</span>
@@ -99,9 +108,9 @@ function Shell() {
             <span>{surface === "home" ? "Pool capital around rules your group can inspect." : "Inspect the constitution, then decide how to participate."}</span>
           </div>
           <nav className="sidebar-nav" aria-label="Circle sections">
-            <a className={surface === "home" ? "active" : ""} href="#home" onClick={() => setSurface("home")}><span className="nav-icon">⌂</span>Home</a>
-            <a className={surface === "explore" ? "active" : ""} href="#explore" onClick={() => setSurface("explore")}><span className="nav-icon">⌕</span>Explore</a>
-            <a className={surface === "circle" ? "active" : ""} href="#circle" onClick={() => setSurface("circle")}><span className="nav-icon">◈</span>My Circle</a>
+            <a className={surface === "home" ? "active" : ""} href="#home" onClick={(event) => { event.preventDefault(); navigate("home"); }}><span className="nav-icon">⌂</span>Home</a>
+            <a className={surface === "explore" ? "active" : ""} href="#explore" onClick={(event) => { event.preventDefault(); navigate("explore"); }}><span className="nav-icon">⌕</span>Explore</a>
+            <a className={surface === "circle" ? "active" : ""} href="#top" onClick={(event) => { event.preventDefault(); navigate("circle"); }}><span className="nav-icon">◈</span>My Circle</a>
             {surface === "circle" ? <>
               <a href="#holdings"><span className="nav-icon">◈</span>Holdings</a>
               <a href="#value"><span className="nav-icon">◒</span>Value</a>
@@ -110,7 +119,7 @@ function Shell() {
               <a href="#actions"><span className="nav-icon">↗</span>Exit</a>
               <a href="#fork"><span className="nav-icon">⑂</span>Fork</a>
             </> : null}
-            {view ? <a className={surface === "mandate" ? "active" : ""} href="#mandate-detail" onClick={() => setSurface("mandate")}><span className="nav-icon">≡</span>Mandate</a> : null}
+            {view ? <a className={surface === "mandate" ? "active" : ""} href="#mandate-detail" onClick={(event) => { event.preventDefault(); navigate("mandate"); }}><span className="nav-icon">≡</span>Mandate</a> : null}
           </nav>
           <div className="sidebar-bottom">
             <div className="sidebar-circle-label">OPEN CIRCLE</div>
@@ -129,12 +138,12 @@ function Shell() {
           </div> : null}
 
           {surface === "home" ? (
-            <LandingSurface view={view} onExplore={() => setSurface("explore")} onCircle={() => setSurface("circle")} />
+            <LandingSurface view={view} onExplore={() => navigate("explore")} onCircle={() => navigate("circle")} />
           ) : surface === "explore" ? (
-            <ExploreSurface view={view} onOpen={() => setSurface("circle")} />
+            <ExploreSurface view={view} onOpen={() => navigate("circle")} />
           ) : surface === "mandate" && view ? (
-            <MandateSurface view={view} onOpenCircle={() => setSurface("circle")} onFork={() => {
-              setSurface("circle");
+            <MandateSurface view={view} onOpenCircle={() => navigate("circle")} onFork={() => {
+              navigate("circle");
               window.setTimeout(() => document.getElementById("fork")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
             }} />
           ) : error ? (
@@ -148,10 +157,18 @@ function Shell() {
             <div className="card empty">{loading ? <><Spinner /> <p>Reading the Circle from devnet…</p></> : <p>Enter a Circle address above.</p>}</div>
           )}
         </main>
+        <nav className="mobile-nav" aria-label="Primary navigation">
+          <a className={surface === "home" ? "active" : ""} href="#home" onClick={(event) => { event.preventDefault(); navigate("home"); }}><span>⌂</span>Home</a>
+          <a className={surface === "explore" ? "active" : ""} href="#explore" onClick={(event) => { event.preventDefault(); navigate("explore"); }}><span>⌕</span>Explore</a>
+          <a className={surface === "circle" ? "active" : ""} href="#top" onClick={(event) => { event.preventDefault(); navigate("circle"); }}><span>◈</span>Circle</a>
+          {view ? <a className={surface === "mandate" ? "active" : ""} href="#mandate-detail" onClick={(event) => { event.preventDefault(); navigate("mandate"); }}><span>≡</span>Mandate</a> : null}
+        </nav>
       </div>
     </>
   );
 }
+
+type Surface = "home" | "circle" | "explore" | "mandate";
 
 function ExploreSurface({ view, onOpen }: { view: CircleView | null; onOpen: () => void }) {
   return (
