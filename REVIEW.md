@@ -363,6 +363,9 @@ These are the design's soft spots. Each must be closed before the dependent code
 - Desktop workspace rail and Explore surface were checked against the reference direction. Explore is explicitly live-data-only and reports the missing directory/indexer rather than presenting fabricated cards or performance.
 - Circle workspace still renders real devnet account state, exact raw quantities, unavailable pricing notices, contribution automation as manual-only until authorization is verified, and the existing exit/fork safeguards.
 - Local web typecheck, production build, money-lint, and domain/PDA tests passed. SDK generation is current; the local SDK client test invocation is blocked only by the missing root `tsx` dependency.
+- Added a landing surface that states the collective-investing thesis and five mechanics without invented performance or private-share ownership language. Its only Circle card is populated from the live loaded account.
+- Added a dedicated Mandate inspection surface that reads caps, permitted assets, fork lineage, Epoch controls, membership, and amendment parameters from chain state. Fork navigation continues through the existing on-chain flow.
+- Browser inspection confirmed the development Circle's real Mandate values render. The production readiness caveats above remain unchanged.
 
 Worked in this order as code lands (mirrors `docs/threat-model.md`, highest value first):
 
