@@ -606,3 +606,10 @@ Full register in [docs/threat-model.md](docs/threat-model.md).
 - Reworked the design tokens, workspace navigation, hero hierarchy, stat cards, spacing, contrast, and action-panel treatment for a more deliberate consumer investment UI.
 - Preserved all existing read-only/data-integrity language and did not add fabricated performance, prices, or execution affordances.
 - Verification: browser rendered the live devnet Circle with no console errors; web TypeScript, Vite production build, and `money-lint` passed.
+
+## EXECUTION PREFLIGHT REGRESSION — 2026-09-22
+
+- Added `test_end_execution_builder_binds_circle_usdc_vault` so the execution test surface explicitly guards the Circle-scoped USDC source-vault binding introduced in the corrected `EndExecution` account model.
+- Kept `test_execution_window_is_fail_closed` fail-closed: LiteSVM does not load the real Jupiter program, so the fixture does not pretend a Jupiter route is executable.
+- VPS `cargo test --manifest-path tests/program/Cargo.toml -- --test-threads=1`: **55 passed, 0 failed**.
+- No mainnet transaction, signer, funded swap, or production execution enablement was performed.

@@ -121,3 +121,27 @@ fn test_execution_window_is_fail_closed() {
         TenetError::IncompleteExecutionWindow,
     );
 }
+
+#[test]
+fn test_end_execution_builder_binds_circle_usdc_vault() {
+    let executor = Pubkey::new_unique();
+    let circle = Pubkey::new_unique();
+    let mandate = Pubkey::new_unique();
+    let mandate_asset = Pubkey::new_unique();
+    let epoch = Pubkey::new_unique();
+    let out_mint = Pubkey::new_unique();
+
+    let instruction = end_execution_ix(
+        &executor,
+        &circle,
+        &mandate,
+        &mandate_asset,
+        &epoch,
+        &out_mint,
+        7,
+    );
+
+    // EndExecution's source vault must remain Circle-scoped. It must never be
+    // derived from the user-provided input mint or execution authorization.
+    assert_eq!(instruction.accounts[10].pubkey, tenet::pda::usdc_vault(&circle).0);
+}

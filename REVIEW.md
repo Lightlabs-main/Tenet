@@ -342,6 +342,13 @@ These are the design's soft spots. Each must be closed before the dependent code
 
 ## Review queue
 
+## Latest execution-boundary review — 2026-09-22
+
+- The `EndExecution.source_vault` account is Circle-scoped through the canonical USDC-vault PDA seeds; it is no longer address-bound to the execution authorization's input mint.
+- `test_end_execution_builder_binds_circle_usdc_vault` guards this account relationship, while `test_execution_window_is_fail_closed` preserves the no-route fail-closed behavior in LiteSVM.
+- VPS program suite passed **55/55** after the regression addition.
+- Release remains blocked on verified target Pyth feeds and a controlled Jupiter route with actual vault-delta evidence. No production sign-off.
+
 Worked in this order as code lands (mirrors `docs/threat-model.md`, highest value first):
 
 1. Fix and re-test H-03: reserved-NAV rolling issuance.
