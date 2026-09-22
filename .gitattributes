@@ -1,0 +1,6 @@
+# LF everywhere. Shell scripts run inside WSL, where a CRLF line ending breaks
+# bash outright (`set: pipefail: invalid option name`). The repo lives on a
+# Windows drive, so without this a checkout with core.autocrlf would
+# reintroduce CRLF.
+* text=auto eol=lf
+*.sh text eol=lf

@@ -1,0 +1,11 @@
+node_modules/
+.pnpm-store/
+target/
+.env
+.anchor/
+dist/
+.next/
+*.log
+test-ledger/
+**/*.keypair.json
+.keys/

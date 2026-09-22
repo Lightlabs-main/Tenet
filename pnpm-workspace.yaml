@@ -1,0 +1,10 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "services/*"
+
+# Install scripts stay blocked by default (pnpm supply-chain protection).
+# esbuild (via tsx) is explicitly declined: its binary arrives through the
+# @esbuild/<platform> optional package, verified to work without the script.
+allowBuilds:
+  esbuild: false

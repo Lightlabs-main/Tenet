@@ -1,0 +1,5669 @@
+{
+  "address": "FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v",
+  "metadata": {
+    "name": "tenet",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Collectively owned portfolios of tokenized stocks, governed by an on-chain investment constitution."
+  },
+  "instructions": [
+    {
+      "name": "add_circle_asset",
+      "discriminator": [
+        140,
+        17,
+        61,
+        74,
+        14,
+        87,
+        40,
+        37
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate_asset",
+          "docs": [
+            "Bound to this Circle's Mandate by its stored `mandate` field; the account",
+            "type proves it is a genuine MandateAsset written by this program."
+          ]
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Token-2022 or classic — whichever owns this mint. Branch explicitly,",
+            "never assume (V-002)."
+          ]
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle_asset",
+          "docs": [
+            "Mint in the seed: a second vault for the same asset cannot exist."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "Sized from the mint's own extensions: Anchor asks Token-2022 which",
+            "account-side extensions this mint requires (transfer fee amount,",
+            "pausable, transfer hook, ...), so real PreStocks/xStocks mints work."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "add_mandate_asset",
+      "discriminator": [
+        179,
+        206,
+        218,
+        42,
+        140,
+        54,
+        45,
+        186
+      ],
+      "accounts": [
+        {
+          "name": "author",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "mandate"
+          ]
+        },
+        {
+          "name": "mandate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate_asset",
+          "docs": [
+            "Mint in the seed: a second add of the same mint fails because the",
+            "account already exists. Duplicates are impossible, not merely rejected."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              },
+              {
+                "kind": "account",
+                "path": "registry_entry.mint",
+                "account": "AssetRegistryEntry"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "registry_entry.mint",
+                "account": "AssetRegistryEntry"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "target_weight_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "begin_execution",
+      "discriminator": [
+        148,
+        246,
+        18,
+        188,
+        252,
+        93,
+        187,
+        14
+      ],
+      "accounts": [
+        {
+          "name": "executor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate_asset_out"
+        },
+        {
+          "name": "circle_asset_out",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "out_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "source_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dest_vault",
+          "writable": true
+        },
+        {
+          "name": "in_mint"
+        },
+        {
+          "name": "out_mint"
+        },
+        {
+          "name": "source_token_program"
+        },
+        {
+          "name": "dest_token_program"
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "execution_auth",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  99,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch"
+              },
+              {
+                "kind": "arg",
+                "path": "nonce"
+              }
+            ]
+          }
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "nonce",
+          "type": "u64"
+        },
+        {
+          "name": "max_in",
+          "type": "u64"
+        },
+        {
+          "name": "min_out",
+          "type": "u64"
+        },
+        {
+          "name": "expires_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "cancel_contribution",
+      "discriminator": [
+        184,
+        238,
+        88,
+        63,
+        152,
+        103,
+        17,
+        123
+      ],
+      "accounts": [
+        {
+          "name": "contributor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "receipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "epoch"
+              },
+              {
+                "kind": "account",
+                "path": "contributor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "contributor_usdc",
+          "docs": [
+            "Refund goes to an account the contributor controls, in USDC."
+          ],
+          "writable": true
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_epoch",
+      "discriminator": [
+        120,
+        226,
+        234,
+        25,
+        215,
+        85,
+        0,
+        155
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nav_snapshot",
+          "docs": [
+            "Optional because cancellation may happen before a snapshot is opened."
+          ],
+          "writable": true,
+          "optional": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_redemption_asset",
+      "discriminator": [
+        42,
+        7,
+        62,
+        186,
+        108,
+        134,
+        128,
+        184
+      ],
+      "accounts": [
+        {
+          "name": "member_owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "redemption",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "member_owner"
+              },
+              {
+                "kind": "account",
+                "path": "redemption.seq",
+                "account": "Redemption"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle_asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "circle_asset.mint",
+                "account": "CircleAsset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "redemption_asset",
+          "docs": [
+            "Closed on claim, rent to the member: a second claim finds no account."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "redemption"
+              },
+              {
+                "kind": "account",
+                "path": "circle_asset.mint",
+                "account": "CircleAsset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "token_program",
+          "docs": [
+            "Recorded at vault creation from the mint's owner; never assumed."
+          ]
+        },
+        {
+          "name": "member_token_account",
+          "docs": [
+            "The member's own account for this asset."
+          ],
+          "writable": true
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_redemption_usdc",
+      "discriminator": [
+        171,
+        90,
+        50,
+        244,
+        156,
+        19,
+        211,
+        106
+      ],
+      "accounts": [
+        {
+          "name": "member_owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "redemption",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "member_owner"
+              },
+              {
+                "kind": "account",
+                "path": "redemption.seq",
+                "account": "Redemption"
+              }
+            ]
+          }
+        },
+        {
+          "name": "active_usdc_vault",
+          "docs": [
+            "Active capital only — never an epoch escrow (INV-002)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "redemption_asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "redemption"
+              },
+              {
+                "kind": "account",
+                "path": "active_usdc_vault.mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "member_usdc",
+          "writable": true
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_contributions",
+      "discriminator": [
+        148,
+        16,
+        30,
+        62,
+        42,
+        145,
+        78,
+        31
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "epoch",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_epoch",
+      "discriminator": [
+        13,
+        87,
+        7,
+        133,
+        109,
+        14,
+        83,
+        25
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "contribute",
+      "discriminator": [
+        82,
+        33,
+        68,
+        131,
+        32,
+        0,
+        205,
+        95
+      ],
+      "accounts": [
+        {
+          "name": "contributor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate"
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "receipt",
+          "docs": [
+            "One per contributor per epoch; repeat contributions add to it."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "epoch"
+              },
+              {
+                "kind": "account",
+                "path": "contributor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "contributor_usdc",
+          "writable": true
+        },
+        {
+          "name": "epoch_escrow",
+          "docs": [
+            "The ESCROW for this epoch — derived, never the active vault. A caller",
+            "cannot route a contribution into active capital."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "active_usdc_vault",
+          "docs": [
+            "Read for the pool-size cap."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_circle",
+      "discriminator": [
+        186,
+        99,
+        49,
+        131,
+        31,
+        51,
+        13,
+        198
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "circle",
+          "docs": [
+            "1:1 with the Mandate in v1: a second Circle for the same Mandate cannot",
+            "be initialized at this address."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "active_usdc_vault",
+          "docs": [
+            "Active capital only. Pending contributions go to a per-epoch escrow,",
+            "a different account (spec §22, INV-002)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_mandate",
+      "discriminator": [
+        230,
+        170,
+        158,
+        68,
+        33,
+        169,
+        16,
+        158
+      ],
+      "accounts": [
+        {
+          "name": "author",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mandate_seed"
+        },
+        {
+          "name": "mandate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate_seed"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "MandateParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "end_execution",
+      "discriminator": [
+        167,
+        104,
+        37,
+        207,
+        92,
+        147,
+        230,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "executor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true
+        },
+        {
+          "name": "mandate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "execution_auth",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  101,
+                  99,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch"
+              },
+              {
+                "kind": "account",
+                "path": "execution_auth.nonce",
+                "account": "ExecutionAuth"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "in_mint",
+          "writable": true
+        },
+        {
+          "name": "out_mint",
+          "writable": true
+        },
+        {
+          "name": "mandate_asset_out"
+        },
+        {
+          "name": "registry_entry"
+        },
+        {
+          "name": "price_update",
+          "docs": [
+            "Pyth Receiver `PriceUpdateV2`; freshness, feed binding, and confidence",
+            "are checked in the handler before any price-dependent cap is applied."
+          ]
+        },
+        {
+          "name": "source_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle_asset_out",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "execution_auth.out_mint",
+                "account": "ExecutionAuth"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dest_vault",
+          "writable": true
+        },
+        {
+          "name": "source_token_program"
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "finalize_epoch",
+      "discriminator": [
+        159,
+        93,
+        117,
+        217,
+        63,
+        44,
+        249,
+        76
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nav_snapshot",
+          "docs": [
+            "Required only for rolling epochs. Epoch 0 intentionally remains",
+            "oracle-free, so clients omit this account when `circle.total_shares ==",
+            "0`; the handler rejects a rolling finalization without it."
+          ],
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "active_usdc_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "finalize_mandate",
+      "discriminator": [
+        154,
+        156,
+        152,
+        123,
+        124,
+        231,
+        159,
+        251
+      ],
+      "accounts": [
+        {
+          "name": "author",
+          "signer": true,
+          "relations": [
+            "mandate"
+          ]
+        },
+        {
+          "name": "mandate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fork_mandate",
+      "discriminator": [
+        210,
+        180,
+        56,
+        219,
+        28,
+        123,
+        151,
+        189
+      ],
+      "accounts": [
+        {
+          "name": "forker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "parent_mandate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "parent_mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_mandate_seed"
+        },
+        {
+          "name": "new_mandate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "new_mandate_seed"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fork_mandate_asset",
+      "discriminator": [
+        133,
+        4,
+        157,
+        72,
+        136,
+        131,
+        188,
+        46
+      ],
+      "accounts": [
+        {
+          "name": "forker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "parent_mandate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "parent_mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "parent_asset",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "parent_mandate"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_mandate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "new_mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "new_mandate"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_config",
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "upgrade_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "program",
+          "address": "FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v"
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "usdc_mint",
+          "docs": [
+            "USDC is classic SPL Token with 6 decimals (V-014). Asserted here rather",
+            "than assumed: shares are defined as 1 per micro-USDC in Epoch 0, so a",
+            "different decimals count would silently change what a share means."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "registry_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "initiate_redemption",
+      "discriminator": [
+        115,
+        149,
+        159,
+        170,
+        179,
+        169,
+        44,
+        56
+      ],
+      "accounts": [
+        {
+          "name": "member_owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "member_owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "redemption",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "member_owner"
+              },
+              {
+                "kind": "account",
+                "path": "member.next_redemption_seq",
+                "account": "Member"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "open_epoch",
+      "discriminator": [
+        75,
+        57,
+        218,
+        33,
+        173,
+        254,
+        207,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "docs": [
+            "`index == circle.current_epoch`, and `current_epoch` advances only in",
+            "`close_epoch`. Together with the epoch PDA being unique per index, this",
+            "means epochs open strictly in order, one at a time: epoch N+1 cannot open",
+            "before N completes, and N cannot be opened twice."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate"
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "arg",
+                "path": "index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "active_usdc_vault",
+          "docs": [
+            "The Circle's active USDC vault fixes which mint is USDC for this Circle",
+            "(it was checked against Config at creation)."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "epoch_escrow",
+          "docs": [
+            "Anchor performs this `init` (a CPI into `token_program`) while loading",
+            "accounts, before the `TokenProgramMismatch` constraint above is checked.",
+            "A wrong token program is therefore refused by the token program itself",
+            "and the transaction reverts — see the module note in circle.rs."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "arg",
+                "path": "index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "open_nav_snapshot",
+      "discriminator": [
+        176,
+        21,
+        227,
+        23,
+        113,
+        32,
+        92,
+        76
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nav_snapshot",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  97,
+                  118,
+                  95,
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "active_usdc_vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "record_asset_nav",
+      "discriminator": [
+        87,
+        118,
+        219,
+        144,
+        251,
+        168,
+        29,
+        147
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nav_snapshot",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  97,
+                  118,
+                  95,
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle_asset",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "circle_asset.mint",
+                "account": "CircleAsset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate_asset",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              },
+              {
+                "kind": "account",
+                "path": "circle_asset.mint",
+                "account": "CircleAsset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle_asset.mint",
+                "account": "CircleAsset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "price_update"
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "refresh_asset_metadata",
+      "discriminator": [
+        126,
+        229,
+        129,
+        225,
+        64,
+        140,
+        47,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "registry_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "The live mint is read directly. No caller-supplied observation is",
+            "accepted, and the recorded token program must remain immutable."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "reserve_redemption_asset",
+      "discriminator": [
+        27,
+        236,
+        21,
+        56,
+        237,
+        137,
+        14,
+        102
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "redemption",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "redemption.owner",
+                "account": "Redemption"
+              },
+              {
+                "kind": "account",
+                "path": "redemption.seq",
+                "account": "Redemption"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle_asset",
+          "docs": [
+            "Seeds bind it to THIS circle; the snapshot bitmap binds it to this exit."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "circle_asset.mint",
+                "account": "CircleAsset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "The vault balance read here is canonical."
+          ]
+        },
+        {
+          "name": "redemption_asset",
+          "docs": [
+            "Mint in the seed: reserving the same asset twice for one exit is",
+            "impossible — the account already exists."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "redemption"
+              },
+              {
+                "kind": "account",
+                "path": "circle_asset.mint",
+                "account": "CircleAsset"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "reserve_redemption_usdc",
+      "discriminator": [
+        14,
+        64,
+        32,
+        207,
+        189,
+        246,
+        147,
+        197
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "redemption",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "redemption.owner",
+                "account": "Redemption"
+              },
+              {
+                "kind": "account",
+                "path": "redemption.seq",
+                "account": "Redemption"
+              }
+            ]
+          }
+        },
+        {
+          "name": "active_usdc_vault",
+          "docs": [
+            "ACTIVE capital only. Epoch escrows are not Circle capital and are never",
+            "part of an exit (INV-002)."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "redemption_asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  100,
+                  101,
+                  109,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "redemption"
+              },
+              {
+                "kind": "account",
+                "path": "active_usdc_vault.mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "settle_contribution",
+      "discriminator": [
+        165,
+        233,
+        187,
+        90,
+        113,
+        239,
+        113,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "epoch.index",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "receipt",
+          "docs": [
+            "Closed on settlement, rent to its owner: a second settlement finds no",
+            "account. Double settlement is impossible, not merely rejected."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "epoch"
+              },
+              {
+                "kind": "account",
+                "path": "receipt.owner",
+                "account": "ContributionReceipt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "writable": true
+        },
+        {
+          "name": "member",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "receipt.owner",
+                "account": "ContributionReceipt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "upsert_registry_entry",
+      "discriminator": [
+        55,
+        211,
+        145,
+        211,
+        167,
+        199,
+        216,
+        161
+      ],
+      "accounts": [
+        {
+          "name": "registry_authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "`InterfaceAccount` proves the mint exists and is owned by the classic or",
+            "Token-2022 program. Which one is recorded, never assumed (V-002)."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "RegistryParams"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AssetRegistryEntry",
+      "discriminator": [
+        234,
+        239,
+        108,
+        165,
+        185,
+        162,
+        7,
+        84
+      ]
+    },
+    {
+      "name": "Circle",
+      "discriminator": [
+        27,
+        59,
+        8,
+        117,
+        62,
+        199,
+        222,
+        252
+      ]
+    },
+    {
+      "name": "CircleAsset",
+      "discriminator": [
+        60,
+        218,
+        229,
+        120,
+        92,
+        97,
+        60,
+        212
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "ContributionReceipt",
+      "discriminator": [
+        191,
+        236,
+        159,
+        86,
+        162,
+        165,
+        122,
+        95
+      ]
+    },
+    {
+      "name": "Epoch",
+      "discriminator": [
+        93,
+        83,
+        120,
+        89,
+        151,
+        138,
+        152,
+        108
+      ]
+    },
+    {
+      "name": "ExecutionAuth",
+      "discriminator": [
+        186,
+        68,
+        149,
+        252,
+        120,
+        82,
+        26,
+        116
+      ]
+    },
+    {
+      "name": "Mandate",
+      "discriminator": [
+        113,
+        216,
+        98,
+        159,
+        185,
+        63,
+        55,
+        18
+      ]
+    },
+    {
+      "name": "MandateAsset",
+      "discriminator": [
+        72,
+        46,
+        243,
+        193,
+        251,
+        24,
+        54,
+        196
+      ]
+    },
+    {
+      "name": "Member",
+      "discriminator": [
+        54,
+        19,
+        162,
+        21,
+        29,
+        166,
+        17,
+        198
+      ]
+    },
+    {
+      "name": "NavSnapshot",
+      "discriminator": [
+        19,
+        170,
+        155,
+        175,
+        66,
+        136,
+        181,
+        32
+      ]
+    },
+    {
+      "name": "Redemption",
+      "discriminator": [
+        112,
+        75,
+        232,
+        189,
+        22,
+        114,
+        156,
+        203
+      ]
+    },
+    {
+      "name": "RedemptionAsset",
+      "discriminator": [
+        186,
+        90,
+        140,
+        135,
+        220,
+        187,
+        217,
+        208
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6001,
+      "name": "MathUnderflow",
+      "msg": "Arithmetic underflow"
+    },
+    {
+      "code": 6002,
+      "name": "DivisionByZero",
+      "msg": "Division by zero"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidMandateName",
+      "msg": "Mandate name is empty or too long"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidMandateDescription",
+      "msg": "Mandate description is too long"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidBps",
+      "msg": "A basis-point value exceeds 10000"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidMinContribution",
+      "msg": "Minimum contribution must be greater than zero"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidMaxPoolSize",
+      "msg": "Maximum pool size must exceed the minimum contribution"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidEpochDuration",
+      "msg": "Epoch duration is outside the permitted range"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidAmendmentThreshold",
+      "msg": "Amendment threshold must be a supermajority"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidAmendmentDelay",
+      "msg": "Amendment delay is below the minimum"
+    },
+    {
+      "code": 6011,
+      "name": "EmptyAssetUniverse",
+      "msg": "Mandate asset universe is empty"
+    },
+    {
+      "code": 6012,
+      "name": "TargetWeightsExceedTotal",
+      "msg": "Target weights exceed 100%"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidMandateState",
+      "msg": "Mandate is not in the required state"
+    },
+    {
+      "code": 6014,
+      "name": "TooManyAssets",
+      "msg": "Circle already holds the maximum number of assets"
+    },
+    {
+      "code": 6015,
+      "name": "NotMandateAuthor",
+      "msg": "Signer is not the mandate author"
+    },
+    {
+      "code": 6016,
+      "name": "NotMemberOwner",
+      "msg": "Signer is not the member owner"
+    },
+    {
+      "code": 6017,
+      "name": "NotRegistryAuthority",
+      "msg": "Signer is not the registry authority"
+    },
+    {
+      "code": 6018,
+      "name": "AccountSubstitution",
+      "msg": "Account does not belong to this circle"
+    },
+    {
+      "code": 6019,
+      "name": "MintMismatch",
+      "msg": "Mint does not match the expected mint"
+    },
+    {
+      "code": 6020,
+      "name": "TokenProgramMismatch",
+      "msg": "Token program does not own this mint"
+    },
+    {
+      "code": 6021,
+      "name": "UnexpectedUsdcMint",
+      "msg": "USDC mint or decimals do not match the expected configuration"
+    },
+    {
+      "code": 6022,
+      "name": "EpochNotOpen",
+      "msg": "Epoch is not open for contributions"
+    },
+    {
+      "code": 6023,
+      "name": "EpochNotClosed",
+      "msg": "Epoch has not closed yet"
+    },
+    {
+      "code": 6024,
+      "name": "EpochNotFinalized",
+      "msg": "Epoch has not been finalized"
+    },
+    {
+      "code": 6025,
+      "name": "EpochIndexMismatch",
+      "msg": "Epoch index does not follow the current epoch"
+    },
+    {
+      "code": 6026,
+      "name": "PreviousEpochIncomplete",
+      "msg": "Previous epoch is not complete"
+    },
+    {
+      "code": 6027,
+      "name": "BelowMinimumContribution",
+      "msg": "Contribution is below the mandate minimum"
+    },
+    {
+      "code": 6028,
+      "name": "ExceedsMaxPoolSize",
+      "msg": "Contribution would exceed the maximum pool size"
+    },
+    {
+      "code": 6029,
+      "name": "AlreadySettled",
+      "msg": "Receipt has already been settled"
+    },
+    {
+      "code": 6030,
+      "name": "UnsettledReceipts",
+      "msg": "Receipts remain unsettled"
+    },
+    {
+      "code": 6031,
+      "name": "NavSnapshotIncomplete",
+      "msg": "NAV snapshot is incomplete"
+    },
+    {
+      "code": 6032,
+      "name": "NavSnapshotExpired",
+      "msg": "NAV snapshot has expired"
+    },
+    {
+      "code": 6033,
+      "name": "AssetAlreadyRecorded",
+      "msg": "Asset has already been recorded in this snapshot"
+    },
+    {
+      "code": 6034,
+      "name": "ZeroNav",
+      "msg": "Circle NAV is zero; entrants cannot be priced"
+    },
+    {
+      "code": 6035,
+      "name": "NavBelowIssuanceMinimum",
+      "msg": "Circle NAV is below the minimum required to issue shares"
+    },
+    {
+      "code": 6036,
+      "name": "StalePrice",
+      "msg": "Price is stale"
+    },
+    {
+      "code": 6037,
+      "name": "PriceConfidenceTooWide",
+      "msg": "Price confidence interval is too wide"
+    },
+    {
+      "code": 6038,
+      "name": "FeedIdMismatch",
+      "msg": "Price feed id does not match the registry entry"
+    },
+    {
+      "code": 6039,
+      "name": "AssetNotInMandate",
+      "msg": "Asset is not in the mandate universe"
+    },
+    {
+      "code": 6040,
+      "name": "ExecutionFrozen",
+      "msg": "Execution is frozen while a redemption is unreserved"
+    },
+    {
+      "code": 6041,
+      "name": "InsufficientUnreservedBalance",
+      "msg": "Execution would spend more than the unreserved balance"
+    },
+    {
+      "code": 6042,
+      "name": "BelowMinimumOutput",
+      "msg": "Execution received less than the minimum output"
+    },
+    {
+      "code": 6043,
+      "name": "AboveMaximumInput",
+      "msg": "Execution spent more than the maximum input"
+    },
+    {
+      "code": 6044,
+      "name": "PriceImpactTooHigh",
+      "msg": "Execution breached the price impact cap"
+    },
+    {
+      "code": 6045,
+      "name": "AssetWeightCapExceeded",
+      "msg": "Execution breached a single-asset weight cap"
+    },
+    {
+      "code": 6046,
+      "name": "IssuerWeightCapExceeded",
+      "msg": "Execution breached the issuer weight cap"
+    },
+    {
+      "code": 6047,
+      "name": "PreIpoWeightCapExceeded",
+      "msg": "Execution breached the pre-IPO weight cap"
+    },
+    {
+      "code": 6048,
+      "name": "AuthorizationExpired",
+      "msg": "Execution authorization has expired"
+    },
+    {
+      "code": 6049,
+      "name": "AuthorizationCircleMismatch",
+      "msg": "Execution authorization does not bind this circle"
+    },
+    {
+      "code": 6050,
+      "name": "UnexpectedInstructionInWindow",
+      "msg": "A non-Jupiter instruction appeared in the execution window"
+    },
+    {
+      "code": 6051,
+      "name": "InsufficientShares",
+      "msg": "Member holds fewer shares than requested"
+    },
+    {
+      "code": 6052,
+      "name": "ZeroShares",
+      "msg": "Redemption amount must be greater than zero"
+    },
+    {
+      "code": 6053,
+      "name": "AlreadyReserved",
+      "msg": "Asset has already been reserved for this redemption"
+    },
+    {
+      "code": 6054,
+      "name": "NotReserved",
+      "msg": "Asset has not been reserved for this redemption"
+    },
+    {
+      "code": 6055,
+      "name": "AlreadyClaimed",
+      "msg": "Claim has already been settled"
+    },
+    {
+      "code": 6056,
+      "name": "NavSnapshotOpen",
+      "msg": "A NAV snapshot is open; redemption cannot start"
+    },
+    {
+      "code": 6057,
+      "name": "ParentMandateNotActive",
+      "msg": "Parent mandate must be active to fork"
+    },
+    {
+      "code": 6058,
+      "name": "AmendmentThresholdNotMet",
+      "msg": "Amendment has not met the required threshold"
+    },
+    {
+      "code": 6059,
+      "name": "AmendmentDelayNotElapsed",
+      "msg": "Amendment delay has not elapsed"
+    },
+    {
+      "code": 6060,
+      "name": "AlreadyVoted",
+      "msg": "Member has already voted on this proposal"
+    },
+    {
+      "code": 6061,
+      "name": "InvalidRegistryMetadata",
+      "msg": "Live mint metadata is invalid or cannot be represented safely"
+    },
+    {
+      "code": 6062,
+      "name": "NotUpgradeAuthority",
+      "msg": "Signer is not the program's upgrade authority"
+    },
+    {
+      "code": 6063,
+      "name": "ProgramDataMismatch",
+      "msg": "Program data account does not belong to this program"
+    },
+    {
+      "code": 6064,
+      "name": "InvalidRegistryString",
+      "msg": "Symbol or display name is empty or too long"
+    },
+    {
+      "code": 6065,
+      "name": "AssetClassMismatch",
+      "msg": "Asset class does not match the mint's token program or configured USDC mint"
+    },
+    {
+      "code": 6066,
+      "name": "RegistryEntryInactive",
+      "msg": "Registry entry is not active"
+    },
+    {
+      "code": 6067,
+      "name": "UnderlyingWeightCapExceeded",
+      "msg": "Weights on one underlying company exceed the Mandate's cap"
+    },
+    {
+      "code": 6068,
+      "name": "IncompleteMandateAssets",
+      "msg": "Every Mandate asset and its registry entry must be supplied exactly once"
+    },
+    {
+      "code": 6069,
+      "name": "ContributionWindowClosed",
+      "msg": "The contribution window for this epoch has closed"
+    },
+    {
+      "code": 6070,
+      "name": "ContributionWindowStillOpen",
+      "msg": "The contribution window is still open"
+    },
+    {
+      "code": 6071,
+      "name": "MembershipPolicyRejected",
+      "msg": "This Circle's membership policy does not admit this contributor"
+    },
+    {
+      "code": 6072,
+      "name": "RollingEpochsDisabled",
+      "msg": "Rolling epochs require a NAV snapshot and are disabled until oracle pricing ships"
+    },
+    {
+      "code": 6073,
+      "name": "EscrowShortfall",
+      "msg": "Epoch escrow holds less than its receipts promise"
+    },
+    {
+      "code": 6074,
+      "name": "RedemptionPending",
+      "msg": "Another exit has unreserved assets; reserve them first (anyone may)"
+    },
+    {
+      "code": 6075,
+      "name": "AssetNotInSnapshot",
+      "msg": "Asset was added after this redemption began and is not part of it"
+    },
+    {
+      "code": 6076,
+      "name": "NothingToReserve",
+      "msg": "Every asset of this redemption is already reserved"
+    },
+    {
+      "code": 6077,
+      "name": "IncompleteExecutionWindow",
+      "msg": "The execution window did not contain a Jupiter swap and matching end instruction"
+    },
+    {
+      "code": 6078,
+      "name": "ExistingVaultDelegate",
+      "msg": "The source vault already has a delegate"
+    },
+    {
+      "code": 6079,
+      "name": "SourceBalanceIncreased",
+      "msg": "The source vault balance increased during execution"
+    },
+    {
+      "code": 6080,
+      "name": "DestinationBalanceDecreased",
+      "msg": "The destination vault balance decreased during execution"
+    },
+    {
+      "code": 6081,
+      "name": "ExecutionPricePolicyUnavailable",
+      "msg": "Execution price policy is unavailable; execution remains gated"
+    },
+    {
+      "code": 6082,
+      "name": "SupplyConsumptionCapExceeded",
+      "msg": "Circle holdings would exceed the Mandate's raw supply-consumption cap"
+    },
+    {
+      "code": 6083,
+      "name": "PriceObservationUnavailable",
+      "msg": "The Pyth price observation is missing, stale, or insufficiently verified"
+    },
+    {
+      "code": 6084,
+      "name": "PriceNotPositive",
+      "msg": "The Pyth price must be strictly positive"
+    },
+    {
+      "code": 6085,
+      "name": "PriceArithmeticOverflow",
+      "msg": "Price arithmetic exceeded the checked execution range"
+    },
+    {
+      "code": 6086,
+      "name": "PriceImpactExceeded",
+      "msg": "Actual output is below the Mandate's Pyth price-impact floor"
+    }
+  ],
+  "types": [
+    {
+      "name": "AssetClass",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Usdc"
+          },
+          {
+            "name": "PublicTokenizedEquity"
+          },
+          {
+            "name": "PreIpo"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetRegistryEntry",
+      "docs": [
+        "Classification plus live, observable mint state.",
+        "",
+        "The two halves have different trust models, which is why `upsert_registry_entry`",
+        "(authority-gated judgement) and `refresh_asset_metadata` (permissionless fact)",
+        "are separate instructions — decision A-16."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "asset_class",
+            "type": {
+              "defined": {
+                "name": "AssetClass"
+              }
+            }
+          },
+          {
+            "name": "issuer",
+            "docs": [
+              "The token issuer — Backed, PreStocks — i.e. counterparty risk."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "underlying_id",
+            "docs": [
+              "The underlying company. Distinct from `issuer`: SPCXx and SPACEX are the",
+              "same underlying through different issuers (V-010, `REVIEW.md` R-23)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "name": "display_name",
+            "type": "string"
+          },
+          {
+            "name": "pyth_feed_tokenized",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "pyth_feed_underlying",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "AssetStatus"
+              }
+            }
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "raw_supply",
+            "type": "u64"
+          },
+          {
+            "name": "effective_multiplier_e18",
+            "docs": [
+              "Effective multiplier, scaled by 1e18. Selected by comparing the mint's",
+              "`newMultiplierEffectiveTimestamp` against the clock — reading the",
+              "`multiplier` field alone is wrong on live mainnet data (V-003, V-017,",
+              "V-026). Display only; never enters ownership accounting (INV-019)."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "active_transfer_fee_bps",
+            "docs": [
+              "Fee in force at the CURRENT epoch, not simply `newerTransferFee` (V-004)."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "active_transfer_fee_max",
+            "type": "u64"
+          },
+          {
+            "name": "issuer_controls",
+            "docs": [
+              "Bitflags: 1 permanent delegate · 2 freeze · 4 paused · 8 transfer hook.",
+              "Powers Tenet cannot constrain, so they are surfaced, not hidden (R-09)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "last_verified_slot",
+            "type": "u64"
+          },
+          {
+            "name": "last_verified_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Restricted"
+          },
+          {
+            "name": "Disabled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Circle",
+      "docs": [
+        "Pooled capital governed by one Mandate.",
+        "",
+        "Holds no token balances: every vault's own `amount` is authoritative."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mandate",
+            "type": "pubkey"
+          },
+          {
+            "name": "state",
+            "type": {
+              "defined": {
+                "name": "CircleState"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "total_shares",
+            "type": "u64"
+          },
+          {
+            "name": "reserved_shares",
+            "docs": [
+              "Derived aggregate of `Σ over open epochs (reserved − settled)`.",
+              "",
+              "Makes INV-001 checkable in a single account read instead of iterating",
+              "epochs — which matters because it is asserted after every step of the",
+              "fuzz harness. Not a second source of truth: the property test recomputes",
+              "the per-epoch sum and asserts the two agree (decision A-14)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "current_epoch",
+            "type": "u64"
+          },
+          {
+            "name": "member_count",
+            "docs": [
+              "Number of Members with a non-zero share balance. This is updated on",
+              "zero→positive settlement and positive→zero redemption transitions."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "asset_count",
+            "type": "u16"
+          },
+          {
+            "name": "pending_reservations",
+            "docs": [
+              "Redemptions whose reservations are incomplete. Execution is frozen while",
+              "this is non-zero — but note the freeze alone is NOT sufficient: spending",
+              "must also respect `balance − reserved` (`REVIEW.md` H-01)."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "execution_frozen",
+            "docs": [
+              "Set while a NAV snapshot is open, so vault balances cannot move",
+              "underneath a valuation in progress."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault_authority_bump",
+            "docs": [
+              "Bump of the `VaultAuthority` PDA, which signs every vault transfer.",
+              "Stored so each signing does not re-derive it."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "usdc_reserved_raw",
+            "docs": [
+              "USDC promised to exiting members and not yet claimed — an OBLIGATION,",
+              "not a balance (the vault's own `amount` stays authoritative). Every",
+              "debit of the active USDC vault must use `amount − usdc_reserved_raw`",
+              "(REVIEW.md H-01). Asset vaults carry the same on `CircleAsset`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "asset_bitmap",
+            "docs": [
+              "Bit `i` set when the vault for Mandate asset index `i` exists. Exits",
+              "snapshot this to know exactly which vaults they cover."
+            ],
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CircleAsset",
+      "docs": [
+        "One asset held by a Circle, and the vault that holds it."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "mandate_asset",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_program",
+            "docs": [
+              "Stored because a Circle holds BOTH token programs at once: classic SPL",
+              "for USDC (V-014) and Token-2022 for every tokenized equity (V-002,",
+              "V-010). Assuming one program anywhere in the custody path is a bug."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "type": "u16"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "AssetStatus"
+              }
+            }
+          },
+          {
+            "name": "reserved_for_redemption_raw",
+            "docs": [
+              "Raw units already promised to exiting members and not yet claimed.",
+              "Every debit of this vault must use `vault.amount − reserved`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CircleState",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Funding"
+          },
+          {
+            "name": "Active"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "docs": [
+        "Program-wide settings. Decision A-18.",
+        "",
+        "The spec referenced `config.registry_authority` and `config.usdc_mint`",
+        "without ever defining the account. It holds exactly those two values and no",
+        "custody power. It is created once, by the program's upgrade authority, so",
+        "nobody can race the deployer to choose the registry authority."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "registry_authority",
+            "docs": [
+              "Classifies mints (pre-IPO? which issuer?). A disclosed trust",
+              "assumption, R-13 — it can mislabel an asset but cannot move funds."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_mint",
+            "docs": [
+              "The only mint Circles accept as USDC (V-014)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ContributionReceipt",
+      "docs": [
+        "A member's pending contribution for one epoch.",
+        "",
+        "Cancellable by the owner before finalization, with no admin approval anywhere",
+        "in that path (spec §10, §20)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "epoch",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_usdc_raw",
+            "type": "u64"
+          },
+          {
+            "name": "shares_entitled",
+            "type": "u64"
+          },
+          {
+            "name": "settled",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Epoch",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "type": "u64"
+          },
+          {
+            "name": "opened_at",
+            "type": "i64"
+          },
+          {
+            "name": "closes_at",
+            "type": "i64"
+          },
+          {
+            "name": "state",
+            "type": {
+              "defined": {
+                "name": "EpochState"
+              }
+            }
+          },
+          {
+            "name": "pending_usdc_raw",
+            "type": "u64"
+          },
+          {
+            "name": "total_shares_before",
+            "docs": [
+              "Frozen at finalization. Settlement divides by these two rather than a",
+              "precomputed rate, which keeps every intermediate inside u128 and makes",
+              "the result reproducible and order-independent (decision A-17)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "nav_before",
+            "type": "u128"
+          },
+          {
+            "name": "reserved_shares",
+            "type": "u64"
+          },
+          {
+            "name": "settled_shares",
+            "type": "u64"
+          },
+          {
+            "name": "receipt_count",
+            "type": "u32"
+          },
+          {
+            "name": "settled_count",
+            "type": "u32"
+          },
+          {
+            "name": "finalized_at",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EpochState",
+      "docs": [
+        "Explicit states — never inferred from timestamps alone (spec §30).",
+        "",
+        "`Cancelled` is a safety valve, not a failure: when prices cannot be trusted",
+        "the honest outcome is to refuse to price new shares and let contributors take",
+        "their money back, rather than guess a NAV."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Closed"
+          },
+          {
+            "name": "Finalized"
+          },
+          {
+            "name": "Executing"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExecutionAuth",
+      "docs": [
+        "Authorization for one execution.",
+        "",
+        "Seeded on a nonce and closed on use, so replay fails at account init rather",
+        "than at a flag check (INV-020)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "epoch",
+            "type": "pubkey"
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
+          },
+          {
+            "name": "executor",
+            "type": "pubkey"
+          },
+          {
+            "name": "in_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "out_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_in",
+            "type": "u64"
+          },
+          {
+            "name": "min_out",
+            "type": "u64"
+          },
+          {
+            "name": "pre_in_balance",
+            "type": "u64"
+          },
+          {
+            "name": "pre_out_balance",
+            "type": "u64"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Mandate",
+      "docs": [
+        "The investment constitution. Rules, never money."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "author",
+            "type": "pubkey"
+          },
+          {
+            "name": "mandate_seed",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "type": {
+              "defined": {
+                "name": "MandateState"
+              }
+            }
+          },
+          {
+            "name": "asset_count",
+            "type": "u16"
+          },
+          {
+            "name": "max_weight_per_asset_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_pre_ipo_weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_issuer_weight_bps",
+            "docs": [
+              "Cap on exposure to one token ISSUER — counterparty risk."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "max_underlying_weight_bps",
+            "docs": [
+              "Cap on exposure to one UNDERLYING company — investment concentration.",
+              "Separate from the issuer cap because the same company can be held through",
+              "two different issuers (V-010, R-23)."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "max_supply_consumption_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_price_impact_bps",
+            "type": "u16"
+          },
+          {
+            "name": "min_contribution_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "max_pool_size_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_duration",
+            "type": "i64"
+          },
+          {
+            "name": "membership_policy",
+            "type": {
+              "defined": {
+                "name": "MembershipPolicy"
+              }
+            }
+          },
+          {
+            "name": "amendment_threshold_bps",
+            "type": "u16"
+          },
+          {
+            "name": "amendment_delay_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "forked_from",
+            "docs": [
+              "Lineage. A fork records its parent and never touches it (INV-017)."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "version",
+            "type": "u16"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MandateAsset",
+      "docs": [
+        "One permitted asset. Keyed on mint in the PDA seed, so a duplicate cannot be",
+        "initialized at all."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mandate",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "registry_entry",
+            "type": "pubkey"
+          },
+          {
+            "name": "target_weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "index",
+            "type": "u16"
+          },
+          {
+            "name": "enabled",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MandateParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "max_weight_per_asset_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_pre_ipo_weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_issuer_weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_underlying_weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_supply_consumption_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_price_impact_bps",
+            "type": "u16"
+          },
+          {
+            "name": "min_contribution_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "max_pool_size_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_duration",
+            "type": "i64"
+          },
+          {
+            "name": "membership_policy",
+            "type": {
+              "defined": {
+                "name": "MembershipPolicy"
+              }
+            }
+          },
+          {
+            "name": "amendment_threshold_bps",
+            "type": "u16"
+          },
+          {
+            "name": "amendment_delay_seconds",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MandateState",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Draft"
+          },
+          {
+            "name": "Active"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Member",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "shares",
+            "type": "u64"
+          },
+          {
+            "name": "contributed_basis_usdc",
+            "docs": [
+              "A record of what was contributed. **Not** tax cost basis under any",
+              "jurisdiction's methodology, and never presented as such (spec §28)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "joined_epoch",
+            "type": "u64"
+          },
+          {
+            "name": "next_redemption_seq",
+            "docs": [
+              "Seq of this member's NEXT redemption; seeds its PDA so a member can exit",
+              "in several parts, each a distinct account."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MembershipPolicy",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "InviteOnly"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NavSnapshot",
+      "docs": [
+        "NAV accumulated across transactions.",
+        "",
+        "Decouples the asset count from transaction size, and bounds the whole",
+        "valuation to a slot window so an epoch cannot be priced at stale prices",
+        "(decision A-05)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "epoch",
+            "type": "pubkey"
+          },
+          {
+            "name": "slot_opened",
+            "type": "u64"
+          },
+          {
+            "name": "nav_accum",
+            "type": "u128"
+          },
+          {
+            "name": "assets_remaining",
+            "type": "u16"
+          },
+          {
+            "name": "recorded_bitmap",
+            "docs": [
+              "One bit per `CircleAsset.index`, so an asset cannot be counted twice."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceFeedMessage",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feed_id",
+            "docs": [
+              "`FeedId` but avoid the type alias because of compatibility issues with Anchor's `idl-build` feature."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "price",
+            "type": "i64"
+          },
+          {
+            "name": "conf",
+            "type": "u64"
+          },
+          {
+            "name": "exponent",
+            "type": "i32"
+          },
+          {
+            "name": "publish_time",
+            "docs": [
+              "The timestamp of this price update in seconds"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "prev_publish_time",
+            "docs": [
+              "The timestamp of the previous price update. This field is intended to allow users to",
+              "identify the single unique price update for any moment in time:",
+              "for any time t, the unique update is the one such that prev_publish_time < t <= publish_time.",
+              "",
+              "Note that there may not be such an update while we are migrating to the new message-sending logic,",
+              "as some price updates on pythnet may not be sent to other chains (because the message-sending",
+              "logic may not have triggered). We can solve this problem by making the message-sending mandatory",
+              "(which we can do once publishers have migrated over).",
+              "",
+              "Additionally, this field may be equal to publish_time if the message is sent on a slot where",
+              "where the aggregation was unsuccesful. This problem will go away once all publishers have",
+              "migrated over to a recent version of pyth-agent."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "ema_price",
+            "type": "i64"
+          },
+          {
+            "name": "ema_conf",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceUpdateV2",
+      "docs": [
+        "A price update account. This account is used by the Pyth Receiver program to store a verified price update from a Pyth price feed.",
+        "It contains:",
+        "- `write_authority`: The write authority for this account. This authority can close this account to reclaim rent or update the account to contain a different price update.",
+        "- `verification_level`: The [`VerificationLevel`] of this price update. This represents how many Wormhole guardian signatures have been verified for this price update.",
+        "- `price_message`: The actual price update.",
+        "- `posted_slot`: The slot at which this price update was posted."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "write_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "verification_level",
+            "type": {
+              "defined": {
+                "name": "VerificationLevel"
+              }
+            }
+          },
+          {
+            "name": "price_message",
+            "type": {
+              "defined": {
+                "name": "PriceFeedMessage"
+              }
+            }
+          },
+          {
+            "name": "posted_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Redemption",
+      "docs": [
+        "An in-flight exit. Shares are burned at initiation, so the entitlement is",
+        "frozen against the vaults as they stood at that instant.",
+        "",
+        "Requires no price, no oracle, no approval (RULE 6, INV-014)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "seq",
+            "type": "u64"
+          },
+          {
+            "name": "shares_redeemed",
+            "type": "u64"
+          },
+          {
+            "name": "total_shares_at_snapshot",
+            "type": "u64"
+          },
+          {
+            "name": "assets_remaining",
+            "type": "u16"
+          },
+          {
+            "name": "initiated_at",
+            "type": "i64"
+          },
+          {
+            "name": "reservation_deadline",
+            "docs": [
+              "After this, anyone may force-complete the remaining reservations so one",
+              "absent participant cannot freeze execution indefinitely (R-20)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "asset_bitmap_at_snapshot",
+            "docs": [
+              "`circle.asset_bitmap` at initiation: exactly the vaults this exit covers.",
+              "Only those may be reserved. Without it a vault added AFTER initiation",
+              "(permissionless, and empty) could be reserved in place of a real asset,",
+              "completing the exit with a real asset never reserved — a third party",
+              "could do that to grief an exiter.",
+              "",
+              "A bitmap, not a count: `CircleAsset.index` is the asset's index in the",
+              "MANDATE, so vaults need not exist for a contiguous `0..count`. With a",
+              "count, a Circle holding only asset 1 would reject asset 1 (`1 < 1`), the",
+              "exit could never complete, and every later exit and epoch would block."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RedemptionAsset",
+      "docs": [
+        "One asset's claim. Separate account per asset so a failure on one — a paused",
+        "mint, a frozen account, a transfer hook — cannot trap the others (spec §65)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "redemption",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_raw",
+            "type": "u64"
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RegistryParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "asset_class",
+            "type": {
+              "defined": {
+                "name": "AssetClass"
+              }
+            }
+          },
+          {
+            "name": "issuer",
+            "type": "pubkey"
+          },
+          {
+            "name": "underlying_id",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "name": "display_name",
+            "type": "string"
+          },
+          {
+            "name": "pyth_feed_tokenized",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "pyth_feed_underlying",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "AssetStatus"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VerificationLevel",
+      "docs": [
+        "Pyth price updates are bridged to all blockchains via Wormhole.",
+        "Using the price updates on another chain requires verifying the signatures of the Wormhole guardians.",
+        "The usual process is to check the signatures for two thirds of the total number of guardians, but this can be cumbersome on Solana because of the transaction size limits,",
+        "so we also allow for partial verification.",
+        "",
+        "This enum represents how much a price update has been verified:",
+        "- If `Full`, we have verified the signatures for two thirds of the current guardians.",
+        "- If `Partial`, only `num_signatures` guardian signatures have been checked.",
+        "",
+        "# Warning",
+        "Using partially verified price updates is dangerous, as it lowers the threshold of guardians that need to collude to produce a malicious price update."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Partial",
+            "fields": [
+              {
+                "name": "num_signatures",
+                "type": "u8"
+              }
+            ]
+          },
+          {
+            "name": "Full"
+          }
+        ]
+      }
+    }
+  ]
+}

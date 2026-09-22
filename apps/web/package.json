@@ -1,0 +1,29 @@
+{
+  "name": "@tenet/web",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tenet web app: Vite + React on the Kit SDK (D-05). Static SPA — all data from the chain.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p . && vite build",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@solana/kit": "8.3.0",
+    "@solana/react": "8.3.0",
+    "@tanstack/react-query": "5.103.1",
+    "@tenet/sdk": "workspace:*",
+    "@wallet-standard/react": "1.0.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "swr": "2.5.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.0"
+  }
+}

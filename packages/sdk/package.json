@@ -1,0 +1,24 @@
+{
+  "name": "@tenet/sdk",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Tenet client SDK on @solana/kit. The program client is generated from the Anchor IDL by Codama (D-05).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "gen": "node scripts/gen-client.mjs",
+    "test": "node --import tsx --test test/pda.test.ts test/client.test.ts"
+  },
+  "dependencies": {
+    "@solana/kit": "8.3.0",
+    "@solana/program-client-core": "8.3.0"
+  },
+  "devDependencies": {
+    "@codama/nodes-from-anchor": "1.5.6",
+    "@codama/renderers-js": "2.5.0",
+    "codama": "1.11.0",
+    "tsx": "4.23.15"
+  }
+}

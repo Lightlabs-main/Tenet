@@ -1,0 +1,11 @@
+{
+ "_comment": "Mainnet snapshot for tests. Regenerate with scripts/fetch-mint-fixtures.ts.",
+ "symbol": "USDC",
+ "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+ "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+ "lamports": 534673269470,
+ "slot": 449076114,
+ "fetched_at": "2026-09-21T14:00:52.805Z",
+ "data_len": 82,
+ "data_base64": "AQAAAJj+huiNm+Lqi8HMpIeLKYjCQPUrhCS/tA7Rot3LXhmbIeJITsDLGwAGAQEAAABicKqKWcWUBbRShshncubNEm6bil06OFNtN/e0FOi2Zw=="
+}

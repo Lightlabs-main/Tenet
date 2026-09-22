@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tenet — devnet</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <meta name="color-scheme" content="dark light" />
+  </head>
+  <body>
+    <div id="root">
+      <div id="boot-screen" role="status" aria-live="polite">
+        <div class="boot-mark">T</div>
+        <div>
+          <strong>Loading Tenet</strong>
+          <span>Connecting to the devnet preview…</span>
+        </div>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const showBootError = (message) => {
+          const root = document.getElementById("root");
+          if (!root || root.dataset.mounted === "true") return;
+          root.innerHTML = `<div id="boot-screen" role="alert"><div class="boot-mark boot-error">!</div><div><strong>Tenet could not start</strong><span>${String(message || "Refresh the page and try again.").replace(/[&<>]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</span></div></div>`;
+        };
+        window.addEventListener("error", (event) => showBootError(event.error?.message || event.message));
+        window.addEventListener("unhandledrejection", (event) => showBootError(event.reason?.message || event.reason));
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
