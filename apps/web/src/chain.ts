@@ -23,9 +23,18 @@ import {
 import {
   activeTransferFee, transferFeeAmount, type TransferFeeConfig,
 } from "../../../packages/domain/src/display.ts";
-import { ATA_PROGRAM, RPC_URL, SYSTEM_PROGRAM } from "./config.ts";
+import { ATA_PROGRAM, RPC_URL, SYSTEM_PROGRAM, TRANSACTIONS_ENABLED } from "./config.ts";
 
 export const rpc = createSolanaRpc(RPC_URL);
+
+/** Read-only deployment check; an executable account is required before reads. */
+export async function isTenetProgramDeployed(): Promise<boolean> {
+  const { value } = await rpc.getAccountInfo(TENET_PROGRAM_ADDRESS, {
+    encoding: "base64",
+    commitment: "finalized",
+  }).send();
+  return value?.executable === true;
+}
 
 const addrBytes = (a: Address) => new Uint8Array(getAddressEncoder().encode(a));
 
@@ -46,6 +55,7 @@ export const redemptionAssetPda = (redemption: Address, mint: Address) =>
  * signature. Throws with the program's logs attached when it fails.
  */
 export async function send(signer: TransactionSendingSigner, ixs: Instruction[]): Promise<string> {
+  if (!TRANSACTIONS_ENABLED) throw new Error("Tenet is in mainnet read-only mode; transactions are disabled.");
   const { value: blockhash } = await rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
   const msg = pipe(
     createTransactionMessage({ version: 0 }),

@@ -6,10 +6,11 @@ Collectively owned portfolios of tokenized stocks, governed by an on-chain inves
 
 ---
 
-> **Status: Phase 2–3 — POOL and staged EXIT on devnet; EXECUTE/VALUE/FORK remain gated.**
-> The Anchor program, bigint domain accounting, SDK and consumer UI are implemented and tested on
-> devnet/test fixtures. There are no production users, no production assets under management and no
-> mainnet deployment. Live integration gates and remaining phases are tracked in [PROGRESS.md](PROGRESS.md).
+> **Status: devnet program; mainnet read-only client preview.**
+> POOL and staged EXIT are implemented in the Anchor program, but no Tenet program or Circle is
+> deployed on mainnet. The local web app now connects read-only to Solana Mainnet and disables all
+> wallet transactions; this is not an end-to-end mainnet product or production release. There are
+> no production users or production assets under management. Live gates are tracked in [PROGRESS.md](PROGRESS.md).
 
 ---
 
@@ -156,7 +157,8 @@ Not yet deployed. Upgrade-authority policy must be resolved first (Trust assumpt
 ## Known limitations
 
 - Public-equity execution and Pyth's post-upgrade feed state remain unverified and block execution/value work.
-- The current devnet implementation covers POOL/Epoch 0 and staged EXIT; it is not a production deployment.
+- The Anchor program and its existing Circle cover POOL/Epoch 0 and staged EXIT on devnet. The current web client is a mainnet read-only preview; the program is not deployed on mainnet and wallet transactions are disabled.
+- The Vite development server provides a fixed-target read-only Solana RPC proxy. Production hosting must provide an equivalent same-origin proxy or verified browser-authorized endpoint before mainnet reads can be relied on; do not expose private RPC credentials in the client bundle.
 - Rolling (post-activation) contributions are architecturally present but will remain disabled until NAV can be determined safely for every held asset. Exit is never disabled.
 - Tenet cannot guarantee transferability of assets whose issuers retain pause, freeze or permanent-delegate authority.
 - `contributed_basis_usdc` is a contribution record, not tax cost basis under any jurisdiction's methodology.

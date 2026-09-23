@@ -1055,3 +1055,28 @@ solana_version = "4.1.2"    # pin explicitly — Anchor otherwise infers it
 - **Slot where relevant:** live slot is read at snapshot open/record/finalize; no live slot was claimed in this build record
 - **Conclusion:** on-chain NAV admission is implemented with registry-bound Pyth freshness/confidence checks, raw vault balances, reserved-claim exclusion, bitmap de-duplication, and refreshed multiplier metadata. Production execution remains gated pending live target-feed and controlled Jupiter-route verification.
 - **Code depending on it:** rolling epoch finalization, `packages/sdk` generated instruction bindings, and the consumer dashboard's staged execution/value status.
+
+## Mainnet read-only readiness probe — 2026-09-23
+
+| field | observation |
+|---|---|
+| Timestamp | `2026-09-23T20:06:19Z` |
+| Network | Solana mainnet-beta |
+| Source | `node scripts/verify-integrations.ts` against `https://api.mainnet-beta.solana.com`; read-only harness |
+| Request/account | Mainnet USDC mint; discovered PreStocks universe; public legacy Jupiter route endpoint; Pyth Hermes and Jupiter Swap V2 probes |
+| Observed result | Slot `449806663`, epoch `1041`. **63 checks, 0 blocking failures, 10 warnings.** USDC and all 8 discovered PreStocks mints passed the harness's token-program, decimals, multiplier, raw-supply reconciliation, transfer-fee and issuer-control checks. Legacy Jupiter routes were returned for all 8, but are not release evidence. Pyth Hermes was not probed because `PYTH_API_KEY` is absent; Swap V2 `/order` and Router `/build` were not probed because `JUPITER_API_KEY` is absent. |
+| Additional account check | At `2026-09-23T20:10:31Z`, finalized `getAccountInfo` at slot `449807618` returned `null` for the configured program ID `FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v`. No Tenet program exists at that address on mainnet at that observation. |
+| Conclusion | This verifies only live token metadata and legacy route discovery. It does not constitute an end-to-end Tenet mainnet test. The current web build remains explicitly devnet-only; the configured program is not deployed on mainnet, and V-007/V-008 plus the other open production gates remain unresolved. No transaction, deployment, signer, or vault was used. |
+| Code depending on it | Read-only source/metadata verification in `scripts/verify-integrations.ts`; no production execution path is enabled by these observations. |
+
+## Mainnet app connection — 2026-09-23
+
+| field | observation |
+|---|---|
+| Timestamp | `2026-09-23T20:58:43Z` |
+| Network | Solana mainnet-beta |
+| Source | Local Tenet app at `http://127.0.0.1:5178/app`; Vite same-origin proxy in `apps/web/vite.config.ts` forwarding to `https://api.mainnet-beta.solana.com` without a browser `Origin` header |
+| Request/account | JSON-RPC batch: `getEpochInfo` and finalized `getAccountInfo` for configured program `FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v` |
+| Observed result | HTTP 200 at slot `449818523`, epoch `1041`; `getAccountInfo.value` was `null`. The in-browser app displayed “Tenet is not deployed on mainnet yet.” An origin-tagged direct request to the public RPC returned HTTP 403, while the server-side local proxy succeeded. The proxy rejected a `sendTransaction` JSON-RPC method with HTTP 403. |
+| Conclusion | The local app is now configured for Solana Mainnet and has a working read-only chain connection. No devnet Circle is reused. All wallet transaction paths remain disabled. This is not a deployed or end-to-end production Tenet test. Production hosting needs an equivalent same-origin, read-only RPC proxy (or a verified browser-authorized endpoint); the VPS was not changed. |
+| Code depending on it | `apps/web/src/config.ts`, `apps/web/src/chain.ts`, `apps/web/src/App.tsx`, and the local proxy in `apps/web/vite.config.ts`. No custody, execution, or exit path is enabled by this observation. |

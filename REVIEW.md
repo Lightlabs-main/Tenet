@@ -385,3 +385,18 @@ Worked in this order as code lands (mirrors `docs/threat-model.md`, highest valu
 13. Boundary Circles: zero liquidity · expired asset · USDC only · single asset · exactly 8 assets.
 
 **Gate.** Phase 3 (exit) requires Codex sign-off before Phase 4 begins (spec §36). The artefact under review is the dilution proof in `docs/architecture.md §8`.
+
+## Fork lifecycle correction — 2026-09-23
+
+- Adversarial inspection found that the web Fork flow forked and finalized a Mandate, but did not create the independent Circle or its asset vaults; it then incorrectly displayed “New Circle created.”
+- The UI now plans and sends named, resumable steps; validates child lineage and copied rules; creates the child Circle, USDC vault, and Mandate-bound asset vaults with each mint’s recorded token program; and reports success only after reading the accounts back.
+- Confirmed steps are detected on retry via the stored non-secret PDA seed and account checks. Failed wallet simulation is presented as not confirmed, with an explicit instruction to cancel unsafe prompts.
+- Added `test_forked_mandate_creates_independent_circle_and_vaults` to the LiteSVM suite. The source parses, but this local environment cannot execute it yet: the offline Cargo cache is missing `pyth-solana-receiver-sdk`, and `target/deploy/tenet.so` is absent.
+- This is not adversarial sign-off. Re-run the new test and review account substitution, concurrent/retried partial setup, vault binding, and parent immutability before calling Fork complete.
+
+## Mainnet readiness gate — 2026-09-23
+
+- Ran the existing integration verifier directly against mainnet in read-only mode: 63 checks, 0 blocking failures, 10 warnings. The warnings include missing local Pyth/Jupiter API credentials, so current Pyth Hermes and Swap V2 checks were not performed. Legacy Jupiter routes are not execution evidence.
+- A finalized mainnet account lookup at slot `449807618` found no account at the configured program ID. The frontend still explicitly refuses non-devnet configuration.
+- **No mainnet release sign-off.** V-007/V-008, mainnet program deployment and its upgrade-authority policy, and all real-custody execution/exit reviews remain open. No signer, transaction, or deployment was used. See [docs/verification.md](docs/verification.md) for timestamped evidence.
+- The local app is now configured for mainnet read-only access and reports the missing program account. Its development proxy enforces a JSON-RPC method allowlist; `sendTransaction` was rejected. This does not close production proxy, deployment, Pyth/Jupiter, upgrade-authority, or adversarial review gates, and does not constitute release sign-off.

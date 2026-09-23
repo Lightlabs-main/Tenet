@@ -11,7 +11,7 @@ import type { UiWalletAccount } from "@wallet-standard/react";
 import { AccountRole, generateKeyPairSigner } from "@solana/kit";
 import type { Address, Instruction, TransactionSendingSigner } from "@solana/kit";
 import {
-  AssetClass, CircleState, EpochState, MandateState, contribute, initiateRedemption, openEpoch,
+  AssetClass, AssetStatus, EpochState, MandateState, contribute, initiateRedemption, openEpoch,
   findActiveUsdcVaultPda, findCircleAssetPda, findEpochEscrowPda, findEpochPda, findMemberPda,
   findNavSnapshotPda, findReceiptPda, findVaultAuthorityPda, findVaultPda,
   getCancelContributionInstruction, getClaimRedemptionAssetInstructionAsync,
@@ -20,21 +20,29 @@ import {
   getFinalizeEpochInstructionAsync, getReserveRedemptionAssetInstruction,
   getReserveRedemptionUsdcInstructionAsync, getSettleContributionInstruction,
   getFinalizeMandateInstruction, getForkMandateAssetInstruction, getForkMandateInstruction,
+  getAddCircleAssetInstructionAsync, getCreateCircleInstructionAsync,
+  findCirclePda, fetchMaybeCircle, fetchMaybeCircleAsset,
   findNewAssetPda, findNewMandatePda, findRegistryEntryPda,
   fetchMaybeMandate, fetchMaybeMandateAsset,
 } from "@tenet/sdk";
 import { entitlementForRedemption, sharesForContribution } from "../../../packages/domain/src/accounting.ts";
-import { CHAIN, TOKEN_PROGRAM, USDC_DECIMALS } from "./config.ts";
+import { CHAIN, CLUSTER, TOKEN_PROGRAM, TRANSACTIONS_ENABLED, USDC_DECIMALS } from "./config.ts";
 import {
-  ataAddress, createAtaIdempotent, redemptionAssetPda, redemptionPda, rpc, send, withheldFee,
+  ataAddress, b58ToAddress, createAtaIdempotent, redemptionAssetPda, redemptionPda, rpc, send, withheldFee,
   type CircleView, type ExitView, type Holding,
 } from "./chain.ts";
 import { formatRaw, formatShares, parseAmount } from "./money.ts";
-import { AddressLink, Badge, Meter, Spinner, Stat, Stepper, formatBps, ratioBps, useToast } from "./ui.tsx";
+import { AddressLink, Badge, Meter, Spinner, Stepper, formatBps, ratioBps, useToast } from "./ui.tsx";
 
 const usdc = (raw: bigint) => formatRaw(raw, USDC_DECIMALS);
 /** Trim trailing zeros for display ("5.000000" -> "5"). */
 const trim = (s: string) => (s.includes(".") ? s.replace(/\.?0+$/, "") : s);
+const formatDuration = (seconds: bigint) => {
+  if (seconds > 0n && seconds % 86_400n === 0n) return `${seconds / 86_400n} day${seconds === 86_400n ? "" : "s"}`;
+  if (seconds > 0n && seconds % 3_600n === 0n) return `${seconds / 3_600n} hour${seconds === 3_600n ? "" : "s"}`;
+  if (seconds > 0n && seconds % 60n === 0n) return `${seconds / 60n} minute${seconds === 60n ? "" : "s"}`;
+  return `${seconds} second${seconds === 1n ? "" : "s"}`;
+};
 
 /** The share of `available` owned by `shares` of `total` — the exact floor the program computes. */
 function slice(available: bigint, shares: bigint, total: bigint): bigint {
@@ -44,110 +52,73 @@ function slice(available: bigint, shares: bigint, total: bigint): bigint {
 
 // ================================================================ page
 
-export function Dashboard({ view, circle, account, me, usdcBalance, onChanged }: {
+export type CirclePanel = "overview" | "portfolio" | "prices" | "contribute" | "exit" | "fork";
+
+export function Dashboard({ panel, navigate, view, circle, account, me, usdcBalance, onChanged, onOpenCircle }: {
+  panel: CirclePanel; navigate: (panel: CirclePanel | "mandate") => void;
   view: CircleView; circle: Address; account: UiWalletAccount | undefined; me: Address | null;
-  usdcBalance: bigint | null; onChanged: () => Promise<void>;
+  usdcBalance: bigint | null; onChanged: () => Promise<void>; onOpenCircle: (circle: Address) => void;
 }) {
+  const action = TRANSACTIONS_ENABLED && (panel === "contribute" || panel === "exit" || panel === "fork") && account && me;
   return (
-    <>
-      <nav className="dashboard-nav" aria-label="Circle workspace">
-        <span className="dashboard-nav-label">Circle workspace</span>
-        <a href="#holdings">Holdings</a>
-        <a href="#value">Value</a>
-        <a href="#rules">Mandate</a>
-        <a href="#actions">Contribute / exit</a>
-        <a href="#execute">Execute</a>
-        <a href="#fork">Fork</a>
-        <span className="dashboard-nav-state"><span className="status-dot" />Read-only preview</span>
-      </nav>
-      <div className="grid">
-        <div className="col">
-          <Hero view={view} circle={circle} me={me} />
-          <ThesisStrip />
-          <Holdings view={view} />
-          <ValueSurface view={view} />
-          <Rules view={view} />
-        </div>
-        <div className="col col-side" id="actions">
-          {account && me ? (
-            <Actions account={account} view={view} circle={circle} me={me} usdcBalance={usdcBalance} onChanged={onChanged} />
-          ) : (
-            <div className="card onboarding-card">
-              <div className="card-head">
-                <div><span className="eyebrow">Get started</span><h2>Join this Circle</h2></div>
-                <Badge tone="info">Wallet required</Badge>
-              </div>
-              <p className="onboarding-lede">Explore the constitution first. Connect only when you are ready to contribute or manage a position.</p>
-              <div className="onboarding-steps">
-                <div className="onboarding-step"><span>01</span><div><strong>Inspect</strong><small>Rules, limits, and current vault balances</small></div></div>
-                <div className="onboarding-step"><span>02</span><div><strong>Connect</strong><small>Your wallet stays yours; Tenet requests signatures</small></div></div>
-                <div className="onboarding-step"><span>03</span><div><strong>Participate</strong><small>Contribute through an Epoch or exit in kind</small></div></div>
-              </div>
-              <div className="onboarding-foot"><span className="status-dot" />Read-only preview · no wallet connected</div>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+    <div className="circle-screen">
+      {panel === "overview" ? <>
+        <Overview view={view} circle={circle} me={me} navigate={navigate} />
+      </> : null}
+      {panel === "portfolio" ? <><div className="screen-heading"><span className="eyebrow">Circle portfolio</span><h1>Portfolio</h1><p>These balances come from its on-chain vaults. Permitted assets are shown separately.</p></div><Holdings view={view} /><details className="deep-disclosure"><summary>Why are there no stocks?</summary><CircleReadout view={view} /></details><ExecutionCard /></> : null}
+      {panel === "prices" ? <><div className="screen-heading"><span className="eyebrow">Verified observations</span><h1>Prices &amp; value</h1><p>We only display a market value when its source is current and verified.</p></div><ValueSurface view={view} /></> : null}
+      {panel === "contribute" || panel === "exit" || panel === "fork" ? <>
+        <div className="screen-heading"><span className="eyebrow">{panel === "contribute" ? "Pool" : panel === "exit" ? "Exit" : "Fork"}</span><h1>{panel === "contribute" ? "Add money together." : panel === "exit" ? "Leave on your terms." : "Make the rules your own."}</h1><p>{panel === "contribute" ? "Contributions enter a separate USDC funding window. Everyone in that window settles together." : panel === "exit" ? "Your proportional in-kind claim does not require a price feed or vote." : "A new Mandate and Circle keep their own assets and members."}</p></div>
+        {action ? <Actions panel={panel} account={account} view={view} circle={circle} me={me} usdcBalance={usdcBalance} onChanged={onChanged} onOpenCircle={onOpenCircle} /> : <div className="card action-locked"><span className="eyebrow">Solana Mainnet · read-only</span><h2>Transactions are disabled in this build</h2><p>You can inspect verified on-chain Circle data, but Tenet will not request a contribution, exit, Fork, or trade signature until the mainnet program and release checks are complete.</p><div className="action-locked-buttons"><button className="btn ghost" type="button" onClick={() => navigate("overview")}>Back to overview</button></div></div>}
+      </> : null}
+    </div>
   );
 }
 
-function ThesisStrip() {
-  return (
-    <section className="thesis-strip" aria-label="Tenet product principle">
-      <div className="thesis-main">
-        <span className="eyebrow">The Tenet principle</span>
-        <h2>Don’t copy someone’s trades. Fork their investment constitution.</h2>
-        <p>Members pool capital under inspectable rules. Contributions enter through an Epoch, the Mandate governs execution, and exit remains available at the Tenet layer.</p>
-      </div>
-      <div className="thesis-points">
-        <div><span>01</span><strong>Pool together</strong><small>Collective capital, visible to members</small></div>
-        <div><span>02</span><strong>Follow rules</strong><small>Mandate constraints before trades</small></div>
-        <div><span>03</span><strong>Fork ideas</strong><small>Rules travel; capital stays independent</small></div>
-      </div>
+function Overview({ view, circle, me, navigate }: { view: CircleView; circle: Address; me: Address | null; navigate: (panel: CirclePanel | "mandate") => void }) {
+  const held = view.holdings.filter((h) => h.vaultRaw > 0n);
+  const member = view.member;
+  const activeCash = view.activeUsdcRaw - view.circle.usdcReservedRaw;
+  return <>
+    <section className="overview-intro">
+      <div><span className="eyebrow">Your shared portfolio</span><h1>{CLUSTER === "devnet" ? "Devnet test Circle" : view.mandate.name}</h1><p>{CLUSTER === "devnet" ? "A live on-chain practice Circle. Its assets and USDC are test tokens with no real-world value." : view.mandate.description}</p></div>
+      <div className="overview-actions"><button className="btn primary" type="button" onClick={() => navigate("contribute")}>Add money <span aria-hidden>→</span></button><button className="btn ghost" type="button" onClick={() => navigate("exit")}>Exit Circle</button><button className="btn ghost" type="button" onClick={() => navigate("fork")}>Fork rules</button></div>
     </section>
-  );
+    <div className="overview-metrics">
+      <article className="overview-metric"><span>Circle value</span><strong>{held.length === 0 ? `${trim(usdc(activeCash))} USDC` : "Unavailable"}</strong><p>{held.length === 0 ? "Cash only. No asset prices are needed for this amount." : `Verified asset prices are not connected. Active cash: ${trim(usdc(activeCash))} USDC.`}</p></article>
+      <article className="overview-metric"><span>Your position</span><strong>{member && member.shares > 0n ? formatBps(ratioBps(member.shares, view.circle.totalShares)) : me ? "No active position" : "Connect wallet"}</strong><p>{member && member.shares > 0n ? `${trim(formatShares(member.shares))} settled shares` : "Pending contributions are separate from active holdings."}</p></article>
+      <article className="overview-metric"><span>Mandate</span><strong>{view.mandate.state === MandateState.Active ? "Active rules" : "Rules pending"}</strong><p>{view.holdings.length} permitted asset{view.holdings.length === 1 ? "" : "s"}. Read the limits before contributing.</p><button type="button" onClick={() => navigate("mandate")}>View rules →</button></article>
+    </div>
+    <section className="overview-portfolio card"><div className="card-head"><div><span className="eyebrow">Portfolio</span><h2>What is actually in the Circle</h2></div><button className="text-action" type="button" onClick={() => navigate("portfolio")}>Open portfolio →</button></div><div className="overview-holding"><span className="asset-icon usdc">$</span><div><strong>USDC</strong><small>On-chain active vault</small></div><strong>{trim(usdc(view.activeUsdcRaw))}</strong></div>{held.map((h) => <div className="overview-holding" key={h.address}><span className="asset-icon">{h.registry.symbol.slice(0, 4)}</span><div><strong>{h.registry.displayName}</strong><small>{h.registry.symbol} · mainnet vault balance</small></div><strong>{trim(formatRaw(h.vaultRaw, h.registry.decimals))}</strong></div>)}{held.length === 0 ? <div className="overview-empty">No stock tokens are held. {view.holdings.length ? `${view.holdings.map((h) => h.registry.symbol).join(", ")} is allowed by the Mandate, but has not been bought.` : "No assets are configured yet."}</div> : null}</section>
+    <section className="overview-next"><div><span className="eyebrow">How Tenet works</span><h2>People pool capital. Rules govern it.</h2><p>Contributions enter an Epoch. The Mandate controls purchases. Members can claim their proportional assets or fork the rules into a separate Circle.</p></div><button className="btn ghost" type="button" onClick={() => navigate("mandate")}>Read this Mandate</button><details><summary>On-chain Circle address</summary><AddressLink address={circle} /></details></section>
+    <details className="deep-disclosure"><summary>Detailed Mandate limit checks</summary><Rules view={view} /></details>
+  </>;
 }
 
-// ================================================================ hero
-
-function Hero({ view, circle, me }: { view: CircleView; circle: Address; me: Address | null }) {
-  const { circle: c, mandate, member } = view;
-  const ownBps = member && c.totalShares > 0n ? ratioBps(member.shares, c.totalShares) : 0n;
-  const yourUsdc = member ? slice(view.activeUsdcRaw - c.usdcReservedRaw, member.shares, c.totalShares) : 0n;
-  const state = CircleState[c.state];
+function CircleReadout({ view }: { view: CircleView }) {
+  const held = view.holdings.filter((h) => h.vaultRaw > 0n);
+  const allowed = view.holdings;
+  const empty = view.activeUsdcRaw === 0n && held.length === 0;
+  const allowedNames = allowed.map((h) => `${h.registry.symbol} · ${h.registry.displayName}`);
   return (
-    <section className="card hero">
-      <div className="hero-top">
-        <div style={{ minWidth: 0 }}>
-          <div className="hero-kicker"><span className="eyebrow">Investment circle</span><Badge tone={c.state === CircleState.Active ? "good" : "info"}>{state}</Badge></div>
-          <h1>{mandate.name}</h1>
-          {mandate.description ? <p className="hero-desc">{mandate.description}</p> : null}
-          <div className="hero-meta">
-            <span>Circle <AddressLink address={circle} /></span>
-            <span>·</span>
-            <span>Mandate v{mandate.version} by <AddressLink address={mandate.author} /></span>
-          </div>
+    <section className="card circle-readout" aria-label="What this Circle holds">
+      <div className="circle-readout-head">
+        <div>
+          <span className="eyebrow">Your Circle, in plain language</span>
+          <h2>{empty ? "This Circle has not invested yet" : "What this Circle holds"}</h2>
+          <p>{empty
+            ? "No assets are currently held in the active Circle vaults. An asset allowed by the Mandate is not automatically owned."
+            : "The amounts below are what is actually in the Circle’s on-chain vaults. An asset allowed by the rules is not automatically owned."}</p>
         </div>
-        <div className="hero-token" aria-label="Tenet product loop">
-          <span className="hero-token-label">THE CONSTITUTION</span>
-          <strong>Rules before trades.</strong>
-          <div className="hero-loop"><span>POOL</span><i>→</i><span>EXECUTE</span><i>→</i><span>VALUE</span><i>→</i><span>EXIT</span></div>
-        </div>
+        <Badge tone="neutral">On-chain Circle state</Badge>
       </div>
-      <div className="stats">
-        <Stat label="Active capital" value={trim(usdc(view.activeUsdcRaw))} unit="tUSDC"
-          sub={c.usdcReservedRaw > 0n ? `${trim(usdc(c.usdcReservedRaw))} owed to exits` : "held in USDC"} />
-        <Stat label="Total shares" value={trim(formatShares(c.totalShares))}
-          sub={c.reservedShares > 0n ? `${trim(formatShares(c.reservedShares))} awaiting settlement` : "all settled"} />
-        <Stat label="Members" value={c.memberCount.toString()} sub={`${view.holdings.length} asset vault${view.holdings.length === 1 ? "" : "s"}`} />
-        {me ? (
-          <Stat you label="Your position" value={member ? trim(formatShares(member.shares)) : "0"} unit="shares"
-            sub={member && member.shares > 0n ? `${formatBps(ownBps)} of the Circle · ${trim(usdc(yourUsdc))} tUSDC` : "not a member yet"} />
-        ) : (
-          <Stat label="Your position" value="—" sub="connect a wallet" />
-        )}
+      <div className="circle-readout-grid">
+        <div><span>Cash in the Circle</span><strong>{trim(usdc(view.activeUsdcRaw))} USDC</strong><small>Raw token-vault balance</small></div>
+        <div><span>Tokens actually held</span><strong>{held.length === 0 ? "None" : `${held.length} test token${held.length === 1 ? "" : "s"}`}</strong><small>Held means a token balance exists in the vault</small></div>
+        <div><span>Allowed by its rules</span><strong>{allowed.length === 0 ? "No assets" : allowed.map((h) => h.registry.symbol).join(", ")}</strong><small>{allowedNames.length ? `${allowedNames.join("; ")} · test token only` : "No enabled assets are recorded"}</small></div>
       </div>
+      {empty ? <p className="circle-readout-why"><strong>Why don’t I see stocks?</strong> This Circle has no non-zero stock-token vault balances. Mandate permissions are not holdings; supported assets appear here only after a verified execution delivers tokens to the Circle’s vault.</p> : null}
+      <div className="circle-vocabulary"><span><strong>Circle</strong> shared portfolio</span><span><strong>Mandate</strong> the Circle’s investment rules</span><span><strong>Epoch</strong> a timed window for pooling contributions</span></div>
     </section>
   );
 }
@@ -158,19 +129,20 @@ function Holdings({ view }: { view: CircleView }) {
   const { circle: c, member, mandate } = view;
   const mine = member?.shares ?? 0n;
   const usdcAvail = view.activeUsdcRaw - c.usdcReservedRaw;
+  const heldAssets = view.holdings.filter((h) => h.vaultRaw > 0n);
   return (
     <section className="card" id="holdings">
       <div className="card-head">
-        <div><span className="eyebrow">Portfolio</span><h2>Holdings</h2><p className="card-intro">What the Circle's vaults hold right now.</p></div>
-        <Badge tone="good">On-chain</Badge>
+        <div><span className="eyebrow">Vault balances</span><h2>Assets in the Circle</h2><p className="card-intro">Only assets with an actual vault balance appear here.</p></div>
+        <Badge tone="good">Live vault balances</Badge>
       </div>
       <table className="holdings">
         <thead>
           <tr>
             <th>Asset</th>
-            <th className="hide-sm">Target weight</th>
-            <th className="r">Held</th>
-            <th className="r">Your share</th>
+            <th className="hide-sm">Target by rules</th>
+            <th className="r">In Circle</th>
+            <th className="r">Your portion</th>
           </tr>
         </thead>
         <tbody>
@@ -180,7 +152,7 @@ function Holdings({ view }: { view: CircleView }) {
                 <div className="asset-icon usdc">$</div>
                 <div>
                 <div className="asset-name">USDC</div>
-                  <div className="asset-sub">active Circle capital</div>
+                  <div className="asset-sub">cash in Circle · mainnet vault</div>
                 </div>
               </div>
             </td>
@@ -188,16 +160,11 @@ function Holdings({ view }: { view: CircleView }) {
             <td className="r">{trim(usdc(view.activeUsdcRaw))}</td>
             <td className="r">{mine > 0n ? trim(usdc(slice(usdcAvail, mine, c.totalShares))) : "—"}</td>
           </tr>
-          {view.holdings.map((h) => <HoldingRow key={h.address} h={h} mine={mine} total={c.totalShares} capBps={BigInt(mandate.maxWeightPerAssetBps)} />)}
+          {heldAssets.map((h) => <HoldingRow key={h.address} h={h} mine={mine} total={c.totalShares} capBps={BigInt(mandate.maxWeightPerAssetBps)} />)}
         </tbody>
       </table>
-      <p className="honest">
-        <span>ⓘ</span>
-        <span>
-          Quantities are exact vault balances. Market values appear only when fresh verified observations are available;
-          until then this page shows no prices rather than invented ones. "Your share" is exactly what an exit would entitle you to today.
-        </span>
-      </p>
+      {heldAssets.length === 0 ? <p className="holdings-empty">No stock tokens are held. {view.holdings.length ? `${view.holdings.map((h) => h.registry.symbol).join(", ")} is permitted by the Mandate but has not been bought.` : "No assets are permitted by the current Mandate."}</p> : null}
+      <details className="portfolio-method"><summary>How these amounts are calculated</summary><p>These are raw vault balances shown in token units. Your portion uses your settled shares. Price estimates appear only with fresh verified observations. An outside transfer fee may reduce the amount received on exit.</p></details>
     </section>
   );
 }
@@ -213,8 +180,8 @@ function HoldingRow({ h, mine, total, capBps }: { h: Holding; mine: bigint; tota
         <div className="asset">
           <div className="asset-icon">{h.registry.symbol.slice(0, 4)}</div>
           <div style={{ minWidth: 0 }}>
-            <div className="asset-name">{h.registry.symbol} <Badge tone={pre ? "pre" : "info"}>{pre ? "Pre-IPO" : "Public"}</Badge></div>
-            <div className="asset-sub">{h.registry.displayName} · <span className={metadataVerified ? "verified" : "pending"}>{metadataVerified ? "metadata verified" : "metadata pending"}</span></div>
+            <div className="asset-name">{h.registry.symbol} <Badge tone={CLUSTER === "devnet" ? "warn" : pre ? "pre" : "info"}>{CLUSTER === "devnet" ? "Test token" : pre ? "Pre-IPO exposure" : "Public tokenized equity"}</Badge></div>
+            <div className="asset-sub">{h.registry.displayName} · {CLUSTER === "devnet" ? (h.vaultRaw > 0n ? "test balance · no real-world value" : "allowed by rules · not held") : <span className={metadataVerified ? "verified" : "pending"}>{metadataVerified ? "metadata verified" : "metadata pending"}</span>}</div>
           </div>
         </div>
       </td>
@@ -240,43 +207,44 @@ function HoldingRow({ h, mine, total, capBps }: { h: Holding; mine: bigint; tota
  */
 function ValueSurface({ view }: { view: CircleView }) {
   const active = view.activeUsdcRaw - view.circle.usdcReservedRaw;
-  const preIpoCount = view.holdings.filter((h) => h.registry.assetClass === AssetClass.PreIpo).length;
+  const hasHeldAssets = view.holdings.some((h) => h.vaultRaw > 0n);
+  const preIpoCount = view.holdings.filter((h) => h.registry.assetClass === AssetClass.PreIpo && h.vaultRaw > 0n).length;
   const { quotes, loading, error } = usePreStocksQuotes();
   return (
     <section className="card value-card" id="value">
       <div className="card-head">
         <div>
           <span className="eyebrow">Value</span>
-          <h2>What can be valued right now</h2>
-          <p className="card-intro">Executable value and analytical reference data stay separate.</p>
+          <h2>Current data availability</h2>
+          <p className="card-intro">Prices appear only when Tenet can verify a current source. No estimate is shown when data is missing.</p>
         </div>
-        <Badge tone="warn">Prices unavailable</Badge>
+        <Badge tone="warn">Asset prices unavailable</Badge>
       </div>
       <div className="value-grid">
         <div className="value-item">
-          <span className="value-label">Active USDC</span>
-          <strong>{trim(usdc(active))} <small>tUSDC</small></strong>
+          <span className="value-label">Circle cash</span>
+          <strong>{trim(usdc(active))} <small>USDC</small></strong>
           <span className="value-state good">On-chain balance</span>
         </div>
         <div className="value-item">
-          <span className="value-label">Market NAV</span>
-          <strong className="unavailable">Unavailable</strong>
-          <span className="value-state">Verified price feeds required</span>
+          <span className="value-label">Circle value</span>
+          <strong className={hasHeldAssets ? "unavailable" : undefined}>{hasHeldAssets ? "Unavailable" : `${trim(usdc(active))} USDC`}</strong>
+          <span className="value-state">{hasHeldAssets ? "Live, verified asset prices are not connected" : "Cash only; no asset pricing is needed"}</span>
         </div>
         <div className="value-item">
-          <span className="value-label">Paired-feed divergence</span>
+          <span className="value-label">Stock price comparison</span>
           <strong className="unavailable">Unavailable</strong>
-          <span className="value-state">Underlying/tokenized feeds not connected</span>
+          <span className="value-state">Live stock-price sources are not connected</span>
         </div>
         <div className="value-item">
-          <span className="value-label">PreStocks market vs mark</span>
+          <span className="value-label">Private-market price vs reference</span>
           <strong className="unavailable">Unavailable</strong>
-          <span className="value-state">{preIpoCount ? `${preIpoCount} Pre-IPO holding${preIpoCount === 1 ? "" : "s"} · live mark pending` : "No Pre-IPO holdings"}</span>
+          <span className="value-state">{preIpoCount ? `${preIpoCount} private-market holding${preIpoCount === 1 ? "" : "s"} · live mark pending` : "No private-market holdings"}</span>
         </div>
       </div>
       <p className="honest value-note">
         <span>ⓘ</span>
-        <span>Market NAV is not used for exit entitlement. Exits use exact raw vault balances and remain available at the Tenet layer even when pricing is unavailable.</span>
+        <span>Your exit is based on the tokens held in the Circle, not an estimated price. You can start an exit without price data or a member vote; an external token issuer may still restrict transfers.</span>
       </p>
       <PreStocksMarketSurface quotes={quotes} loading={loading} error={error} holdings={view.holdings} />
     </section>
@@ -379,12 +347,12 @@ function PreStocksMarketSurface({ quotes, loading, error, holdings }: { quotes: 
   return (
     <div className="prestocks-surface">
       <div className="prestocks-head">
-        <div><span className="eyebrow">PreStocks</span><h3>Market vs issuer reference mark</h3><p>Market price is executable-market context. The issuer mark is reference data, not guaranteed exit value.</p></div>
-        <span className={`source-status ${loading ? "loading" : error ? "bad" : "live"}`}><span />{loading ? "Reading source" : error ? "Unavailable" : "Live source"}</span>
+          <div><span className="eyebrow">Private-market exposure · PreStocks</span><h3>Market price vs issuer reference</h3><p>The market price reflects current trading. The issuer reference is informational and is not a guaranteed sale price.</p></div>
+        <span className={`source-status ${loading ? "loading" : error ? "bad" : "live"}`}><span />{loading ? "Checking prices" : error ? "Unavailable" : "Current source"}</span>
       </div>
-      {error ? <div className="prestocks-unavailable">{error} Market-vs-mark comparison unavailable.</div> : rows.length === 0 ? <div className="prestocks-unavailable">No PreStocks quotes available.</div> : (
+      {error ? <div className="prestocks-unavailable">Current PreStocks prices could not be loaded. No price comparison is shown.</div> : rows.length === 0 ? <div className="prestocks-unavailable">No current PreStocks prices are available.</div> : (
         <div className="prestocks-table" role="table" aria-label="PreStocks market versus issuer mark">
-          <div className="prestocks-row prestocks-row-head" role="row"><span>Asset</span><span>Market</span><span>Mark</span><span>Premium / discount</span></div>
+          <div className="prestocks-row prestocks-row-head" role="row"><span>Exposure</span><span>Market price</span><span>Issuer reference</span><span>Premium / discount</span></div>
           {rows.map((quote) => <div className="prestocks-row" role="row" key={quote.mint}>
             <strong>{quote.symbol}</strong>
             <span>${formatDecimal(quote.marketPrice)}</span>
@@ -393,7 +361,7 @@ function PreStocksMarketSurface({ quotes, loading, error, holdings }: { quotes: 
           </div>)}
         </div>
       )}
-      <div className="prestocks-foot">Source: PreStocks API · {relevant.length ? "Circle allocation highlighted" : "showing current supported universe"} · refresh on page load</div>
+      <div className="prestocks-foot">Source: PreStocks · {relevant.length ? "Circle exposure highlighted" : "showing the current source universe, not Circle holdings"} · refreshed on page load</div>
     </div>
   );
 }
@@ -410,15 +378,15 @@ function Rules({ view }: { view: CircleView }) {
   };
   const hex = (b: ArrayLike<number>) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
   const rows: { label: string; used: bigint; cap: bigint; pre?: boolean; hint: string }[] = [
-    { label: "Largest single asset", used: hs.reduce((a, h) => (BigInt(h.targetWeightBps) > a ? BigInt(h.targetWeightBps) : a), 0n), cap: BigInt(m.maxWeightPerAssetBps), hint: "per asset" },
-    { label: "Pre-IPO total", used: hs.filter((h) => h.registry.assetClass === AssetClass.PreIpo).reduce((a, h) => a + BigInt(h.targetWeightBps), 0n), cap: BigInt(m.maxPreIpoWeightBps), pre: true, hint: "all pre-IPO" },
-    { label: "Largest issuer", used: sumBy((h) => h.registry.issuer), cap: BigInt(m.maxIssuerWeightBps), hint: "counterparty" },
-    { label: "Largest company", used: sumBy((h) => hex(h.registry.underlyingId)), cap: BigInt(m.maxUnderlyingWeightBps), hint: "across issuers" },
+    { label: "One asset", used: hs.reduce((a, h) => (BigInt(h.targetWeightBps) > a ? BigInt(h.targetWeightBps) : a), 0n), cap: BigInt(m.maxWeightPerAssetBps), hint: "maximum portfolio share in a single asset" },
+    { label: "Private-market exposure", used: hs.filter((h) => h.registry.assetClass === AssetClass.PreIpo).reduce((a, h) => a + BigInt(h.targetWeightBps), 0n), cap: BigInt(m.maxPreIpoWeightBps), pre: true, hint: "maximum across all eligible pre-IPO assets" },
+    { label: "One issuer", used: sumBy((h) => h.registry.issuer), cap: BigInt(m.maxIssuerWeightBps), hint: "maximum across assets from one token issuer" },
+    { label: "One company", used: sumBy((h) => hex(h.registry.underlyingId)), cap: BigInt(m.maxUnderlyingWeightBps), hint: "maximum across all tokens linked to one company" },
   ];
   return (
     <section className="card" id="rules">
       <div className="card-head">
-        <div><span className="eyebrow">Constitution</span><h2>Mandate rules</h2><p className="card-intro">Enforced on-chain: target weights versus caps.</p></div>
+        <div><span className="eyebrow">Investment rules</span><h2>What this Circle is allowed to buy</h2><p className="card-intro">The first percentage is the Mandate’s planned allocation; the second is its maximum. This is the plan, not a list of things the Circle owns. See “What is actually held” above for live balances.</p></div>
         <Badge tone="info">Enforced</Badge>
       </div>
       <div className="rules">
@@ -434,9 +402,9 @@ function Rules({ view }: { view: CircleView }) {
         ))}
       </div>
       <div className="hero-meta" style={{ marginTop: 16 }}>
-        <Badge>min {trim(usdc(m.minContributionUsdc))} tUSDC</Badge>
-        <Badge>pool cap {trim(usdc(m.maxPoolSizeUsdc))} tUSDC</Badge>
-        <Badge>{m.epochDuration.toString()}s contribution window</Badge>
+        <Badge>minimum {trim(usdc(m.minContributionUsdc))} USDC</Badge>
+        <Badge>Circle limit {trim(usdc(m.maxPoolSizeUsdc))} USDC</Badge>
+        <Badge>{formatDuration(m.epochDuration)} contribution window</Badge>
         <Badge>amendments need {formatBps(BigInt(m.amendmentThresholdBps))}</Badge>
       </div>
     </section>
@@ -446,7 +414,8 @@ function Rules({ view }: { view: CircleView }) {
 // ================================================================ actions
 
 type Run = (label: string, build: () => Promise<Instruction[]>) => Promise<boolean>;
-type RunMany = (label: string, build: () => Promise<Instruction[][]>) => Promise<boolean>;
+type RunStep = { label: string; instructions: Instruction[] };
+type RunMany = (label: string, build: () => Promise<{ steps: RunStep[]; verify: () => Promise<void> }>) => Promise<boolean>;
 
 /** Human-readable program error from a failed transaction. */
 function explain(e: unknown): string {
@@ -454,6 +423,7 @@ function explain(e: unknown): string {
   const anchor = /Error Message: ([^\n]+?)\.?(\n|$)/.exec(msg);
   if (anchor) return anchor[1];
   if (/User rejected|rejected the request/i.test(msg)) return "You rejected the request in your wallet.";
+  if (/Unexpected error|simulation|revert/i.test(msg)) return "The wallet could not simulate this step. Cancel any prompt marked unsafe; do not submit a transaction that your wallet says will revert.";
   return msg.length > 400 ? msg.slice(0, 400) + "…" : msg;
 }
 
@@ -476,22 +446,21 @@ function useRunner(signer: TransactionSendingSigner, onChanged: () => Promise<vo
   };
   const runMany: RunMany = async (label, build) => {
     setBusy(label);
+    let stepLabel = "Preparing setup";
     try {
       let lastSignature = "";
-      const batches = await build();
-      if (batches.length === 0) {
-        toast({ kind: "info", title: `${label} — already complete` });
-        await onChanged();
-        return true;
+      const plan = await build();
+      for (const step of plan.steps) {
+        stepLabel = step.label;
+        setBusy(`${label}: ${step.label}`);
+        lastSignature = await send(signer, step.instructions);
       }
-      for (const instructions of batches) {
-        lastSignature = await send(signer, instructions);
-      }
-      toast({ kind: "ok", title: `${label} — confirmed`, sig: lastSignature });
-      await onChanged();
+      stepLabel = "Verifying the new Circle and vaults";
+      await plan.verify();
+      toast({ kind: "ok", title: `${label} — confirmed`, body: "The new Circle and its rule-bound asset vaults were found on-chain.", sig: lastSignature || undefined });
       return true;
     } catch (e) {
-      toast({ kind: "bad", title: `${label} failed`, body: explain(e) });
+      toast({ kind: "bad", title: `${stepLabel} was not confirmed`, body: `${explain(e)} Fork setup is resumable; retry checks for confirmed accounts before building any remaining steps.` });
       return false;
     } finally {
       setBusy(null);
@@ -500,18 +469,18 @@ function useRunner(signer: TransactionSendingSigner, onChanged: () => Promise<vo
   return { busy, run, runMany };
 }
 
-function Actions({ account, view, circle, me, usdcBalance, onChanged }: {
+function Actions({ panel, account, view, circle, me, usdcBalance, onChanged, onOpenCircle }: {
+  panel: "contribute" | "exit" | "fork";
   account: UiWalletAccount; view: CircleView; circle: Address; me: Address;
-  usdcBalance: bigint | null; onChanged: () => Promise<void>;
+  usdcBalance: bigint | null; onChanged: () => Promise<void>; onOpenCircle: (circle: Address) => void;
 }) {
   const signer = useWalletAccountTransactionSendingSigner(account, CHAIN);
   const { busy, run, runMany } = useRunner(signer, onChanged);
   return (
     <>
-      <EpochCard view={view} circle={circle} me={me} signer={signer} usdcBalance={usdcBalance} run={run} busy={busy} />
-      <ExecutionCard view={view} />
-      <ExitCard view={view} circle={circle} me={me} signer={signer} run={run} busy={busy} />
-      <ForkCard view={view} signer={signer} runMany={runMany} busy={busy} />
+      {panel === "contribute" ? <EpochCard view={view} circle={circle} me={me} signer={signer} usdcBalance={usdcBalance} run={run} busy={busy} /> : null}
+      {panel === "exit" ? <ExitCard view={view} circle={circle} me={me} signer={signer} run={run} busy={busy} /> : null}
+      {panel === "fork" ? <ForkCard view={view} signer={signer} runMany={runMany} busy={busy} onOpenCircle={onOpenCircle} /> : null}
     </>
   );
 }
@@ -526,25 +495,25 @@ function ActionButton({ label, busy, onClick, kind = "primary", block = true, di
   );
 }
 
-function ExecutionCard({ view }: { view: CircleView }) {
+function ExecutionCard() {
   return (
     <section className="card" id="execute">
       <div className="card-head">
-        <div><span className="eyebrow">Execute</span><h2>Put the Circle to work</h2><p className="card-intro">Jupiter routes USDC into assets allowed by this Mandate.</p></div>
-        <Badge tone="neutral">Safety review</Badge>
+        <div><span className="eyebrow">Stock purchases</span><h2>Not enabled</h2><p className="card-intro">Mainnet execution stays disabled until the asset, price, route, and destination-vault checks pass.</p></div>
+        <Badge tone="neutral">Not enabled</Badge>
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
-        The execution boundary is live in staged form. Price-dependent checks remain gated until target feeds and a controlled Token-2022 vault-delta route are verified.
+        Tenet will allow a purchase only after the stock token, live price data, trading route, and destination vault are verified. This read-only build cannot make a purchase.
       </p>
-      <div className="preview">
-        <div className="preview-row"><span className="k">Router</span><span className="v">Jupiter Swap V2 · Router</span></div>
-        <div className="preview-row"><span className="k">Source</span><span className="v">Circle USDC vault</span></div>
-        <div className="preview-row"><span className="k">Destination</span><span className="v">{view.assets.length} Mandate-approved vault{view.assets.length === 1 ? "" : "s"}</span></div>
-        <div className="preview-row"><span className="k">Protection</span><span className="v">raw pre/post vault deltas</span></div>
-        <div className="preview-row"><span className="k">Supply cap</span><span className="v">live raw mint supply · enforced at settlement</span></div>
-      </div>
-      <ActionButton busy={null} disabled label="Execution gated" onClick={() => {}} kind="ghost" />
-      <p className="automation-foot">Quotes and UI amounts never authorize a swap. Raw supply consumption is enforced; price-impact, issuer, and pre-IPO checks remain gated until their verified observations are available.</p>
+      <details className="execution-details">
+        <summary>What still needs to be verified?</summary>
+        <ul>
+          <li>A supported stock token and its transfer rules</li>
+          <li>Current price data and limits from the Circle’s investment rules</li>
+          <li>A swap whose output is confirmed in the Circle’s own vault</li>
+        </ul>
+      </details>
+      <ActionButton busy={null} disabled label="Stock purchases unavailable" onClick={() => {}} kind="ghost" />
     </section>
   );
 }
@@ -589,8 +558,8 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
 
   const header = (
     <div className="card-head">
-      <div><span className="eyebrow">Pool</span><h2>Contribute</h2><p className="card-intro">Add USDC to the next settlement window.</p></div>
-      <Badge tone="info">Epoch {index.toString()}</Badge>
+      <div><span className="eyebrow">Add money</span><h2>Contribute to this Circle</h2><p className="card-intro">USDC enters a separate funding window. The Mandate—not this form—sets how money can be invested.</p></div>
+      <Badge tone="info">Contribution window {index.toString()}</Badge>
     </div>
   );
 
@@ -601,10 +570,9 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
         {c.totalShares === 0n ? (
           <>
             <p className="muted" style={{ margin: 0 }}>
-              No epoch is open. Opening Epoch 0 starts a {mandate.epochDuration.toString()}-second contribution window —
-              anyone can open it.
+              No contribution window is open. Starting it lets members add USDC to separate custody. When the window ends, everyone’s ownership shares are calculated together. It lasts {formatDuration(mandate.epochDuration)}.
             </p>
-            <ActionButton busy={busy} label={`Open epoch ${index}`} onClick={() => run(`Open epoch ${index}`, async () => {
+            <ActionButton busy={busy} label={`Start funding window ${index}`} onClick={() => run(`Start funding window ${index}`, async () => {
               const p = await pdas();
               return [await openEpoch({
                 payer: signer, circle, mandate: c.mandate, epoch: p.epochAddr, epochEscrow: p.epochEscrow,
@@ -615,9 +583,7 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
           </>
         ) : (
           <p className="muted" style={{ margin: 0 }}>
-            This Circle already has members, so the next Epoch prices entrants against a bounded NAV snapshot.
-            Fresh verified observations are required before settlement; if the window expires, contributions remain
-            refundable from isolated escrow.
+            This Circle already has members. New contributions stay separate until the window closes; everyone in it receives ownership shares at the same rate. If the required prices cannot be verified, shares cannot be issued and contributions remain refundable.
           </p>
         )}
       </section>
@@ -635,7 +601,7 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
   return (
     <section className="card">
       {header}
-      <Stepper steps={["Open", "Closed", "Finalized", "Completed"]} current={STEP_OF[e.state] ?? 0} />
+      <Stepper steps={["Taking contributions", "Window closed", "Shares ready", "Complete"]} current={STEP_OF[e.state] ?? 0} />
 
       {open ? (
         <div className="countdown">
@@ -648,10 +614,10 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
       ) : null}
 
       <div className="preview" style={{ marginTop: 0, marginBottom: 14 }}>
-        <div className="preview-row"><span className="k">Pending in escrow</span><span className="v">{trim(usdc(e.pendingUsdcRaw))} tUSDC</span></div>
-        <div className="preview-row"><span className="k">Contributors</span><span className="v">{e.receiptCount}</span></div>
+        <div className="preview-row"><span className="k">Not yet part of the portfolio</span><span className="v">{trim(usdc(e.pendingUsdcRaw))} USDC</span></div>
+        <div className="preview-row"><span className="k">People contributing</span><span className="v">{e.receiptCount}</span></div>
         {receipt ? (
-          <div className="preview-row"><span className="k">Your contribution</span><span className="v">{trim(usdc(receipt.amountUsdcRaw))} tUSDC</span></div>
+          <div className="preview-row"><span className="k">Your contribution</span><span className="v">{trim(usdc(receipt.amountUsdcRaw))} USDC</span></div>
         ) : null}
       </div>
 
@@ -660,11 +626,11 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
           <div className="field">
             <div className="field-label">
               <span>Amount</span>
-              <span>Balance {usdcBalance === null ? "—" : trim(usdc(usdcBalance))} tUSDC</span>
+              <span>Your USDC balance: {usdcBalance === null ? "—" : trim(usdc(usdcBalance))}</span>
             </div>
             <div className="input-wrap">
-              <input inputMode="decimal" value={amount} onChange={(ev) => setAmount(ev.target.value)} aria-label="amount in test USDC" />
-              <span className="suffix">tUSDC</span>
+              <input inputMode="decimal" value={amount} onChange={(ev) => setAmount(ev.target.value)} aria-label="amount in USDC" />
+              <span className="suffix">USDC</span>
             </div>
             <div className="chips">
               {[["Min", trim(usdc(mandate.minContributionUsdc))], ["5", "5"], ["10", "10"], ["25", "25"]].map(([l, v]) => (
@@ -678,13 +644,13 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
               <span className="k">You'll receive</span>
               <span className="v">{parsed !== null && e.totalSharesBefore === 0n ? `${trim(formatShares(sharesForContribution(parsed, 0n, 0n)))} shares` : "—"}</span>
             </div>
-            <div className="preview-row"><span className="k">Pricing</span><span className="v">exact — 1 share per micro-USDC</span></div>
-            <div className="preview-row"><span className="k">Until settlement</span><span className="v">held in escrow · refundable</span></div>
+            <div className="preview-row"><span className="k">How shares are set</span><span className="v">The first funding window sets the starting ownership basis</span></div>
+            <div className="preview-row"><span className="k">Before ownership is set</span><span className="v">kept separate · you can cancel and get it back</span></div>
             {parseError ? <div className="error-text">{parseError}</div> : null}
-            {parsed !== null && !minOk ? <div className="error-text">Below the {trim(usdc(mandate.minContributionUsdc))} tUSDC minimum.</div> : null}
+            {parsed !== null && !minOk ? <div className="error-text">Below the minimum contribution of {trim(usdc(mandate.minContributionUsdc))} USDC.</div> : null}
             {parsed !== null && usdcBalance !== null && !balOk ? <div className="error-text">More than your balance.</div> : null}
           </div>
-          <ActionButton busy={busy} disabled={!minOk || !balOk} label="Contribute" onClick={() => run(`Contribute ${amount} tUSDC`, async () => {
+          <ActionButton busy={busy} disabled={!minOk || !balOk} label="Add USDC to funding window" onClick={() => run(`Contribute ${amount} USDC`, async () => {
             const raw = parseAmount(amount, USDC_DECIMALS);
             const p = await pdas();
             const [receiptAddr] = await findReceiptPda({ epoch: p.epochAddr, contributor: me });
@@ -709,7 +675,7 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
       ) : null}
 
       {open && remaining <= 0n ? (
-        <ActionButton busy={busy} label="Close contributions" onClick={() => run("Close contributions", async () => {
+          <ActionButton busy={busy} label="End contribution window" onClick={() => run("End contribution window", async () => {
           const p = await pdas();
           return [getCloseContributionsInstruction({ payer: signer, epoch: p.epochAddr })];
         })} />
@@ -717,11 +683,11 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
 
       {e.state === EpochState.Closed ? (
         c.pendingReservations > 0 ? (
-          <p className="muted">An exit is still reserving its assets. Finalization waits so the exit cannot take newcomers' money — anyone can finish it in the Exit panel.</p>
+          <p className="muted">An earlier exit is being prepared. This pauses contribution settlement so that exit cannot include newer members’ money. Anyone can finish preparing it in the Leave this Circle section.</p>
         ) : c.totalShares > 0n && !view.navSnapshot ? (
           <>
-            <p className="muted">Rolling pricing is ready to start. Open the bounded NAV snapshot, then record one fresh verified observation per held asset.</p>
-            <ActionButton busy={busy} label="Open NAV snapshot" onClick={() => run("Open NAV snapshot", async () => {
+            <p className="muted">This Circle already has members, so new contributions need a current value for its existing holdings. Check the portfolio value before setting everyone’s share amount.</p>
+            <ActionButton busy={busy} label="Check current portfolio value" onClick={() => run("Check current portfolio value", async () => {
               const p = await pdas();
               return [await getOpenNavSnapshotInstructionAsync({
                 payer: signer, circle, epoch: p.epochAddr, navSnapshot: p.navSnapshot,
@@ -732,13 +698,13 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
         ) : c.totalShares > 0n && view.navSnapshot && view.navSnapshot.data.assetsRemaining > 0 ? (
           <>
             <div className="preview">
-              <div className="preview-row"><span className="k">NAV snapshot</span><span className="v">{view.navSnapshot.data.assetsRemaining} asset observation{view.navSnapshot.data.assetsRemaining === 1 ? "" : "s"} remaining</span></div>
-              <div className="preview-row"><span className="k">Pricing source</span><span className="v">fresh registry-bound Pyth feeds</span></div>
+              <div className="preview-row"><span className="k">Assets still needing a verified price</span><span className="v">{view.navSnapshot.data.assetsRemaining}</span></div>
+              <div className="preview-row"><span className="k">Price sources</span><span className="v">Current and verified</span></div>
             </div>
-            <p className="muted">Finalization is locked until every held asset is recorded exactly once. Missing or stale observations never become a client-supplied NAV.</p>
+            <p className="muted">New member shares cannot be calculated until every holding has a current, verified price. If prices are missing or out of date, contributions remain refundable.</p>
           </>
         ) : (
-          <ActionButton busy={busy} label="Finalize epoch" onClick={() => run("Finalize epoch", async () => {
+          <ActionButton busy={busy} label="Set shares for this funding window" onClick={() => run("Set shares for funding window", async () => {
             const p = await pdas();
             return [await getFinalizeEpochInstructionAsync({
               payer: signer, circle, epoch: p.epochAddr, epochEscrow: p.epochEscrow,
@@ -752,8 +718,8 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
       {e.state === EpochState.Finalized ? (
         <>
           {receipt && !receipt.settled ? (
-            <ActionButton busy={busy} label={`Settle — receive ${trim(formatShares(sharesForContribution(receipt.amountUsdcRaw, e.totalSharesBefore, e.navBefore)))} shares`}
-              onClick={() => run("Settle contribution", async () => {
+            <ActionButton busy={busy} label={`Claim ${trim(formatShares(sharesForContribution(receipt.amountUsdcRaw, e.totalSharesBefore, e.navBefore)))} Circle shares`}
+              onClick={() => run("Claim Circle shares", async () => {
                 const p = await pdas();
                 const [receiptAddr] = await findReceiptPda({ epoch: p.epochAddr, contributor: me });
                 const [member] = await findMemberPda({ circle, memberOwner: me });
@@ -761,12 +727,12 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
               })} />
           ) : null}
           {e.settledCount === e.receiptCount ? (
-            <ActionButton kind="ghost" busy={busy} label="Close epoch" onClick={() => run("Close epoch", async () => {
+            <ActionButton kind="ghost" busy={busy} label="Finish funding window" onClick={() => run("Finish funding window", async () => {
               const p = await pdas();
               return [getCloseEpochInstruction({ payer: signer, circle, epoch: p.epochAddr })];
             })} />
           ) : (
-            <p className="muted">{e.receiptCount - e.settledCount} contribution(s) still to settle — anyone can settle anyone's.</p>
+            <p className="muted">{e.receiptCount - e.settledCount} contributor(s) still need to claim their Circle shares.</p>
           )}
         </>
       ) : null}
@@ -776,59 +742,114 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
   );
 }
 
-function ForkCard({ view, signer, runMany, busy }: {
+function ForkCard({ view, signer, runMany, busy, onOpenCircle }: {
   view: CircleView; signer: TransactionSendingSigner; runMany: RunMany; busy: string | null;
+  onOpenCircle: (circle: Address) => void;
 }) {
-  const [childAddress, setChildAddress] = useState<Address | null>(null);
-  const [childSeed, setChildSeed] = useState<Address | null>(null);
   const parent = view.circle.mandate;
+  const seedStorageKey = `tenet:fork-seed:${parent}:${signer.address}`;
+  const [childSeed, setChildSeed] = useState<Address | null>(() => {
+    try {
+      const saved = sessionStorage.getItem(seedStorageKey);
+      return saved ? b58ToAddress(saved) : null;
+    } catch { return null; }
+  });
+  const [childMandateAddress, setChildMandateAddress] = useState<Address | null>(null);
+  const [childCircleAddress, setChildCircleAddress] = useState<Address | null>(null);
+  const [setupComplete, setSetupComplete] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(seedStorageKey);
+      setChildSeed(saved ? b58ToAddress(saved) : null);
+    } catch { setChildSeed(null); }
+    setChildMandateAddress(null);
+    setChildCircleAddress(null);
+    setSetupComplete(false);
+  }, [seedStorageKey]);
+
+  useEffect(() => {
+    if (!childSeed) return;
+    let current = true;
+    void (async () => {
+      const [mandate] = await findNewMandatePda({ newMandateSeed: childSeed });
+      const [circleAddress] = await findCirclePda({ mandate });
+      if (current) {
+        setChildMandateAddress(mandate);
+        setChildCircleAddress(circleAddress);
+      }
+    })().catch(() => { if (current) setSetupComplete(false); });
+    return () => { current = false; };
+  }, [childSeed]);
 
   return (
     <section className="card" id="fork">
       <div className="card-head">
-        <div><span className="eyebrow">Fork</span><h2>Take the rules with you</h2><p className="card-intro">Create an independent Mandate from this constitution.</p></div>
-        <Badge tone="pre">No capital moves</Badge>
+        <div><span className="eyebrow">Fork · copy rules</span><h2>Start a new Circle with these rules</h2><p className="card-intro">The new Circle is independent. Its money and members start separately.</p></div>
+        <Badge tone="pre">Money stays here</Badge>
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
-        A Fork copies the rules, configuration, and lineage. It does not copy this Circle's money, members, holdings, or transaction history.
+        Fork means copying the investment rules and recording where they came from. It does not copy this Circle’s money, holdings, members, or trades.
       </p>
       <div className="preview">
-        <div className="preview-row"><span className="k">Source Mandate</span><span className="v"><AddressLink address={parent} /></span></div>
-        <div className="preview-row"><span className="k">Rules copied</span><span className="v">{view.assets.length} permitted asset{view.assets.length === 1 ? "" : "s"} + all caps</span></div>
-        <div className="preview-row"><span className="k">New capital</span><span className="v">none — starts independently</span></div>
+        <div className="preview-row"><span className="k">Rules copied from</span><span className="v">{CLUSTER === "devnet" ? "Devnet test Circle" : view.mandate.name}</span></div>
+        <div className="preview-row"><span className="k">What is copied</span><span className="v">{view.assets.length} asset rule{view.assets.length === 1 ? "" : "s"} and all investment limits</span></div>
+        <div className="preview-row"><span className="k">What is not copied</span><span className="v">money, holdings, members or trades</span></div>
       </div>
-      <ActionButton busy={busy} label={childAddress ? "Resume fork" : "Fork this Mandate"} onClick={() => runMany("Fork Mandate", async () => {
+      <details className="execution-details"><summary>Show on-chain rule address</summary><AddressLink address={parent} /></details>
+      <ActionButton busy={busy} disabled={setupComplete} label={setupComplete ? "Circle ready" : childSeed ? "Continue fork setup" : "Create Circle with these rules"} onClick={async () => {
+        setSetupComplete(false);
+        const ok = await runMany("Create Circle from copied rules", async () => {
         const seedAddress = childSeed ?? (await generateKeyPairSigner()).address;
         setChildSeed(seedAddress);
+        try { sessionStorage.setItem(seedStorageKey, String(seedAddress)); } catch { /* tab may block storage; in-memory resume still works */ }
         const [child] = await findNewMandatePda({ newMandateSeed: seedAddress });
-        setChildAddress(child);
+        const [childCircle] = await findCirclePda({ mandate: child });
+        setChildMandateAddress(child);
+        setChildCircleAddress(childCircle);
 
-        const batches: Instruction[][] = [];
+        if (view.assets.length === 0) throw new Error("The source Circle has no verified asset rules to copy.");
+        const steps: RunStep[] = [];
         const existingChild = await fetchMaybeMandate(rpc, child);
         const childNeedsActivation = !existingChild.exists || existingChild.data.state === MandateState.Draft;
         if (!existingChild.exists) {
-          batches.push([getForkMandateInstruction({
+          steps.push({ label: "Create the child Mandate", instructions: [getForkMandateInstruction({
             forker: signer, parentMandate: parent, newMandateSeed: seedAddress, newMandate: child,
-          })]);
+          })] });
         } else if (
           existingChild.data.author !== signer.address
           || existingChild.data.forkedFrom.__option !== "Some"
           || existingChild.data.forkedFrom.value !== parent
         ) {
           throw new Error("That fork address belongs to a different source or wallet.");
+        } else if (existingChild.data.state !== MandateState.Draft && existingChild.data.state !== MandateState.Active) {
+          throw new Error("The child Mandate is in an unsupported state. No further transactions were sent.");
         }
 
-        const copied: { newAsset: Address; registryEntry: Address }[] = [];
+        const copied: { newAsset: Address; registryEntry: Address; mint: Address; tokenProgram: Address; targetWeightBps: number; index: number }[] = [];
         for (const { asset } of view.assets) {
+          const parentRule = await fetchMaybeMandateAsset(rpc, asset.mandateAsset);
+          if (!parentRule.exists || parentRule.data.mandate !== parent || parentRule.data.mint !== asset.mint || !parentRule.data.enabled) {
+            throw new Error("The source Circle’s asset rules could not be verified. No new Circle was created.");
+          }
           const [newAsset] = await findNewAssetPda({ newMandate: child, mint: asset.mint });
           const [registryEntry] = await findRegistryEntryPda({ mint: asset.mint });
-          copied.push({ newAsset, registryEntry });
+          copied.push({ newAsset, registryEntry, mint: asset.mint, tokenProgram: asset.tokenProgram, targetWeightBps: parentRule.data.targetWeightBps, index: parentRule.data.index });
           const existingAsset = await fetchMaybeMandateAsset(rpc, newAsset);
           if (!existingAsset.exists) {
-            batches.push([getForkMandateAssetInstruction({
+            if (existingChild.exists && existingChild.data.state === MandateState.Active) {
+              throw new Error("The child Mandate is already active but a copied asset rule is missing. For safety, this fork cannot be repaired automatically.");
+            }
+            steps.push({ label: "Copy an asset rule", instructions: [getForkMandateAssetInstruction({
               forker: signer, parentMandate: parent, mint: asset.mint, parentAsset: asset.mandateAsset,
               newMandate: child, newAsset, registryEntry,
-            })]);
+            })] });
+          } else {
+            const rule = existingAsset.data;
+            if (rule.mandate !== child || rule.mint !== asset.mint || !rule.enabled
+              || rule.targetWeightBps !== parentRule.data.targetWeightBps || rule.index !== parentRule.data.index) {
+              throw new Error("A copied asset rule does not match its parent. The fork was stopped before creating a Circle.");
+            }
           }
         }
 
@@ -838,17 +859,82 @@ function ForkCard({ view, signer, runMany, busy }: {
             { address: newAsset, role: AccountRole.READONLY },
             { address: registryEntry, role: AccountRole.READONLY },
           ]);
-          batches.push([{ ...finalize, accounts: [...finalize.accounts, ...remaining] } as Instruction]);
+          steps.push({ label: "Activate the copied Mandate", instructions: [{ ...finalize, accounts: [...finalize.accounts, ...remaining] } as Instruction] });
         }
-        return batches;
-      })} />
-      {childAddress ? (
+        const existingCircle = await fetchMaybeCircle(rpc, childCircle);
+        if (!existingCircle.exists) {
+          steps.push({ label: "Create the independent Circle", instructions: [await getCreateCircleInstructionAsync({
+            creator: signer, mandate: child, usdcMint: view.usdcMint, tokenProgram: TOKEN_PROGRAM,
+          })] });
+        } else if (existingCircle.data.mandate !== child) {
+          throw new Error("The derived Circle address is bound to a different Mandate. No asset vaults were created.");
+        }
+
+        for (const { newAsset, mint, tokenProgram } of copied) {
+          const [circleAssetAddress] = await findCircleAssetPda({ circle: childCircle, mint });
+          const existingCircleAsset = await fetchMaybeCircleAsset(rpc, circleAssetAddress);
+          if (existingCircleAsset.exists) {
+            const createdAsset = existingCircleAsset.data;
+            if (createdAsset.circle !== childCircle || createdAsset.mandateAsset !== newAsset
+              || createdAsset.mint !== mint || createdAsset.tokenProgram !== tokenProgram || createdAsset.status !== AssetStatus.Active) {
+              throw new Error("A child Circle vault does not match the copied Mandate rule. The fork was stopped.");
+            }
+          } else {
+            steps.push({ label: "Create an asset vault", instructions: [await getAddCircleAssetInstructionAsync({
+              payer: signer, circle: childCircle, mandateAsset: newAsset, mint, tokenProgram,
+            })] });
+          }
+        }
+
+        return {
+          steps,
+          verify: async () => {
+            const [mandateCheck, circleCheck] = await Promise.all([
+              fetchMaybeMandate(rpc, child), fetchMaybeCircle(rpc, childCircle),
+            ]);
+            if (!mandateCheck.exists || mandateCheck.data.state !== MandateState.Active
+              || mandateCheck.data.forkedFrom.__option !== "Some" || mandateCheck.data.forkedFrom.value !== parent) {
+              throw new Error("The copied Mandate is not active or its lineage does not match the source.");
+            }
+            if (!circleCheck.exists || circleCheck.data.mandate !== child) throw new Error("The independent Circle account was not found after confirmation.");
+            const [childUsdcVault] = await findActiveUsdcVaultPda({ circle: childCircle });
+            await rpc.getTokenAccountBalance(childUsdcVault, { commitment: "confirmed" }).send();
+            for (const { newAsset, mint, tokenProgram, targetWeightBps, index } of copied) {
+              const [mandateAssetAddress] = await findNewAssetPda({ newMandate: child, mint });
+              const mandateAsset = await fetchMaybeMandateAsset(rpc, mandateAssetAddress);
+              const [circleAssetAddress] = await findCircleAssetPda({ circle: childCircle, mint });
+              const [expectedVault] = await findVaultPda({ circle: childCircle, mint });
+              const circleAsset = await fetchMaybeCircleAsset(rpc, circleAssetAddress);
+              if (!mandateAsset.exists || mandateAsset.data.mandate !== child || mandateAsset.data.mint !== mint
+                || mandateAsset.data.targetWeightBps !== targetWeightBps || mandateAsset.data.index !== index || !mandateAsset.data.enabled
+                || !circleAsset.exists || circleAsset.data.circle !== childCircle || circleAsset.data.mandateAsset !== newAsset
+                || circleAsset.data.mint !== mint || circleAsset.data.vault !== expectedVault
+                || circleAsset.data.tokenProgram !== tokenProgram || circleAsset.data.status !== AssetStatus.Active) {
+                throw new Error("One or more copied rules or Mandate-bound asset vaults could not be verified.");
+              }
+              await rpc.getTokenAccountBalance(expectedVault, { commitment: "confirmed" }).send();
+            }
+          },
+        };
+        });
+        if (ok) setSetupComplete(true);
+      }} />
+      {childMandateAddress && childCircleAddress ? (
         <div className="fork-result">
           <span className="status-dot" />
-          <span>Fork destination <AddressLink address={childAddress} /></span>
+          <div>{setupComplete
+            ? <>Fork complete · independent Circle verified <AddressLink address={childCircleAddress} /></>
+            : <>Fork setup can be resumed · these are derived addresses, not proof the on-chain accounts exist.</>}
+            <details className="execution-details">
+              <summary>Show fork addresses</summary>
+              <div className="preview-row"><span className="k">Child Mandate</span><AddressLink address={childMandateAddress} /></div>
+              <div className="preview-row"><span className="k">Child Circle</span><AddressLink address={childCircleAddress} /></div>
+            </details>
+            {setupComplete ? <button className="btn small primary" type="button" onClick={() => onOpenCircle(childCircleAddress)}>Open new Circle</button> : null}
+          </div>
         </div>
       ) : null}
-      <p className="automation-foot">Fork setup uses separate transactions for the child Mandate, each asset rule, and final activation so an 8-asset constitution stays within Solana transaction limits.</p>
+      <p className="automation-foot">Each confirmed step is retained on-chain and can be resumed. Review the wallet’s transaction details; cancel any prompt that reports a failed simulation—never choose “Confirm unsafe.”</p>
     </section>
   );
 }
@@ -868,11 +954,11 @@ function AutomationPreview() {
         Tenet will only enable this when a real, revocable USDC authorization path is available.
       </p>
       <div className="automation-options">
-        <div className="automation-option"><strong>Recurring</strong><span>$10 every Friday</span></div>
-        <div className="automation-option"><strong>Percentage</strong><span>5% of eligible USDC</span></div>
-        <div className="automation-option"><strong>Round-up</strong><span>Round supported spending</span></div>
+        <div className="automation-option"><strong>Recurring</strong><span>Choose an amount and schedule</span></div>
+        <div className="automation-option"><strong>Percentage</strong><span>Choose a share of incoming USDC</span></div>
+        <div className="automation-option"><strong>Round-up</strong><span>Round supported payments</span></div>
       </div>
-      <div className="automation-foot">Manual contribution is active. No wallet authority is requested by this preview.</div>
+      <div className="automation-foot">Not available yet. Manual contributions are available; this preview does not request permission to spend from your wallet.</div>
     </div>
   );
 }
@@ -890,27 +976,26 @@ function ExitCard({ view, circle, me, signer, run, busy }: {
   return (
     <section className="card">
       <div className="card-head">
-        <div><span className="eyebrow">Your position</span><h2>Exit</h2><p className="card-intro">Redeem in kind without a governance or price gate.</p></div>
-        <Badge tone="good">Always available</Badge>
+        <div><span className="eyebrow">Your position</span><h2>Leave this Circle</h2><p className="card-intro">Start an exit without a member vote or price feed. Outside token issuer or program transfer limits may still apply.</p></div>
+        <Badge tone="good">No vote or price needed</Badge>
       </div>
 
       {held > 0n ? (
         c.pendingReservations > 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Another exit is reserving its assets. Exits go one at a time so neither can take value from the other — anyone
-            can finish it below.
+            Another member’s exit is being prepared. This prevents two people from claiming the same assets; anyone can finish preparing it in the exit below.
           </p>
         ) : (
           <>
             <div className="field">
-              <div className="field-label"><span>Shares to redeem</span><span className="num">{trim(formatShares(shares))} of {trim(formatShares(held))}</span></div>
+              <div className="field-label"><span>How much of your position to leave</span><span className="num">{pct}% · {trim(formatShares(shares))} of {trim(formatShares(held))} shares</span></div>
               <input type="range" min={1} max={100} value={pct} onChange={(e) => setPct(Number(e.target.value))} aria-label="percent of your shares" />
               <div className="chips">
                 {[25, 50, 75, 100].map((p) => <button key={p} className="chip" onClick={() => setPct(p)}>{p}%</button>)}
               </div>
             </div>
             <ExitPreview view={view} shares={shares} />
-            <ActionButton busy={busy} disabled={shares === 0n} label="Start exit" onClick={() => run("Start exit", async () => {
+            <ActionButton busy={busy} disabled={shares === 0n} label="Confirm share and start exit" onClick={() => run("Start Circle exit", async () => {
               const [memberAddr] = await findMemberPda({ circle, memberOwner: me });
               const redemption = await redemptionPda(circle, me, member!.nextRedemptionSeq);
               return [await initiateRedemption({ memberOwner: signer, circle, member: memberAddr, redemption, shares })];
@@ -918,7 +1003,7 @@ function ExitCard({ view, circle, me, signer, run, busy }: {
           </>
         )
       ) : (
-        <p className="muted" style={{ margin: 0 }}>You hold no shares in this Circle.</p>
+        <p className="muted" style={{ margin: 0 }}>This wallet does not hold any Circle shares yet.</p>
       )}
 
       {view.exits.map((x) => <ExitItem key={x.seq.toString()} exit={x} view={view} circle={circle} me={me} signer={signer} run={run} busy={busy} />)}
@@ -938,7 +1023,8 @@ function ExitPreview({ view, shares }: { view: CircleView; shares: bigint }) {
     <div className="preview">
       <div className="preview-row"><span className="k">USDC</span><span className="v">{trim(usdc(usdcOut))}</span></div>
       {rows.map(({ h, amount }) => <PreviewAsset key={h.address} h={h} amount={amount} />)}
-      <div className="preview-row"><span className="k">Rounding</span><span className="v">floors toward the Circle</span></div>
+      <div className="preview-row"><span className="k">Rounding</span><span className="v">Any tiny remainder stays with the Circle</span></div>
+      <p className="exit-explainer">These are token amounts from the Circle’s current vault balances, not dollar values. Any external transfer fee is shown separately.</p>
     </div>
   );
 }
@@ -974,11 +1060,11 @@ function ExitItem({ exit, view, circle, me, signer, run, busy }: {
   return (
     <div className="exit">
       <div className="exit-head">
-        <strong>Exit #{exit.seq.toString()} · {trim(formatShares(r.sharesRedeemed))} shares</strong>
-        {r.assetsRemaining > 0 ? <Badge tone="warn">reserving</Badge> : done ? <Badge tone="good">complete</Badge> : <Badge tone="info">ready to claim</Badge>}
+        <strong>Your exit · {trim(formatShares(r.sharesRedeemed))} shares</strong>
+        {r.assetsRemaining > 0 ? <Badge tone="warn">preparing</Badge> : done ? <Badge tone="good">complete</Badge> : <Badge tone="info">ready to send</Badge>}
       </div>
       {r.assetsRemaining > 0 ? (
-        <ActionButton block={false} kind="ghost" busy={busy} label={`Reserve remaining (${r.assetsRemaining}) — anyone can`} onClick={() => run("Reserve exit assets", async () => {
+        <ActionButton block={false} kind="ghost" busy={busy} label={`Prepare remaining assets (${r.assetsRemaining})`} onClick={() => run("Prepare remaining exit assets", async () => {
           const ixs: Instruction[] = [];
           for (const { asset } of view.assets) {
             if (!((r.assetBitmapAtSnapshot >> asset.index) & 1) || reserved.has(asset.mint)) continue;
@@ -1012,18 +1098,18 @@ function Claim({ claim, exit, view, circle, me, signer, run, busy }: {
   const d = isUsdc ? USDC_DECIMALS : h?.registry.decimals ?? 0;
   const amount = claim.asset.amountRaw;
   const fee = useFee(claim.mint, amount);
-  const name = isUsdc ? "Test USDC" : h?.registry.symbol ?? "asset";
+  const name = isUsdc ? "USDC" : h?.registry.symbol ?? "asset";
   return (
     <div className="claim">
       <div>
         <div className="claim-amt">{trim(formatRaw(fee ? amount - fee.fee : amount, d))} {name}</div>
         {fee && fee.fee > 0n ? (
           <div className="fee-note" style={{ textAlign: "left" }}>
-            you receive this after the issuer's {formatBps(fee.bps)} transfer fee ({trim(formatRaw(fee.fee, d))}) — not reimbursed by the Circle
+            The token issuer’s {formatBps(fee.bps)} transfer fee ({trim(formatRaw(fee.fee, d))}) comes out of your exit amount. The Circle does not cover it.
           </div>
-        ) : <div className="asset-sub">entitled {trim(formatRaw(amount, d))}</div>}
+        ) : <div className="asset-sub">Your claim: {trim(formatRaw(amount, d))}</div>}
       </div>
-      <button className="btn small primary" disabled={!!busy} onClick={() => run(`Claim ${name}`, async () => {
+      <button className="btn small primary" disabled={!!busy} onClick={() => run(`Send ${name} to wallet`, async () => {
         const tokenProgram = isUsdc ? TOKEN_PROGRAM : h!.asset.tokenProgram;
         const to = await ataAddress(me, claim.mint, tokenProgram);
         const [vaultAuthority] = await findVaultAuthorityPda({ circle });
@@ -1041,7 +1127,7 @@ function Claim({ claim, exit, view, circle, me, signer, run, busy }: {
           memberOwner: signer, circle, redemption: exit.address, circleAsset, redemptionAsset: claim.address,
           vault, mint: claim.mint, tokenProgram, memberTokenAccount: to, vaultAuthority,
         })];
-      })}>Claim</button>
+      })}>Send to my wallet</button>
     </div>
   );
 }

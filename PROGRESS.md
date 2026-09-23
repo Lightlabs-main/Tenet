@@ -1,6 +1,16 @@
 # Tenet — Progress
 
-Last updated: 2026-09-22
+Last updated: 2026-09-23
+
+## Secure-context HTTP error (2026-09-23)
+
+- Added an early entry-page guard that upgrades insecure HTTP visits to the
+  canonical HTTPS origin before loading Solana Kit/WebCrypto-dependent code.
+- Web app TypeScript check and Vite production build pass.
+- Live VPS Caddy redirect is still needed for an edge-level fix. SSH reached
+  the host but the available key was rejected, so no remote configuration was
+  changed; do not report the HTTP route fixed until that redirect is deployed
+  and verified.
 
 ---
 
@@ -634,3 +644,91 @@ Full register in [docs/threat-model.md](docs/threat-model.md).
 - Continued the reference implementation with a consumer landing page and a dedicated Mandate inspection surface. Landing CTAs lead to actual Circle/Explore views; Mandate limits, assets, lineage, membership and Epoch controls are read from the loaded on-chain accounts. Its Fork CTA enters the existing Circle Fork flow.
 - Rechecked the landing and Mandate screens in the browser; live devnet rules rendered, including asset exposure class and fork lineage. Web TypeScript check and Vite production build pass after these additions.
 - Added a fixed, safe-area-aware mobile tab bar for Home, Explore, Circle, and Mandate. Route navigation now resets to the selected surface, avoiding stale anchor positions after switching screens. Web TypeScript check and production build pass.
+
+## LANDING REFERENCE FIDELITY — 2026-09-23
+
+- Replaced the landing page's invented orbit illustration with a reference-led hero: community contribution, Circle, Mandate, and governed asset categories.
+- Added a transparent community portrait asset at `apps/web/public/tenet-community-hero.png`, derived from the supplied dark landing reference's visual direction. Mock financial figures from UI references remain excluded from the production interface.
+- Reworked the public hero typography, dark Inkberry/Deep Plum treatment, Peach emphasis, CTAs, and flow composition; preserved the `/` landing and `/app` workspace split.
+- Verification: web TypeScript and Vite production build pass; domain/PDA tests **48 passed**, SDK client tests **6 passed**; final HTTPS landing was browser-verified after VPS deployment.
+- `pnpm test` wrapper is environment-blocked because this host's pnpm attempted to purge the modules directory without a TTY (also reports Node 24 vs repository Node 22 engine). Equivalent test commands completed directly. ESLint is unavailable in the local root node_modules.
+
+## TENET SPA ROUTE REPAIR — 2026-09-23
+
+- Fixed `/app` deep links on both `http://38.49.209.149:8503` and HTTPS: Caddy now serves `/opt/tenet-preview/dist` with `try_files {path} /index.html`.
+- Replaced only the PM2-managed `tenet-preview` Python static server that returned 404 for `/app`; saved the remaining PM2 process list so the old server is not resurrected after restart.
+- Preserved port 8501 and its Streamlit listener. Backed up the previous Caddyfile at `/etc/caddy/Caddyfile.before-tenet-spa-20260923` before activation.
+- Verification: Caddy config validates; `/app#explore` rendered the Explore surface in browser at both port 8503 and HTTPS; port 8501 listener remained unchanged.
+
+## CIRCLE DASHBOARD CLARITY PASS — 2026-09-23
+
+- Reordered the Circle view so actual holdings/status lead, clarified that the current Circle is an empty devnet demo with no real stock position, and identified TEQx as a test token rather than equity exposure.
+- Replaced visible `tUSDC`/Epoch/NAV/execution jargon with consumer-facing wording; retained the underlying contribution, valuation, exit, and governance behavior.
+- Hid the long Circle address behind an “Open another Circle” disclosure and moved router/security implementation detail behind an explanation disclosure.
+- Verification: web TypeScript check, Vite production build, `git diff --check`, domain/PDA tests (**48 passed**), and SDK generation/client tests (**6 passed**).
+- Rendered the devnet Circle locally in the browser and confirmed it reads “This Circle has not invested yet,” reports 0 test USDC, shows TEQx only as an allowed test token, and explains why there are no stock positions.
+- This pass is local-only; the VPS has not been updated or re-verified.
+
+## APP-WIDE PRODUCT CLARITY PASS — 2026-09-23
+
+- Applied consistent plain-language copy across the public landing page, Circle dashboard, Explore, Mandate details, contributions, execution status, exits, Fork, and account/network error paths.
+- Distinguished Mandate target allocations from actual Circle holdings; changed the personal position headline to ownership percentage and explained that displayed asset portions are token amounts, not dollar values.
+- Made the landing flow explicitly illustrative and stated that the current devnet demo has no stock holdings. The on-chain Circle currently has 0 active test USDC, 0 members, no held tokens, and TEQx only as an allowed test asset; no stock prices or real investment claims were added.
+- Clarified contribution-window duration in human units, pending-funds and exit-preparation messages, and the fact that automatic contributions are not available or authorized.
+- Fixed invalid Circle-address feedback so a malformed address is reported beside the address field instead of being presented as an RPC/Circle-load error.
+- Verification: web TypeScript check and Vite production build pass; domain/PDA tests **48 passed**, SDK client tests **6 passed**, generated client check and `git diff --check` pass. Landing, Explore, Mandate, and Circle dashboard were checked in the local browser preview.
+- This pass is local-only. It does not deploy or update the VPS; the local preview is at `http://127.0.0.1:5176/`.
+
+## FORK END-TO-END REPAIR — 2026-09-23
+
+- Inspected the current Fork UI, generated SDK account/instruction APIs, Anchor `CreateCircle` / `AddCircleAsset` constraints, existing Fork instructions, and current tests.
+- Found the Fork flow only created/copied/finalized a child Mandate. It never created the independent Circle or its token vaults, while the UI reported “New Circle created” as soon as a derived Mandate address existed.
+- Added `docs/ui-redesign-plan.md` before the component changes, following the supplied UI prompt. Kept this pass scoped to truthful Fork progress and recovery.
+- Fork now creates the Circle and each asset vault using the source Circle’s recorded token program, persists the non-secret seed in session storage for retries, validates copied rules/lineage/vault PDAs, and reports completion only after fetching all required child accounts. It offers an explicit “Open new Circle” action.
+- Wallet simulation failures now say the step was not confirmed and tell users to cancel unsafe prompts; retries detect already-confirmed steps instead of duplicating setup. No wallet transaction was signed by Codex.
+- Added `test_forked_mandate_creates_independent_circle_and_vaults`, covering child Circle/vault creation, zero initial child custody, and unchanged parent accounts/vaults. Adversarial sign-off remains open in `REVIEW.md`.
+- Local verification: web typecheck passed; Vite production build passed; `money-lint` passed; domain/PDA suite **48 passed**; SDK generated-client check passed; SDK client suite **6 passed**; `git diff --check` passed; Rust test source parsed.
+- Local LiteSVM execution is blocked: offline Cargo dependency resolution cannot find `pyth-solana-receiver-sdk`, and the required `target/deploy/tenet.so` is absent. No network install or VPS deployment was attempted.
+- Browser smoke test on `http://127.0.0.1:5176/app`: live devnet Circle loaded, Explore and Mandate navigation rendered the expected surfaces. Browser wallet was not connected, so signing/transaction execution was intentionally not attempted.
+
+## CONSUMER APP NAVIGATION / VISUAL PASS — 2026-09-23
+
+- The user reported that the landing and workspace still felt combined and the dashboard was scattered. Confirmed the old `5176` process served stale HTML from another running local preview; opened this workspace's current Vite app on `http://127.0.0.1:5177/` for verification.
+- Replaced the single long Circle page with focused Overview, Portfolio, Prices, Mandate, Contribute, Exit, and Fork screens. Overview now leads with three honest signals (cash-only Circle value or unavailable priced NAV, member position, Mandate state), holdings, and direct actions. Advanced accounting/rule explanations remain available in disclosures.
+- Simplified desktop navigation, added a five-action mobile/tablet bottom bar, preserved independent `/` public and `/app` workspace destinations, and made browser Back restore the previous screen.
+- Replaced the purple visual palette with Graphite, Warm Ivory, Peach, Sage and Market Blue; added a serif headline paired with the existing sans UI. Both Light and Dark render in the same structure.
+- Browser checks on the actual `5177` process: landing, Circle overview, Portfolio, Mandate, Contribute wallet-required state, Fork entry, Light/Dark styling, and Back navigation rendered correctly against the existing devnet Circle. No wallet transaction was signed. The devnet Circle still has 0 active test USDC, 0 held assets, and only the permitted TEQx test mint.
+- Web TypeScript and production bundle build pass; money-lint passes; domain/PDA tests **48 passed**; SDK generated-client check passes and client tests **6 passed**. The new Rust Fork lifecycle test remains unexecuted locally due missing offline Cargo dependency and deployable artifact.
+- This UI pass is local. Port `5176` and the VPS preview were not replaced. A read-only SSH access check to the previously authorized VPS failed with `Permission denied (publickey,password,keyboard-interactive)`; no remote files or services were changed. Production stock execution, live NAV, and a signed end-to-end contribution/exit/fork remain open gates.
+- Continued the consumer pass in the user-visible narrow browser tab: redirected that tab from the stale `5176` preview to this workspace's `5177` server. Verified the mobile Overview, Portfolio and Exit layouts and the bottom navigation. Simplified Explore to one verified Circle and a small directory-status note.
+- Portfolio now lists only nonzero vault-held assets; permitted but unpurchased TEQx appears as an explicit explanation, not as a holding. The accounting methodology is available on demand. Cash-only Circle value is shown from active test USDC; priced NAV remains unavailable when unpriced assets are held.
+- Wallet-required action screens now include a direct Connect wallet control. In the in-app browser, no devnet-capable wallet was detected, so signed contribution/exit/fork testing remains open. The post-change web typecheck, production build, money-lint and diff check pass.
+
+## FINAL UI/UX BUILD PROMPT — 2026-09-23
+
+- Read the complete supplied UI/UX prompt, inspected the current public landing and `/app` Circle workspace, searched the repository image inventory, and added `docs/ui-rebuild-plan.md` before the implementation pass.
+- Expanded the public landing into the requested story: hero, investment-category rail, product mechanics, scroll journey, current on-chain Mandate summary, permitted asset universe, market-intelligence availability, manual/automatic contribution states, exit, Fork, and final CTA.
+- Reused the existing four-person `apps/web/public/tenet-community-hero.png`. No additional reference images or stock logos exist in the repo. No issuer examples, token prices, returns, performance, or fake automation were added.
+- Circle-specific rule/asset details come from the loaded devnet Mandate registry. The permitted `TEQx` test token is explicitly labeled as a devnet test asset, distinct from the Circle's actual zero stock holdings.
+- Moved shared System / Light / Dark state to the router so the public page and app use the same persisted theme. Added restrained, reduced-motion-aware editorial rails. Simplified desktop primary navigation to Overview, Explore, Holdings, Prices & value, and Mandate; money actions remain directly available from Overview.
+- Verified the local landing at the available phone-sized viewport, including the hero, mid-page story, asset section, and sticky-header anchor offset. Opened “Open the demo” and confirmed the separate `/app#top` Circle workspace loads from the public site. Desktop/tablet responsive QA is still open.
+- Verification: direct web TypeScript check passed; Vite production build passed; domain/PDA suite **48 passed**; SDK generated client check passed; SDK client tests **6 passed**; money-lint and `git diff --check` passed.
+- `pnpm --filter @tenet/web typecheck` could not start because pnpm attempted to remove/install the shared modules directory in a non-interactive shell. Direct local binaries were used; SDK tests passed when run from `packages/sdk` so the local `tsx` package resolves.
+- UI-only changes; no Anchor, custody, valuation, execution or wallet transaction logic changed. No transaction was signed and no VPS deployment was performed. The current preview is local at `http://127.0.0.1:5177/`.
+
+## MAINNET READ-ONLY READINESS CHECK — 2026-09-23
+
+- `pnpm verify` could not launch because the local pnpm wrapper attempted a non-interactive dependency purge under unsupported Node 24 / pnpm 11. Ran the existing read-only harness directly with Node instead; no files, wallet, signer, or transaction were used.
+- Mainnet read-only harness: **63 checks, 0 blocking failures, 10 warnings** at slot `449806663` (epoch `1041`). USDC and the dynamically discovered 8-asset PreStocks universe passed mint/token metadata, raw supply, multiplier, fee, and issuer-control checks. Legacy Jupiter routes were observed but are not Swap V2 or execution verification.
+- The local environment has no `PYTH_API_KEY` or `JUPITER_API_KEY`; Pyth Hermes authentication and current Jupiter Swap V2 `/order` + Router `/build` therefore remain unverified in this run. V-007/V-008 remain open.
+- Finalized mainnet `getAccountInfo` at slot `449807618` returned no account for the configured program ID `FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v`. Tenet is not deployed at the configured address on mainnet. `apps/web/src/config.ts` is intentionally still devnet-only and must not be switched by changing only the RPC URL.
+- No code/config was flipped to mainnet. No program deployment, config initialization, swap, contribution, or other real-capital transaction was attempted. Mainnet release remains blocked on deployment/authority decisions, unresolved verification and adversarial review gates, and a separately reviewed controlled transaction plan. Full observations are in [docs/verification.md](docs/verification.md).
+
+## MAINNET CLIENT SWITCH — 2026-09-23
+
+- Switched the local web client to Solana Mainnet (`solana:mainnet`), configured canonical mainnet USDC, removed the devnet default Circle, and set the default RPC path to a same-origin route. The client never substitutes devnet accounts on mainnet.
+- The workspace checks the configured Tenet program account at finalized commitment. The actual mainnet response is `value: null` for the configured program ID, so the app now clearly reports that Tenet is not deployed instead of rendering a broken test Circle.
+- All wallet transactions remain disabled in config and `chain.send()` has a central fail-closed guard. The Vite preview proxy forwards only `getAccountInfo`, `getEpochInfo`, `getProgramAccounts`, and `getTokenAccountBalance`; `sendTransaction` was tested and rejected with HTTP 403.
+- A same-origin server-side proxy was required because browser-origin requests to the public Solana RPC returned HTTP 403. The local preview on `http://127.0.0.1:5178/app` successfully read mainnet at slot `449818523` and reported the missing Tenet program. The earlier sandboxed `5177` process cannot reach upstream RPC and is not the verified mainnet preview.
+- Verification: web TypeScript check and Vite production build passed; domain/PDA suite **48/48** passed; SDK generated-client check passed; SDK client suite **6/6** passed; money lint and `git diff --check` passed.
+- This changes the local app, not the VPS deployment. Production hosting still needs an equivalent read-only mainnet RPC proxy. No mainnet program deployment, wallet signing, contribution, trade, or exit was performed. V-007/V-008 and deployment/authority/security gates remain open.

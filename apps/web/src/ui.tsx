@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { CLUSTER } from "./config.ts";
 
 export const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 
@@ -8,8 +9,8 @@ export const formatBps = (bps: bigint) => `${bps / 100n}.${(bps % 100n).toString
 /** part/whole as bps, floored, integer only. */
 export const ratioBps = (part: bigint, whole: bigint) => (whole === 0n ? 0n : (part * 10_000n) / whole);
 
-export const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
-export const explorerAddr = (a: string) => `https://explorer.solana.com/address/${a}?cluster=devnet`;
+export const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=${CLUSTER === "devnet" ? "devnet" : "mainnet-beta"}`;
+export const explorerAddr = (a: string) => `https://explorer.solana.com/address/${a}?cluster=${CLUSTER === "devnet" ? "devnet" : "mainnet-beta"}`;
 
 type Tone = "good" | "warn" | "info" | "pre" | "bad" | "neutral";
 

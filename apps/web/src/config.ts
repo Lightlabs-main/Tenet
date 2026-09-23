@@ -1,24 +1,29 @@
 /**
- * Devnet configuration. DEVNET ONLY until Phase 4.
- *
- * The addresses below are public devnet state from the e2e run
- * (PROGRESS.md "DEVNET"). The test USDC is a devnet mint created for testing —
- * NOT Circle USDC — and the UI says so wherever it appears.
+ * Solana mainnet configuration. This initial mainnet profile is deliberately
+ * read-only: the configured Tenet program has not been deployed here and the
+ * unresolved release gates do not permit wallet transactions.
  */
 import { address } from "@solana/kit";
 
-export const CLUSTER = "devnet" as const;
-export const CHAIN = "solana:devnet" as const;
-export const RPC_URL = "https://api.devnet.solana.com";
+export const CLUSTER: "devnet" | "mainnet-beta" = "mainnet-beta";
+export const CHAIN = "solana:mainnet" as const;
+// The local Vite server proxies a strict read-only JSON-RPC allowlist to avoid
+// browser-origin blocks on public RPCs. Production must supply a browser-safe
+// endpoint or a same-origin server proxy; never embed private RPC credentials.
+export const RPC_URL = import.meta.env.DEV
+  ? "/api/solana"
+  : import.meta.env.VITE_SOLANA_RPC_URL || "/api/solana";
 
-export const TEST_USDC = address("GXcCAwkuxFYeyHji4EiD4H4iy1dbKbuPNgXjoAYHhbMy");
+export const USDC_MINT = address("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 export const USDC_DECIMALS = 6;
-// A Circle with no shares yet, prepared for a browser-wallet run (devnet-e2e.ts --setup-only).
-export const DEFAULT_CIRCLE = "GcAB7dpPG4H9QeVDci9A5V92WNCADCQm7SeS5bKnSECS";
+// Mainnet has no default Tenet Circle; never carry a devnet PDA into this build.
+export const DEFAULT_CIRCLE: string | null = null;
+// Keep all signing paths closed until deployment and independent release review.
+export const TRANSACTIONS_ENABLED = false;
 
 export const TOKEN_PROGRAM = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 export const TOKEN_2022_PROGRAM = address("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 export const ATA_PROGRAM = address("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 export const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
 
-if (!RPC_URL.includes("devnet")) throw new Error("REFUSING: this build is devnet-only");
+if (RPC_URL.includes("devnet")) throw new Error("REFUSING: mainnet build cannot use a devnet RPC");

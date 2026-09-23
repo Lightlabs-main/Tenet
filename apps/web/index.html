@@ -3,10 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tenet — devnet</title>
+    <title>Tenet — Collective investing, governed by rules</title>
+    <meta name="description" content="Pool capital under an inspectable investment Mandate. Don't copy someone's trades. Fork their investment constitution." />
+    <script>
+      // Solana Kit needs WebCrypto, which browsers expose only in secure
+      // contexts. The VPS preview's HTTP port (8503) must upgrade to the
+      // canonical HTTPS origin before the application bundle can execute.
+      if (location.protocol === "http:" && !window.isSecureContext) {
+        const secureUrl = new URL(location.href);
+        secureUrl.protocol = "https:";
+        secureUrl.port = "";
+        location.replace(secureUrl.href);
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <meta name="color-scheme" content="dark light" />
     <script>
       (() => {
@@ -23,7 +35,7 @@
         <div class="boot-mark">T</div>
         <div>
           <strong>Loading Tenet</strong>
-          <span>Connecting to the devnet preview…</span>
+          <span>Connecting to Solana mainnet…</span>
         </div>
       </div>
     </div>

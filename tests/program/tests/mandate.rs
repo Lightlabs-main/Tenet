@@ -12,6 +12,7 @@ use common::*;
 use solana_keypair::Keypair;
 use solana_signer::Signer;
 use tenet::state::{AssetClass, AssetStatus, Mandate, MandateAsset, MandateState};
+use tenet::state::{Circle, CircleAsset, CircleState};
 use tenet::TenetError;
 
 fn pair(mandate: &Pubkey, mint: &Pubkey) -> (Pubkey, Pubkey) {
@@ -293,6 +294,68 @@ fn test_fork_does_not_move_parent_assets() {
     assert_eq!(before, after);
     assert_eq!(read::<Mandate>(&e.svm, &parent).asset_count, 2);
     assert_eq!(read::<Mandate>(&e.svm, &child).asset_count, 2);
+}
+
+#[test]
+fn test_forked_mandate_creates_independent_circle_and_vaults() {
+    // End-to-end fork setup must create new custody only after copying and activating rules.
+    let mut e = with_config();
+    let (forker, parent, parent_pairs) = two_asset_draft(&mut e);
+    send(&mut e.svm, &[finalize_ix(&forker.pubkey(), &parent, &parent_pairs)], &forker, &[]).unwrap();
+
+    let parent_circle = tenet::pda::circle(&parent).0;
+    let usdc = e.usdc_mint;
+    send(&mut e.svm, &[create_circle_ix(&forker.pubkey(), &parent, &usdc, &token())], &forker, &[]).unwrap();
+    let mints: Vec<Pubkey> = parent_pairs.iter().map(|(asset, _)| read::<MandateAsset>(&e.svm, asset).mint).collect();
+    for &mint in &mints {
+        let parent_asset = tenet::pda::mandate_asset(&parent, &mint).0;
+        send(&mut e.svm, &[add_circle_asset_ix(&forker.pubkey(), &parent_circle, &parent_asset, &mint, &token_2022())], &forker, &[]).unwrap();
+    }
+    let parent_mandate_before = e.svm.get_account(&parent).unwrap().data;
+    let parent_circle_before = e.svm.get_account(&parent_circle).unwrap().data;
+    let parent_usdc_vault = tenet::pda::usdc_vault(&parent_circle).0;
+    let parent_usdc_vault_before = e.svm.get_account(&parent_usdc_vault).unwrap().data;
+    let parent_vaults_before: Vec<Vec<u8>> = mints.iter()
+        .map(|mint| e.svm.get_account(&tenet::pda::asset_vault(&parent_circle, &mint).0).unwrap().data)
+        .collect();
+
+    let seed = Keypair::new().pubkey();
+    let child = tenet::pda::mandate(&seed).0;
+    let child_circle = tenet::pda::circle(&child).0;
+    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed)], &forker, &[]).unwrap();
+    for &mint in &mints {
+        send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mint)], &forker, &[]).unwrap();
+    }
+    let child_pairs: Vec<(Pubkey, Pubkey)> = mints.iter().map(|mint| pair(&child, mint)).collect();
+    send(&mut e.svm, &[finalize_ix(&forker.pubkey(), &child, &child_pairs)], &forker, &[]).unwrap();
+    send(&mut e.svm, &[create_circle_ix(&forker.pubkey(), &child, &usdc, &token())], &forker, &[]).unwrap();
+    for (&mint, (child_asset, _)) in mints.iter().zip(&child_pairs) {
+        send(&mut e.svm, &[add_circle_asset_ix(&forker.pubkey(), &child_circle, child_asset, &mint, &token_2022())], &forker, &[]).unwrap();
+    }
+
+    let created_circle: Circle = read(&e.svm, &child_circle);
+    assert_eq!(created_circle.mandate, child);
+    assert_eq!(created_circle.state, CircleState::Funding);
+    assert_eq!((created_circle.total_shares, created_circle.member_count, created_circle.asset_count), (0, 0, 2));
+    assert_eq!(read::<Mandate>(&e.svm, &child).forked_from, Some(parent));
+    let child_usdc_vault = tenet::pda::usdc_vault(&child_circle).0;
+    assert_ne!(child_usdc_vault, parent_usdc_vault);
+    assert_eq!(token_balance(&e.svm, &child_usdc_vault), 0, "fork starts with no copied cash");
+    for &mint in &mints {
+        let parent_asset: CircleAsset = read(&e.svm, &tenet::pda::circle_asset(&parent_circle, &mint).0);
+        let child_asset: CircleAsset = read(&e.svm, &tenet::pda::circle_asset(&child_circle, &mint).0);
+        assert_eq!(child_asset.mandate_asset, tenet::pda::mandate_asset(&child, &mint).0);
+        assert_eq!(child_asset.status, AssetStatus::Active);
+        assert_ne!(child_asset.vault, parent_asset.vault);
+        assert_eq!(token_balance(&e.svm, &child_asset.vault), 0, "fork starts with empty independent vaults");
+    }
+    assert_eq!(e.svm.get_account(&parent).unwrap().data, parent_mandate_before);
+    assert_eq!(e.svm.get_account(&parent_circle).unwrap().data, parent_circle_before);
+    assert_eq!(e.svm.get_account(&parent_usdc_vault).unwrap().data, parent_usdc_vault_before);
+    let parent_vaults_after: Vec<Vec<u8>> = mints.iter()
+        .map(|mint| e.svm.get_account(&tenet::pda::asset_vault(&parent_circle, &mint).0).unwrap().data)
+        .collect();
+    assert_eq!(parent_vaults_after, parent_vaults_before, "fork setup must leave parent custody untouched");
 }
 
 #[test]

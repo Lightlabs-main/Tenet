@@ -16,7 +16,7 @@ const stateSync = {
   deleteSelectedWallet: () => { try { localStorage.removeItem(KEY); } catch { /* ignore */ } },
 };
 
-/** Only wallets that can sign and send on devnet. */
+/** Wallets must support the currently selected Solana mainnet chain. */
 const filterWallets = (w: UiWallet) =>
   w.chains.includes(CHAIN) && w.features.includes("solana:signAndSendTransaction");
 
