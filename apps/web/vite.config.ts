@@ -1,12 +1,6 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-
-const READ_ONLY_RPC_METHODS = new Set([
-  "getAccountInfo",
-  "getEpochInfo",
-  "getProgramAccounts",
-  "getTokenAccountBalance",
-]);
+import { isReadOnlyRpcPayload } from "../../services/solana-rpc-proxy/policy.mjs";
 
 function mainnetReadOnlyRpc(): Plugin {
   return {
@@ -50,10 +44,7 @@ function mainnetReadOnlyRpc(): Plugin {
           const body = new TextDecoder().decode(requestBytes);
           try {
             const payload: unknown = JSON.parse(body);
-            const calls = Array.isArray(payload) ? payload : [payload];
-            if (calls.length === 0 || calls.some((call) =>
-              typeof call !== "object" || call === null || !READ_ONLY_RPC_METHODS.has(String((call as { method?: unknown }).method)),
-            )) return fail(403, "This mainnet preview allows read-only Solana RPC methods only.");
+            if (!isReadOnlyRpcPayload(payload)) return fail(403, "This mainnet preview allows approved read-only Solana RPC methods only.");
 
             const upstream = await fetch("https://api.mainnet-beta.solana.com", {
               method: "POST",

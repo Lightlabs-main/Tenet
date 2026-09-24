@@ -1,0 +1,24 @@
+[Unit]
+Description=Tenet read-only Solana mainnet RPC proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=caddy
+Group=caddy
+WorkingDirectory=/opt/tenet
+Environment=TENET_RPC_PROXY_PORT=8504
+ExecStart=/usr/bin/node /opt/tenet/services/solana-rpc-proxy/server.mjs
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=256M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target
