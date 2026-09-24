@@ -779,4 +779,15 @@ What remains unchanged: No deployment, signature, or transaction was made. The a
 ## MAINNET RELEASE VERIFICATION RERUN - 2026-09-24
 - Fresh VPS run: pnpm test passed 49 domain/PDA tests, 7 RPC-proxy tests and 6 SDK tests; typecheck, money-lint and diff check passed.
 - Read-only pnpm verify completed 70 checks with 0 blocking failures and 9 warnings at slot 450019439. It discovered 8 live PreStocks products and constructed 8 Jupiter Swap V2 Router routes; no Circle-vault CPI, signature, or write was tested.
-- Pyth Hermes is not configured (PYTH_API_KEY absent), so no target equity feed was authenticated; V-007 remains open. The current UI remains transaction-disabled.
+- Correction: the earlier "PYTH_API_KEY absent" result described the verifier process, which had not loaded the separate `/opt/tenet/.env`; the key was present on the VPS.
+
+## PYTH ENVIRONMENT AND MAINNET CHECK — 2026-09-24
+
+- Confirmed `PYTH_API_KEY` and `PYTH_HERMES_URL` are set in `/opt/tenet/.env`; values were not read into output or disclosed.
+- Pyth's current [Core upgrade guide](https://docs.pyth.network/price-feeds/core/upgrade/preparing) requires a Bearer API key for Hermes and documents `pyth.dourolabs.app/hermes` as the upgraded endpoint. Tenet's configured URL/auth pattern matches that guidance.
+- Added `TENET_ENV_FILE` loading to the read-only verifier. It parses only `KEY=value`, never executes shell content, never logs values, and preserves exported-variable precedence. Added regression coverage for selected-file precedence and checkout `.env` fallback.
+- `TENET_ENV_FILE=/opt/tenet/.env PYTH_ONLY=true pnpm verify` passed: HTTP 200, one exact parsed BTC/USD feed response. This verifies Hermes authentication/read only; it does not verify Tenet's target equity feed pairs.
+- Full `TENET_ENV_FILE=/opt/tenet/.env pnpm verify`: 67 checks, 0 blocking failures, 3 warnings at slot 450033084. Jupiter V2 Router `/build` succeeded for 8/8 discovered PreStocks mints; three legacy-route requests returned HTTP 429. These builds do not prove Circle-vault binding, CPI, signed execution, or balance deltas.
+- `pnpm test`: 64 passed (51 domain/PDA/env-loader, 7 RPC proxy, 6 SDK); `pnpm typecheck`, `pnpm check:money`, and `git diff --check` passed.
+- Program identity remains blocked: source/IDL configure FJt9..., while `anchor keys list` derives 7pLY...; the three discovered VPS Tenet keypair files were byte-identical. No matching FJt9 program keypair was found in those deployment locations. Do not sync, migrate, or deploy implicitly.
+- Still required: securely provision the original FJt9 program-ID keypair and a funded authorized deploy signer, or explicitly approve a program-ID migration. No secret belongs in chat. Mainnet transactions remain disabled.

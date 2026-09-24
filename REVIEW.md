@@ -431,3 +431,11 @@ Worked in this order as code lands (mirrors `docs/threat-model.md`, highest valu
 ## Release-gate rerun - 2026-09-24
 - Program is still absent at the configured mainnet ID (finalized slot 450019646); transactions stay disabled. This remains a deployment/authority blocker, not a UI or local-test failure.
 - Current rerun passed 62 package tests and 70 read-only verifier checks (0 blocking, 9 warnings). The eight Jupiter V2 builds are unsigned route-construction evidence only; no Circle-vault binding/CPI or actual delta was tested.
+
+## Pyth credential-path correction and current release status — 2026-09-24
+
+- The VPS already has `PYTH_API_KEY` and `PYTH_HERMES_URL` in `/opt/tenet/.env`. Earlier verifier output saying the key was absent meant that process had not loaded this separate file; it did not mean the VPS lacked the key.
+- The verifier now supports an explicit `TENET_ENV_FILE` path with regression tests. Hermes auth/read passed for BTC/USD using the current Pyth Bearer-auth flow. Supported equity and tokenized-equity feed pairs remain unverified; V-007 is not fully closed.
+- Credentialed read-only integration replay: 67 checks, 0 blocking failures, 3 legacy-route HTTP 429 warnings at slot 450033084. Jupiter V2 Router `/build` succeeded for all 8 discovered PreStocks mints, but source-vault binding/CPI/real balance deltas remain open.
+- Deployment remains blocked: configured FJt9... is not the address derived by the available Tenet program keypair (7pLY...). The known VPS copies are identical and none matches FJt9. No program-ID migration, signing, transaction, or deployment was performed.
+- This is a factual status update, not adversarial sign-off. Keep mainnet transactions disabled pending the original program keypair or explicit migration authority, target equity feed verification, and Jupiter vault/CPI review.

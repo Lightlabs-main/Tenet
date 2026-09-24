@@ -16,41 +16,9 @@
  * Exits non-zero if any BLOCKING check fails.
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { loadVerificationEnv } from "./verification-env.ts";
 
-/**
- * Load the repository .env for direct Node invocations on the verification VPS.
- * Explicitly exported variables win, and values are never printed. This is a
- * deliberately small parser for the KEY=value form used by this project; it
- * does not attempt shell expansion or execute dotenv content.
- */
-function loadProjectEnv(): void {
-  const envPath = resolve(process.cwd(), ".env");
-  if (!existsSync(envPath)) return;
-
-  for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const separator = trimmed.indexOf("=");
-    if (separator <= 0) continue;
-
-    const key = trimmed.slice(0, separator).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || process.env[key] !== undefined) continue;
-
-    let value = trimmed.slice(separator + 1).trim();
-    if (value.length >= 2) {
-      const first = value[0];
-      const last = value[value.length - 1];
-      if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
-        value = value.slice(1, -1);
-      }
-    }
-    process.env[key] = value;
-  }
-}
-
-loadProjectEnv();
+loadVerificationEnv();
 
 const RPC = process.env.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
 const PRESTOCKS_API =

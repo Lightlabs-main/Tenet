@@ -1156,3 +1156,18 @@ solana_version = "4.1.2"    # pin explicitly — Anchor otherwise infers it
 | Observed result | 62 tests passed; typecheck and money-lint passed. Verifier: 70 checks, 0 blocking failures, 9 warnings at slot 450019439. Eight PreStocks assets were discovered and eight exact-input Jupiter V2 raw-instruction builds passed. Pyth Hermes was skipped because PYTH_API_KEY is absent. Finalized configured-program lookup returned value: null at slot 450019646. |
 | Slot where relevant | 450019439 verifier read; 450019646 program lookup |
 | Conclusion | Route construction and local tests pass, but no transaction was signed or sent. The Jupiter tests did not prove Circle vault account binding, CPI success, Token-2022 execution, or actual balance deltas. Pyth was not verified for supported equity feeds. Tenet is not end-to-end or mainnet working; keep the transaction gate disabled. |
+
+## VPS Pyth environment and authenticated Hermes read — 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-24T12:47:00.509Z |
+| Network | Solana mainnet-beta for verifier RPC reads; Pyth Hermes HTTPS for feed read |
+| Source | `/opt/tenet/.env` (configuration names/presence only); `scripts/verify-integrations.ts`; [Pyth Core upgrade guide](https://docs.pyth.network/price-feeds/core/upgrade/preparing); [Pyth fetch updates guide](https://docs.pyth.network/price-feeds/core/fetch-price-updates) |
+| Request/account | Authenticated `GET /hermes/v2/updates/price/latest` for BTC/USD feed `e62df6c8…a415b43`; full read-only PreStocks/Jupiter verifier |
+| Observed result | The targeted Pyth check returned HTTP 200 and one exact parsed feed. Full verifier: 67 checks, 0 blocking failures, 3 warnings at slot 450033084. Eight discovered PreStocks mints built Jupiter V2 Router instructions; three legacy route checks returned HTTP 429. No secret value was logged. |
+| Slot where relevant | 450033084 for mainnet RPC observation |
+| Conclusion | Pyth Bearer authentication and the BTC/USD Hermes read work using the existing VPS env file. This does not establish that required underlying-equity/tokenized-stock feed pairs exist or are fresh. Jupiter route construction is not Circle-vault execution evidence. No transaction or deployment was sent; keep the transaction gate disabled. |
+| Code depending on it | `scripts/verification-env.ts`, `scripts/verify-integrations.ts`, Pyth feed registry/valuation policy, Jupiter execution account binding. |
+
+To run the verifier with credentials stored outside the checkout, set `TENET_ENV_FILE=/opt/tenet/.env`. The loader accepts simple `KEY=value` entries only; it does not execute the file or print values.
