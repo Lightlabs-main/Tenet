@@ -1171,3 +1171,16 @@ solana_version = "4.1.2"    # pin explicitly — Anchor otherwise infers it
 | Code depending on it | `scripts/verification-env.ts`, `scripts/verify-integrations.ts`, Pyth feed registry/valuation policy, Jupiter execution account binding. |
 
 To run the verifier with credentials stored outside the checkout, set `TENET_ENV_FILE=/opt/tenet/.env`. The loader accepts simple `KEY=value` entries only; it does not execute the file or print values.
+
+## VPS program-key discovery correction - 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-24T13:03:54Z |
+| Network | VPS filesystem inspection; no chain write |
+| Source | `/opt/tenet/.keys/tenet-keypair.json`, `/opt/tenet/target/deploy/tenet-keypair.json`, and the separate build checkout's target keypair |
+| Request/account | Derive public addresses from candidate 64-byte Solana JSON keypairs; private contents were never printed |
+| Observed result | The two /opt/tenet keypairs derive FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v. /opt/tenet-build-45188cc/target/deploy/tenet-keypair.json derives 7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf. The two FJt9 files were mode 0666/0644 and the separate 7pLY file 0644; all three are now mode 0600 and root-owned.
+| Slot where relevant | None |
+| Conclusion | The expected program-ID keypair was already on the VPS; the prior report that it was absent was wrong. Keep the separate build checkout's mismatching target key out of deployment. A funded deploy payer/upgrade authority and authoritative source/build path still need confirmation. No transaction was signed or sent. |
+| Code depending on it | Anchor program identity, release build/deploy procedure, frontend/IDL address consistency. |
