@@ -732,3 +732,51 @@ Full register in [docs/threat-model.md](docs/threat-model.md).
 - A same-origin server-side proxy was required because browser-origin requests to the public Solana RPC returned HTTP 403. The local preview on `http://127.0.0.1:5178/app` successfully read mainnet at slot `449818523` and reported the missing Tenet program. The earlier sandboxed `5177` process cannot reach upstream RPC and is not the verified mainnet preview.
 - Verification: web TypeScript check and Vite production build passed; domain/PDA suite **48/48** passed; SDK generated-client check passed; SDK client suite **6/6** passed; money lint and `git diff --check` passed.
 - This changes the local app, not the VPS deployment. Production hosting still needs an equivalent read-only mainnet RPC proxy. No mainnet program deployment, wallet signing, contribution, trade, or exit was performed. V-007/V-008 and deployment/authority/security gates remain open.
+
+## VPS MAINNET READ-ONLY APP CONNECTION — 2026-09-24
+
+- Continued on the VPS in isolated staging checkout `/opt/tenet-build-45188cc`; the Windows working tree was not edited.
+- Added a server-side mainnet RPC proxy bound only to `127.0.0.1:8504`, supervised by `tenet-rpc-proxy.service`. Caddy routes only `/api/solana` on port 8503 and HTTPS to the proxy and overwrites its client-IP header. The upstream is fixed to Solana mainnet-beta. The allowlist covers app-needed reads only; `getProgramAccounts` is restricted to the configured Tenet program. Request/response size, timeout, and rate limits are enforced.
+- The web app now uses the same shared allowlist in its Vite preview proxy. Added proxy tests to `pnpm test`. Fixed the root `typecheck` script to target the existing `apps/web/tsconfig.json`.
+- Finalized live mainnet reads through the VPS at slot `449873788`, epoch `1041`: the configured program `FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v` returns `value: null`. Browser view at `https://38.49.209.149/app#top` says Tenet is not deployed and shows no devnet balances. All wallet transactions stay disabled.
+- End-to-end route smoke tests passed on both `https://38.49.209.149` and `http://38.49.209.149:8503`: landing and `/app` HTML/assets return HTTP 200; live read methods return HTTP 200; `sendTransaction` is denied with HTTP 403.
+- Verification on VPS: `pnpm test` passed (**48 domain/PDA + 6 proxy + 6 SDK tests**); `pnpm check:money` clean; `pnpm typecheck` clean; web production build passed. Earlier Rust workspace test run remains **81 passed**; this update changed no Rust.
+- Promoted clean bundle to `/opt/tenet-preview/dist`. Previous bundle retained at `/opt/tenet-preview/dist-backup-rpc-proxy-20260924T005724Z`; Caddyfile backup at `/etc/caddy/Caddyfile.bak-tenet-proxy-20260924T0042Z`.
+- **Still blocked from real investing:** no executable program exists at the configured mainnet address; V-007/V-008 and remaining release/adversarial gates remain open. No key was used, no wallet signature requested, and no mainnet transaction or deployment was attempted. Do not enable transactions based on this read-only verification.
+
+## MAINNET PRESTOCKS SOURCE AND RELEASE CHECK — 2026-09-24
+
+- Added a fixed, same-origin GET /api/prestocks route on the VPS read-only service. It can call only the first-party PreStocks endpoint; caller query parameters cannot select an upstream, writes are rejected, and response size, timeout, content type, and rate are bounded. Caddy serves the route over HTTPS and port 8503.
+- The deployed mainnet app now discovers the current eight-product source universe dynamically and displays market price, issuer reference mark, exact premium/discount, implied valuations, raw source supply, retrieval time, and a clear "source universe; not a Circle holding" label. Source retrieval time is not represented as publisher timestamp, executable quote, liquidity, transferability, corporate-action verification, or Circle NAV.
+- Corrected the display calculation to preserve source decimal precision beyond twelve places; it uses exact decimal arithmetic, not JavaScript floating point. The UI keeps transactions disabled and does not represent PreStocks economic exposure as shareholder ownership.
+- Live route check: first-party source and public VPS /api/prestocks returned HTTP 200 JSON with the then-current eight-product universe. Browser check at https://38.49.209.149/app#top showed all eight with computed premiums/discounts. Mainnet configured-program account lookup at finalized slot 450004913 returned null.
+- Verification on the VPS: pnpm test passed 49 domain + 7 RPC-proxy + 6 SDK tests (62 total); pnpm typecheck, pnpm check:money, git diff --check, and the web production build passed. The live integration verifier reported 63 checks, 0 blocking failures, 10 warnings. Current Pyth authentication and Jupiter Swap V2 probes were not completed in that verifier invocation; the earlier credentialed replay remains historical evidence, not a current release pass.
+- Latest web bundle was promoted to /opt/tenet-preview/dist with the prior bundle retained as a rollback copy. No wallet was connected, no signer/key was used, and no mainnet transaction, swap, contribution, exit, or deployment was attempted.
+- Not end-to-end mainnet-ready: the configured Tenet program is absent at its mainnet address. The source-data surface is live; custody, Circle creation, deposits, execution, valuation against verified asset feeds, and exits cannot be truthfully tested until deployment and release gates are completed. Do not enable transactions based on this pass.
+
+## FRESH SBF RELEASE BUILD AND PROGRAM-ID GATE - 2026-09-24
+
+- Anchor 1.2.0 produced a fresh Solana SBF artifact with tools v1.56 and architecture v3 using anchor build --ignore-keys --tools-version v1.56 --arch v3 --program-name tenet. The generated IDL declares FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v. Artifact: target/deploy/tenet.so, 918448 bytes, SHA-256 072522082797173cc1d6aeebbe5c71feab290ffa6a4ead2539f16980fd054936.
+- Re-ran cargo test --workspace --offline after the build against that artifact: 81 passed, 0 failed, including LiteSVM program integration suites.
+- Ordinary Anchor key validation reported target/deploy/tenet-keypair.json derives public key 7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf, while source/IDL declare FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v. No keypair contents were read or logged. The build-only ignore-keys flag does not make this deployable at FJt9.
+
+CONTRADICTION
+
+Product requirement: Preserve configured Tenet program ID FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v.
+Technical constraint: The available Anchor deploy keypair derives 7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf; finalized mainnet lookup for FJt9 returned null.
+Why they conflict: Deploying at FJt9 requires the matching program-ID keypair and authorized deployment/upgrade signer. The available keypair cannot create that address.
+Risk: Running anchor keys sync or deploying at 7pLY changes the program identity and derived account namespace; the app, IDL, SDK, registry and clients would diverge from the configured FJt9 product.
+Recommended correction: Securely provision the original FJt9 program-ID keypair and authorized upgrade signer for a reviewed deployment. If unavailable, explicitly approve a program-ID migration and regenerate/review every dependent address and client. Never send private keys or seed phrases in chat.
+What remains unchanged: No deployment, signature, or transaction was made. The app remains fail-closed and the configured program ID/product architecture remain unchanged pending user authority and release approval.
+
+## JUPITER SWAP V2 KEYLESS ROUTE REPLAY  2026-09-24
+
+- Updated the read-only integration verifier to probe current Swap V2 Router `/build` without `JUPITER_API_KEY`, at the documented 0.5 requests/second public rate. It validates requested mints/raw input, exact integer output and threshold, current Jupiter program instruction, and required build fields.
+- A fresh clean-environment replay discovered the live PreStocks universe dynamically and built routes for all 8 assets. Result: **70 checks, 0 blocking failures, 9 warnings** at RPC slot `450016743`. V2 `/build` passed 8/8; Pyth Hermes and V2 `/order` remained unprobed because their API credentials were absent. Legacy V1 quotes are not treated as execution evidence.
+- This was unsigned instruction construction only. The test taker was the configured Tenet program address, not a Circle-specific authority or wallet signer. No source Circle vault, destination Circle vault, Token-2022 CPI, actual vault deltas, simulation against deployed Tenet, signature, or mainnet write was tested.
+- Current Jupiter API reference documents a destination-token-account override but no source-token-account override. V-008 remains open pending verified source-vault account binding, CPI compatibility, transaction-size evidence, and an actual controlled vault-delta test. Transactions stay disabled.
+
+## MAINNET RELEASE VERIFICATION RERUN - 2026-09-24
+- Fresh VPS run: pnpm test passed 49 domain/PDA tests, 7 RPC-proxy tests and 6 SDK tests; typecheck, money-lint and diff check passed.
+- Read-only pnpm verify completed 70 checks with 0 blocking failures and 9 warnings at slot 450019439. It discovered 8 live PreStocks products and constructed 8 Jupiter Swap V2 Router routes; no Circle-vault CPI, signature, or write was tested.
+- Pyth Hermes is not configured (PYTH_API_KEY absent), so no target equity feed was authenticated; V-007 remains open. The current UI remains transaction-disabled.

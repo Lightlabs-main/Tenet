@@ -1155,3 +1155,9 @@ body { background: var(--bg); font-size: 15px; }
   .public-site .universe-state { grid-column: auto; }
   .public-site .landing-contribution, .public-site .market-feature, .public-site .fork-feature { padding: 20px 17px; }
 }
+
+.prestocks-head-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.prestocks-exposure { display: grid; gap: 3px; min-width: 0; white-space: normal; }
+.prestocks-exposure small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.prestocks-row > .prestocks-exposure { text-align: left; font-variant-numeric: normal; }
+.market-data-column { min-width: 0; }

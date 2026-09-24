@@ -3,7 +3,7 @@ import { useSelectedWalletAccount } from "@solana/react";
 import type { Address } from "@solana/kit";
 import { CLUSTER, DEFAULT_CIRCLE, TOKEN_PROGRAM, USDC_DECIMALS } from "./config.ts";
 import { ataAddress, b58ToAddress, isTenetProgramDeployed, loadCircle, tokenBalance, type CircleView } from "./chain.ts";
-import { Dashboard, type CirclePanel } from "./dashboard.tsx";
+import { Dashboard, PreStocksMarketSurface, type CirclePanel } from "./dashboard.tsx";
 import { AddressLink, Badge, formatBps, Spinner, ToastProvider } from "./ui.tsx";
 import { formatRaw } from "./money.ts";
 import { TENET_PROGRAM_ADDRESS } from "@tenet/sdk";
@@ -210,7 +210,8 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
         </aside>
 
         <main className="page" id="top">
-          {programStatus !== "deployed" ? <section className="card empty load-error mainnet-gate" aria-live="polite">
+          {programStatus !== "deployed" ? <>
+          <section className="card empty load-error mainnet-gate" aria-live="polite">
             <span className="eyebrow">Solana Mainnet · read-only</span>
             <h1>{programStatus === "checking" ? "Checking Tenet on mainnet…" : programStatus === "missing" ? "Tenet is not deployed on mainnet yet." : "Couldn’t verify Tenet on mainnet."}</h1>
             <p>{programStatus === "checking"
@@ -222,7 +223,9 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
             <p className="muted">This build is connected to Solana Mainnet, but all wallet transactions remain disabled until the program is deployed and the release checks are complete.</p>
             <button className="btn ghost" type="button" disabled={programStatus === "checking"} onClick={() => { void checkProgram(); }}>{programStatus === "checking" ? "Checking…" : "Check again"}</button>
             {programError ? <p className="error-text" role="status">RPC read failed: {programError}</p> : null}
-          </section> : <>
+          </section>
+          <PreStocksMarketSurface holdings={[]} />
+          </> : <>
           <div className="notice">
             <span className="notice-icon">!</span>
             <div className="notice-copy">
@@ -440,7 +443,7 @@ function LandingSurface({ view, circleLoadStatus, onExplore, onCircle, onMandate
 
       <section className="market-feature" id="market-data">
         <div><span className="eyebrow">Market intelligence</span><h2>Price is not always value.</h2><p>Public tokenized equities need a verified token price and, where available, an underlying-equity comparison. PreStocks need a clear separation between executable market price and issuer reference mark.</p><div className="market-tags"><span>Underlying vs token</span><span>Market vs reference mark</span><span>Supply & liquidity</span><span>Corporate actions</span></div></div>
-        <div className="market-readout"><div><span>Underlying ↔ token comparison</span><strong>Unavailable</strong><small>{CLUSTER === "devnet" ? "No verified Pyth pair is connected in this devnet preview." : "A paired, fresh source is not available for this Circle."}</small></div><div><span>PreStocks market ↔ mark</span><strong>Unavailable</strong><small>No live executable quote or current issuer mark is being substituted.</small></div></div>
+        <div className="market-data-column"><div className="market-readout"><div><span>Underlying ↔ token comparison</span><strong>Unavailable</strong><small>{CLUSTER === "devnet" ? "No verified Pyth pair is connected in this devnet preview." : "A paired, fresh Pyth source is not connected."}</small></div></div><PreStocksMarketSurface holdings={allowedAssets} /></div>
       </section>
 
       <section className="landing-contribution" id="contributions">

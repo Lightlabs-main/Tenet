@@ -53,3 +53,8 @@ test("PreStocks market price is not replaced by issuer mark", () => {
   assert.equal(decToString(result.marketImpliedValue!, 2), "18750.00");
   assert.equal(decToString(result.referenceValue!, 2), "15000.00");
 });
+
+test("PreStocks premium supports exact source decimals beyond twelve places", () => {
+  const result = prestocksMarketMark(dec("153.21175861819114"), dec("152.76162347"));
+  assert.equal(result.premiumDiscountBps, 29n);
+});

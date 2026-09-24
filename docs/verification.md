@@ -1080,3 +1080,79 @@ solana_version = "4.1.2"    # pin explicitly — Anchor otherwise infers it
 | Observed result | HTTP 200 at slot `449818523`, epoch `1041`; `getAccountInfo.value` was `null`. The in-browser app displayed “Tenet is not deployed on mainnet yet.” An origin-tagged direct request to the public RPC returned HTTP 403, while the server-side local proxy succeeded. The proxy rejected a `sendTransaction` JSON-RPC method with HTTP 403. |
 | Conclusion | The local app is now configured for Solana Mainnet and has a working read-only chain connection. No devnet Circle is reused. All wallet transaction paths remain disabled. This is not a deployed or end-to-end production Tenet test. Production hosting needs an equivalent same-origin, read-only RPC proxy (or a verified browser-authorized endpoint); the VPS was not changed. |
 | Code depending on it | `apps/web/src/config.ts`, `apps/web/src/chain.ts`, `apps/web/src/App.tsx`, and the local proxy in `apps/web/vite.config.ts`. No custody, execution, or exit path is enabled by this observation. |
+
+## VPS same-origin mainnet read-only app — 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | `2026-09-24T01:03:27Z` |
+| Network | Solana mainnet-beta |
+| Source | VPS Caddy same-origin route on `https://38.49.209.149/api/solana` and `http://38.49.209.149:8503/api/solana`; loopback-only `tenet-rpc-proxy.service` forwards to `https://api.mainnet-beta.solana.com` without forwarding browser Origin |
+| Request/account | Finalized `getAccountInfo` for configured program `FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v`; finalized `getEpochInfo` |
+| Observed result | Both origins served the landing page, `/app#top`, JS/CSS/hero assets, and live RPC. Finalized response at slot `449873788`, epoch `1041`, program account `value: null`. `getBalance`, `getLatestBlockhash`, and `getEpochInfo` returned HTTP 200. `sendTransaction` returned HTTP 403 on both origins. |
+| Conclusion | VPS mainnet reads and the read-only app shell work. Browser inspection confirms “Tenet is not deployed on mainnet yet”; no devnet Circle data is substituted. Wallet transactions remain disabled. This is not an end-to-end investment flow or production release. |
+| Code depending on it | `services/solana-rpc-proxy/{server.mjs,policy.mjs}`, `apps/web/vite.config.ts`, `apps/web/src/config.ts`, `apps/web/src/chain.ts`, Caddy route, and `tenet-rpc-proxy.service`. No custody, signing, execution, or exit capability is exposed by the proxy. |
+
+## PreStocks live source and mainnet release replay — 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-24T10:37:11Z for the integration replay; app source data was fetched at approximately 2026-09-24T10:36:33Z (browser retrieval time, not provider publication time) |
+| Network | Solana mainnet-beta for mint/program checks; PreStocks first-party HTTPS API for its product universe |
+| Source | pnpm verify in /opt/tenet-build-45188cc; fixed VPS proxy https://38.49.209.149/api/prestocks -> https://prestocks.com/api/prestocks; finalized mainnet RPC through tenet-rpc-proxy.service |
+| Request/account | Dynamic PreStocks product-universe GET; supported-mint metadata/supply/Token-2022 checks; finalized getAccountInfo for configured Tenet program FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v |
+| Observed result | Source and proxy returned HTTP 200 JSON with 8 products. App rendered all 8 with exact-decimal premium/discount calculations and labels distinguishing the source universe from actual Circle holdings. Integration verifier: 63 checks, 0 blocking failures, 10 warnings. Finalized configured-program lookup at slot 450004913 returned value: null; epoch observed by verifier was 1041. The current replay did not complete authenticated Pyth or Jupiter Swap V2 probes because those credentials were unavailable to that invocation. |
+| Conclusion | Live PreStocks market/reference data is displayed as informational source data only, not an executable quote, guaranteed liquidity, verified transferability/corporate-action state, shareholder rights, or Circle NAV. The program is still absent at its configured mainnet address; transactions remain disabled and there was no on-chain write. A credentialed replay recorded on 2026-09-22 is historical evidence and does not close current Pyth/Jupiter/feed/CPI release gates. |
+| Slot where relevant | 450004913 finalized program-account lookup; verifier read slot 450003646 |
+| Code depending on it | services/solana-rpc-proxy/server.mjs and its tests; apps/web/src/dashboard.tsx, apps/web/src/App.tsx, apps/web/src/styles.css; exact-decimal valuation in packages/domain/src/valuation.ts and packages/domain/test/valuation.test.ts; dynamic checks in scripts/verify-integrations.ts. No financial instruction may treat the provider quote or reference mark as oracle-grade execution/NAV input. |
+
+## Fresh SBF build and LiteSVM workspace test - 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-24T11:08:11Z |
+| Network | VPS local release build and in-process LiteSVM; no mainnet write |
+| Source | Anchor CLI 1.2.0; Solana platform-tools v1.56; SBF architecture v3; repository checkout /opt/tenet-build-45188cc |
+| Request/account | Build tenet program with build-only --ignore-keys after the standard Anchor check exposed mismatched local keypair; verify generated IDL address and rerun full Rust workspace tests against target/deploy/tenet.so |
+| Observed result | Fresh artifact built successfully, size 918448 bytes, SHA-256 072522082797173cc1d6aeebbe5c71feab290ffa6a4ead2539f16980fd054936. IDL address is FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v. cargo test --workspace --offline passed all 81 unit and LiteSVM integration tests. Anchor reported deploy keypair public key 7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf, not matching FJt9. |
+| Slot where relevant | No live chain read in the build/test command; separate finalized FJt9 account observation at slot 450004913 was null |
+| Conclusion | The source compiles to an SBF artifact and local on-chain behavior tests pass. The artifact is not authorized/deployable at FJt9 using the available mismatched keypair. No key synchronization, deployment, signature, or transaction was performed. The program ID must not be changed implicitly. |
+| Code depending on it | programs/tenet/src/lib.rs, Anchor.toml, generated target/idl/tenet.json, deployment keypair address selection, app config, SDK program ID and PDA derivations. |
+
+## Latest configured-program presence check - 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-24T11:10:41Z (verification record time; query completed immediately before) |
+| Network | Solana mainnet-beta |
+| Source | VPS read-only proxy at 127.0.0.1:8504/api/solana; HTTPS Tenet app and PreStocks route |
+| Request/account | Finalized getAccountInfo for FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v; GET https://38.49.209.149/app and GET https://38.49.209.149/api/prestocks |
+| Observed result | RPC returned value: null at slot 450011109. App and PreStocks route returned HTTP 200. Frontend config remains TRANSACTIONS_ENABLED=false. |
+| Slot where relevant | 450011109 |
+| Conclusion | The public app and current PreStocks source path are live, but no Tenet mainnet program exists at the configured address. There is no end-to-end mainnet investment path. |
+| Code depending on it | services/solana-rpc-proxy/server.mjs, apps/web/src/config.ts, apps/web/src/App.tsx, and the deployed static bundle. |
+
+## V-008  Current Jupiter Swap V2 Router build replay (route construction only)
+
+| field | observation |
+|---|---|
+| Timestamp | `2026-09-24T11:34:57.966Z` |
+| Network | Solana mainnet-beta asset/mint discovery; Jupiter Swap V2 Router API for unsigned instruction construction |
+| Source | Clean-environment execution of `scripts/verify-integrations.ts` from `/proc`; [Jupiter Swap V2 Build API reference](https://developers.jup.ag/docs/api-reference/swap/build); [Jupiter keyless rate documentation](https://developers.jup.ag/docs/llms.txt) |
+| Request/account | GET `https://api.jup.ag/swap/v2/build` for the 8 dynamically discovered PreStocks mints, mainnet USDC mint, `amount=100000000` raw, `slippageBps=50`, and `taker=FJt9...` (configured program address used only as a non-signing probe) |
+| Observed result | **8/8** current V2 builds passed response checks: exact input/output mints and raw input, integer `outAmount`/`otherAmountThreshold`, raw swap instruction and setup/compute-budget arrays. All returned swap instructions targeted `JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4`. Full verifier result: 70 checks, 0 blocking failures, 9 warnings at RPC slot `450016743`. Pyth Hermes and `/order` probes were not authenticated. |
+| Slot where relevant | `450016743` (mainnet RPC reads during the verifier); the API build itself is off-chain and has no chain slot |
+| Conclusion | Current Router route construction is available without an API key at a slower public rate. This is **not** proof of a Circle-vault swap: the probe taker was not a signing wallet; no source Circle vault, destination Circle vault, CPI, Token-2022-specific execution, price policy, transaction size, post-swap vault deltas, signature, or mainnet write was tested. Jupiter's current documented parameters include `destinationTokenAccount` but not a source-token-account override. V-008 remains open; keep execution fail-closed and `TRANSACTIONS_ENABLED=false`. |
+| Code depending on it | `scripts/verify-integrations.ts`, `programs/tenet/src/instructions/execution.rs`, Jupiter raw-instruction composition, and release gating. |
+
+## V-007/V-008 release-gate rerun - 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-24T11:46:52Z |
+| Network | Solana mainnet-beta (read-only); VPS package tests |
+| Source | pnpm test, pnpm typecheck, pnpm check:money, pnpm verify; finalized mainnet RPC; [Pyth Solana integration guide](https://docs.pyth.network/price-feeds/core/use-real-time-data/pull-integration/solana); [Pyth Core upgrade guide](https://docs.pyth.network/price-feeds/core/upgrade/preparing) |
+| Request/account | Dynamic current PreStocks universe; Jupiter Swap V2 Router /build; Pyth Hermes configured probe; finalized getAccountInfo(FJt9...) |
+| Observed result | 62 tests passed; typecheck and money-lint passed. Verifier: 70 checks, 0 blocking failures, 9 warnings at slot 450019439. Eight PreStocks assets were discovered and eight exact-input Jupiter V2 raw-instruction builds passed. Pyth Hermes was skipped because PYTH_API_KEY is absent. Finalized configured-program lookup returned value: null at slot 450019646. |
+| Slot where relevant | 450019439 verifier read; 450019646 program lookup |
+| Conclusion | Route construction and local tests pass, but no transaction was signed or sent. The Jupiter tests did not prove Circle vault account binding, CPI success, Token-2022 execution, or actual balance deltas. Pyth was not verified for supported equity feeds. Tenet is not end-to-end or mainnet working; keep the transaction gate disabled. |

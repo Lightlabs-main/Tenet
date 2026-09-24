@@ -400,3 +400,34 @@ Worked in this order as code lands (mirrors `docs/threat-model.md`, highest valu
 - A finalized mainnet account lookup at slot `449807618` found no account at the configured program ID. The frontend still explicitly refuses non-devnet configuration.
 - **No mainnet release sign-off.** V-007/V-008, mainnet program deployment and its upgrade-authority policy, and all real-custody execution/exit reviews remain open. No signer, transaction, or deployment was used. See [docs/verification.md](docs/verification.md) for timestamped evidence.
 - The local app is now configured for mainnet read-only access and reports the missing program account. Its development proxy enforces a JSON-RPC method allowlist; `sendTransaction` was rejected. This does not close production proxy, deployment, Pyth/Jupiter, upgrade-authority, or adversarial review gates, and does not constitute release sign-off.
+
+## VPS mainnet read-only RPC proxy review — 2026-09-24
+
+- Scope reviewed: the VPS public mainnet read path only; this is not a review or approval of the financial program, share accounting, execution, or exit.
+- Confirmed fixed upstream, loopback-only service bind, Caddy-overwritten client address, read-method allowlist, Tenet-only `getProgramAccounts`, bounded request/response sizes, request timeout, and rate limiting. Six proxy tests pass, including malformed input, oversized requests, batch cap, foreign program scan, write denial, and rate limiting. Public HTTP/HTTPS checks returned live reads (200) and denied `sendTransaction` (403).
+- No critical/high issue was found within this narrow read-only scope. Residual risk: the endpoint is public and unauthenticated, so it can be used for public chain reads and may consume the upstream allowance; rate limits are operational controls, not identity. Keep monitoring and retain the ability to stop `tenet-rpc-proxy.service`.
+- The mainnet hosting proxy gap is resolved for the read-only preview. The configured program still returns `value: null`; V-007/V-008, program deployment/upgrade authority, and financial-path adversarial reviews remain open. **No mainnet release sign-off; transactions remain disabled.** This supersedes the earlier note that production hosting still lacked a same-origin proxy, but does not close the financial release gates.
+
+## Mainnet live-source update — 2026-09-24
+
+- Narrow scope: first-party PreStocks source proxy, exact-decimal market/reference comparison, display boundary, VPS static bundle promotion, and read-only integration checks. The proxy has a fixed destination, GET-only source route, no caller-controlled upstream, bounded response/time/rate, and a regression test for method/query substitution.
+- The UI labels this as the discovered source universe, not Circle holdings. The provider does not establish an executable quote, guaranteed liquidity, transferability, current corporate-action status, or realizable Circle NAV; none is inferred from its reference mark.
+- This is not adversarial sign-off for share accounting, Epoch settlement, vault authority, Jupiter CPI, Pyth target feeds, PreStocks execution attestations, Token-2022 transfer behavior, or redemption. No custody or write path was enabled. All financial release/deployment findings remain open.
+- Validation: 62 JavaScript/domain/proxy/SDK tests passed; typecheck, money-lint, diff check, and web build passed. The current integration replay still has 10 warnings; Pyth/Jupiter current credentialed probes were not completed in this replay. The configured mainnet program account was null at finalized slot 450004913.
+
+## Fresh SBF candidate and key mismatch - 2026-09-24
+
+- Built the current program with Anchor 1.2.0, Solana platform tools v1.56, SBF v3; generated IDL still declares FJt9. The fresh 918448-byte artifact has SHA-256 072522082797173cc1d6aeebbe5c71feab290ffa6a4ead2539f16980fd054936.
+- Full offline Rust workspace/LiteSVM suite passed 81/81 against the fresh artifact. This verifies local program behavior, not mainnet deployment, external CPI execution, or a real-custody transaction.
+- Deployment remains blocked: Anchor reports the available target keypair as 7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf while source/IDL and the absent mainnet account are FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v. Do not sync keys, change program ID, or deploy until the authority/migration decision is explicit. No financial release sign-off.
+- Follow-up read-only checks: HTTPS app and PreStocks route both returned HTTP 200; TRANSACTIONS_ENABLED remains false. Finalized mainnet lookup at slot 450011109 still returned null for FJt9. No write method or signer was used.
+
+## Jupiter V2 route replay  2026-09-24
+
+- The updated read-only harness built current Swap V2 Router instructions for all 8 dynamically discovered PreStocks assets (70 checks, 0 blocking failures, 9 warnings). This confirms API route construction only; the request used the configured program address as a non-signing probe taker.
+- The current documented build request exposes `destinationTokenAccount` but no source-account override. Tenet's Circle input is a dedicated PDA vault, so the API response alone does not establish that Jupiter spends from the Circle vault. No real Circle vault deltas, CPI execution, Token-2022 route, or transaction-size limit was verified.
+- `begin_execution` remains intentionally fail-closed and must stay that way until target Pyth feeds, Jupiter account binding, and a controlled route are verified. No deployment, signature, or transaction was performed.
+
+## Release-gate rerun - 2026-09-24
+- Program is still absent at the configured mainnet ID (finalized slot 450019646); transactions stay disabled. This remains a deployment/authority blocker, not a UI or local-test failure.
+- Current rerun passed 62 package tests and 70 read-only verifier checks (0 blocking, 9 warnings). The eight Jupiter V2 builds are unsigned route-construction evidence only; no Circle-vault binding/CPI or actual delta was tested.

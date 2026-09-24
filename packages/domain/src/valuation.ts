@@ -7,7 +7,7 @@
  * scaling, confidence, and premium/discount arithmetic are all bigint/Dec.
  */
 
-import { dec, decMul, rawToDisplay, type Dec } from "./display.ts";
+import { decMul, rawToDisplay, type Dec } from "./display.ts";
 
 export interface PythObservation {
   /** Pyth's signed integer price, before applying `expo`. */

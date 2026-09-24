@@ -455,17 +455,12 @@ async function checkJupiter(assets: { symbol: string; mint: string }[]) {
 }
 
 async function checkJupiterRouter(assets: { symbol: string; mint: string }[]) {
-  if (!JUPITER_API_KEY) {
-    record({
-      id: "V-008.router",
-      ok: false,
-      blocking: false,
-      detail: "Swap V2 Router not probed: set JUPITER_API_KEY",
-    });
-    return;
-  }
-
   console.log("\n== V-008  Jupiter Swap V2 Router /build (read-only) ==");
+  // Jupiter currently permits keyless requests at 0.5 RPS. Keep that
+  // diagnostic path available; a configured production key may use its higher
+  // plan limit. This verifies instruction construction, not Circle-vault
+  // account binding or on-chain execution.
+  const requestDelayMs = JUPITER_API_KEY ? 1_500 : 2_200;
   for (const a of assets) {
     const url = new URL("/swap/v2/build", "https://api.jup.ag");
     url.search = new URLSearchParams({
@@ -476,31 +471,57 @@ async function checkJupiterRouter(assets: { symbol: string; mint: string }[]) {
       taker: ROUTER_TAKER,
     }).toString();
     try {
-      const res = await fetch(url, { headers: { "x-api-key": JUPITER_API_KEY } });
+      const headers: Record<string, string> = JUPITER_API_KEY
+        ? { "x-api-key": JUPITER_API_KEY }
+        : {};
+      const res = await fetch(url, { headers });
       const body: any = parseJsonExact(await res.text());
-      const instructionKeys = [
-        "setupInstructions",
-        "computeBudgetInstructions",
-        "swapInstruction",
-        "cleanupInstruction",
-        "instructions",
-      ].filter((key) => body && body[key] !== undefined);
+      const swap = body?.swapInstruction;
+      const exactRequest =
+        body?.inputMint === USDC_MINT &&
+        body?.outputMint === a.mint &&
+        body?.inAmount === "100000000";
       const hasExactOut = typeof body?.outAmount === "string" && /^\d+$/.test(body.outAmount);
-      const hasRawInstructions = instructionKeys.length > 0;
+      const hasExactThreshold =
+        typeof body?.otherAmountThreshold === "string" &&
+        /^\d+$/.test(body.otherAmountThreshold);
+      const hasCurrentRouterInstruction =
+        swap?.programId === "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" &&
+        Array.isArray(swap.accounts) &&
+        swap.accounts.length > 0 &&
+        typeof swap.data === "string" &&
+        swap.data.length > 0;
+      const hasBuildComponents =
+        Array.isArray(body?.setupInstructions) &&
+        Array.isArray(body?.computeBudgetInstructions);
+      const validBuild =
+        exactRequest &&
+        hasExactOut &&
+        hasExactThreshold &&
+        hasCurrentRouterInstruction &&
+        hasBuildComponents;
+      const keylessUnavailable =
+        !JUPITER_API_KEY && [401, 403, 429].includes(res.status);
       record({
         id: `${a.symbol}.v2RouterBuild`,
-        ok: res.ok && hasExactOut && hasRawInstructions,
-        blocking: true,
+        ok: res.ok && validBuild,
+        blocking: !keylessUnavailable,
         detail: res.ok
-          ? `out=${body.outAmount ?? "missing"} raw instruction fields=${instructionKeys.join(",") || "none"}`
+          ? validBuild
+            ? `Swap V2 built exact-amount route out=${body.outAmount} raw to ${swap.programId}; account binding and actual vault deltas remain unverified`
+            : `Swap V2 build failed response validation (mints/amount/router instruction/build fields): ${JSON.stringify(body).slice(0, 240)}`
           : `Swap V2 Router /build failed (HTTP ${res.status}): ${JSON.stringify(body).slice(0, 240)}`,
       });
     } catch (e) {
-      record({ id: `${a.symbol}.v2RouterBuild`, ok: false, blocking: true, detail: String(e) });
+      record({
+        id: `${a.symbol}.v2RouterBuild`,
+        ok: false,
+        blocking: Boolean(JUPITER_API_KEY),
+        detail: String(e),
+      });
     }
-    // Free-tier keys are rate limited. Avoid turning a healthy route into a
-    // false failure because eight sequential observations were too close.
-    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    // The unauthenticated public tier is limited to 0.5 RPS.
+    await new Promise((resolve) => setTimeout(resolve, requestDelayMs));
   }
 }
 

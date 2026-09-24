@@ -26,6 +26,8 @@ import {
   fetchMaybeMandate, fetchMaybeMandateAsset,
 } from "@tenet/sdk";
 import { entitlementForRedemption, sharesForContribution } from "../../../packages/domain/src/accounting.ts";
+import { dec } from "../../../packages/domain/src/display.ts";
+import { prestocksMarketMark } from "../../../packages/domain/src/valuation.ts";
 import { CHAIN, CLUSTER, TOKEN_PROGRAM, TRANSACTIONS_ENABLED, USDC_DECIMALS } from "./config.ts";
 import {
   ataAddress, b58ToAddress, createAtaIdempotent, redemptionAssetPda, redemptionPda, rpc, send, withheldFee,
@@ -209,7 +211,6 @@ function ValueSurface({ view }: { view: CircleView }) {
   const active = view.activeUsdcRaw - view.circle.usdcReservedRaw;
   const hasHeldAssets = view.holdings.some((h) => h.vaultRaw > 0n);
   const preIpoCount = view.holdings.filter((h) => h.registry.assetClass === AssetClass.PreIpo && h.vaultRaw > 0n).length;
-  const { quotes, loading, error } = usePreStocksQuotes();
   return (
     <section className="card value-card" id="value">
       <div className="card-head">
@@ -246,7 +247,7 @@ function ValueSurface({ view }: { view: CircleView }) {
         <span>ⓘ</span>
         <span>Your exit is based on the tokens held in the Circle, not an estimated price. You can start an exit without price data or a member vote; an external token issuer may still restrict transfers.</span>
       </p>
-      <PreStocksMarketSurface quotes={quotes} loading={loading} error={error} holdings={view.holdings} />
+      <PreStocksMarketSurface holdings={view.holdings} />
     </section>
   );
 }
@@ -262,7 +263,8 @@ type PreStocksQuote = {
   supply: string;
 };
 
-type PreStocksState = { quotes: PreStocksQuote[]; loading: boolean; error: string | null };
+type PreStocksSnapshot = { quotes: PreStocksQuote[]; loading: boolean; error: string | null; observedAt: number | null };
+type PreStocksState = PreStocksSnapshot & { refresh: () => void };
 
 /** Parse API JSON without allowing IEEE-754 numbers to become financial inputs. */
 function parseExactJson(text: string): unknown {
@@ -279,11 +281,12 @@ function parseExactJson(text: string): unknown {
 }
 
 function usePreStocksQuotes(): PreStocksState {
-  const [state, setState] = useState<PreStocksState>({ quotes: [], loading: true, error: null });
+  const [state, setState] = useState<PreStocksSnapshot>({ quotes: [], loading: true, error: null, observedAt: null });
+  const [refreshNonce, setRefreshNonce] = useState(0);
   useEffect(() => {
+    setState((previous) => ({ ...previous, loading: true, error: null }));
     let cancelled = false;
-    const source = import.meta.env.DEV ? "/api/prestocks" : "https://prestocks.com/api/prestocks";
-    void fetch(source, { headers: { accept: "application/json" } })
+    void fetch("/api/prestocks", { cache: "no-store", headers: { accept: "application/json" } })
       .then(async (response) => {
         if (!response.ok) throw new Error(`PreStocks returned HTTP ${response.status}.`);
         const raw = await response.text();
@@ -306,28 +309,22 @@ function usePreStocksQuotes(): PreStocksState {
           }];
         });
         if (quotes.length === 0) throw new Error("PreStocks returned no usable quotes.");
-        if (!cancelled) setState({ quotes, loading: false, error: null });
+        if (!cancelled) setState({ quotes, loading: false, error: null, observedAt: Date.now() });
       })
       .catch(() => {
-        if (!cancelled) setState({ quotes: [], loading: false, error: "The public source is unavailable from this browser." });
+        if (!cancelled) setState({ quotes: [], loading: false, error: "The first-party source is unavailable through Tenet.", observedAt: null });
       });
     return () => { cancelled = true; };
-  }, []);
-  return state;
-}
-
-function decimalScaled(value: string, places = 12): bigint | null {
-  if (!/^\d+(?:\.\d+)?$/.test(value)) return null;
-  const [whole, fraction = ""] = value.split(".");
-  if (fraction.length > places) return null;
-  return BigInt(whole) * 10n ** BigInt(places) + BigInt(fraction.padEnd(places, "0"));
+  }, [refreshNonce]);
+  return { ...state, refresh: () => setRefreshNonce((value) => value + 1) };
 }
 
 function premiumBps(market: string, mark: string): bigint | null {
-  const marketScaled = decimalScaled(market);
-  const markScaled = decimalScaled(mark);
-  if (marketScaled === null || markScaled === null || markScaled === 0n) return null;
-  return ((marketScaled - markScaled) * 10_000n) / markScaled;
+  try {
+    return prestocksMarketMark(dec(market), dec(mark)).premiumDiscountBps;
+  } catch {
+    return null;
+  }
 }
 
 function formatDecimal(value: string): string {
@@ -341,27 +338,46 @@ function formatBpsSigned(value: bigint | null): string {
   return `${sign}${absolute / 100n}.${(absolute % 100n).toString().padStart(2, "0")}%`;
 }
 
-function PreStocksMarketSurface({ quotes, loading, error, holdings }: { quotes: PreStocksQuote[]; loading: boolean; error: string | null; holdings: Holding[] }) {
-  const relevant = quotes.filter((quote) => holdings.some((holding) => holding.registry.mint === quote.mint));
-  const rows = relevant.length > 0 ? relevant : quotes.slice(0, 3);
+function groupDecimal(value: string): string {
+  const exact = formatDecimal(value);
+  if (!/^\d+(?:\.\d+)?$/.test(exact)) return exact;
+  const [whole, fraction] = exact.split(".");
+  const grouped = BigInt(whole).toLocaleString("en-US");
+  return fraction ? `${grouped}.${fraction}` : grouped;
+}
+
+export function PreStocksMarketSurface({ holdings }: { holdings: Holding[] }) {
+  const { quotes, loading, error, observedAt, refresh } = usePreStocksQuotes();
+  const retrieved = observedAt === null ? null : new Date(observedAt).toLocaleString();
   return (
     <div className="prestocks-surface">
       <div className="prestocks-head">
-          <div><span className="eyebrow">Private-market exposure · PreStocks</span><h3>Market price vs issuer reference</h3><p>The market price reflects current trading. The issuer reference is informational and is not a guaranteed sale price.</p></div>
-        <span className={`source-status ${loading ? "loading" : error ? "bad" : "live"}`}><span />{loading ? "Checking prices" : error ? "Unavailable" : "Current source"}</span>
+        <div>
+          <span className="eyebrow">Private-market exposure | PreStocks</span>
+          <h3>Market price vs issuer reference</h3>
+          <p>Source-reported economic exposure. The issuer reference is informational, not a guaranteed sale price.</p>
+        </div>
+        <div className="prestocks-head-actions">
+          <span className={`source-status ${loading ? "loading" : error ? "bad" : "live"}`}><span />{loading ? "Checking source" : error ? "Unavailable" : "Source response"}</span>
+          <button className="btn small ghost" type="button" disabled={loading} onClick={refresh}>Refresh</button>
+        </div>
       </div>
-      {error ? <div className="prestocks-unavailable">Current PreStocks prices could not be loaded. No price comparison is shown.</div> : rows.length === 0 ? <div className="prestocks-unavailable">No current PreStocks prices are available.</div> : (
-        <div className="prestocks-table" role="table" aria-label="PreStocks market versus issuer mark">
-          <div className="prestocks-row prestocks-row-head" role="row"><span>Exposure</span><span>Market price</span><span>Issuer reference</span><span>Premium / discount</span></div>
-          {rows.map((quote) => <div className="prestocks-row" role="row" key={quote.mint}>
-            <strong>{quote.symbol}</strong>
-            <span>${formatDecimal(quote.marketPrice)}</span>
-            <span>${formatDecimal(quote.issuerMark)}</span>
-            <span className={premiumBps(quote.marketPrice, quote.issuerMark) !== null && premiumBps(quote.marketPrice, quote.issuerMark)! < 0n ? "discount" : "premium"}>{formatBpsSigned(premiumBps(quote.marketPrice, quote.issuerMark))}</span>
-          </div>)}
+      {error ? <div className="prestocks-unavailable">PreStocks data is unavailable through Tenet right now. No price comparison is shown.</div> : loading ? <div className="prestocks-unavailable">Checking the current first-party PreStocks source...</div> : quotes.length === 0 ? <div className="prestocks-unavailable">The source returned no current products.</div> : (
+        <div className="prestocks-table" role="table" aria-label="PreStocks market price versus issuer reference">
+          <div className="prestocks-row prestocks-row-head" role="row"><span>Economic exposure</span><span>Market price</span><span>Issuer reference</span><span>Premium / discount</span></div>
+          {quotes.map((quote) => {
+            const held = holdings.some((holding) => holding.registry.mint === quote.mint && holding.vaultRaw > 0n);
+            const premium = premiumBps(quote.marketPrice, quote.issuerMark);
+            return <div className="prestocks-row" role="row" key={quote.mint}>
+              <span className="prestocks-exposure"><strong>{quote.symbol}</strong><small>{quote.name} | {held ? "Held by this Circle" : "Source universe; not a Circle holding"}</small><small>Market implied valuation: ${groupDecimal(quote.marketValuation)} | Reference valuation: ${groupDecimal(quote.referenceValuation)} | Token supply: {groupDecimal(quote.supply)}</small></span>
+              <span>${formatDecimal(quote.marketPrice)}</span>
+              <span>${formatDecimal(quote.issuerMark)}</span>
+              <span className={premium !== null && premium < 0n ? "discount" : "premium"}>{formatBpsSigned(premium)}</span>
+            </div>;
+          })}
         </div>
       )}
-      <div className="prestocks-foot">Source: PreStocks · {relevant.length ? "Circle exposure highlighted" : "showing the current source universe, not Circle holdings"} · refreshed on page load</div>
+      <div className="prestocks-foot">Source: PreStocks first-party endpoint{retrieved ? ` | retrieved ${retrieved}` : ""}. The endpoint does not provide a publish timestamp, executable quote, liquidity, transferability or corporate-action state; these values are not Circle NAV or a guaranteed exit price.</div>
     </div>
   );
 }
