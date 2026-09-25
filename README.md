@@ -8,7 +8,7 @@ Collectively owned portfolios of tokenized stocks, governed by an on-chain inves
 
 ## Try it
 
-**Live app (Solana Devnet): https://38.49.209.149/app** — connect a wallet set to Devnet, click **Get 1,000 TUSDC**, create a Circle, and follow the guided checklist.
+**Live app (Solana Devnet): https://tenetstocks.website/app** — connect a wallet set to Devnet, click **Get 1,000 TUSDC**, create a Circle, and follow the guided checklist.
 
 > Devnet only. TUSDC and the test instruments (TNVDA, TAAPL, TSPY, TSPACEX, TOPENAI, TANTHROPIC) have **no monetary value**; prices are a devnet pricing simulation standing in for Pyth / PreStocks, and a devnet market stands in for Jupiter. Nothing is deployed on mainnet.
 
