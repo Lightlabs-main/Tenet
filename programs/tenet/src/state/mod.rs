@@ -61,8 +61,6 @@ pub enum AssetClass {
     Usdc,
     PublicTokenizedEquity,
     PreIpo,
-    /// A valueless test instrument on Devnet. Never a stock or NAV source.
-    DevnetTestEquity,
 }
 
 // ---------------------------------------------------------------- config
@@ -79,22 +77,39 @@ pub struct Config {
     /// Classifies mints (pre-IPO? which issuer?). A disclosed trust
     /// assumption, R-13 — it can mislabel an asset but cannot move funds.
     pub registry_authority: Pubkey,
-    /// The only mint Circles accept as USDC (V-014).
+    /// The only mint Circles accept as USDC (V-014). On Devnet: TUSDC.
     pub usdc_mint: Pubkey,
+
+    // ---- environment seams (A-23) -------------------------------------------
+    // Tenet's product logic is identical on every network. These fields name
+    // the external venues it talks to; `initialize_config` refuses any
+    // combination that mixes Devnet test infrastructure with real value.
+    pub network: Network,
+    /// The ONLY program allowed between `begin_execution` and `end_execution`.
+    /// Mainnet: Jupiter. Devnet: the tenet-devnet test market.
+    pub execution_venue: Pubkey,
+    /// How prices are read, and which program must own the price accounts.
+    pub price_source: PriceSource,
+    pub price_program: Pubkey,
+    /// Older observations are refused. Mainnet: at most 60 s (Pyth).
+    pub max_price_age_seconds: u64,
+
     pub bump: u8,
 }
 
-/// Fixed-inventory, valueless Devnet instrument. Its PDA is the mint authority
-/// and the only inventory authority. There is deliberately no withdraw/admin
-/// instruction: test-USDC spent here cannot be mistaken for Circle cash.
-#[account]
-#[derive(InitSpace)]
-pub struct DevnetTestMarket {
-    pub mint: Pubkey,
-    pub inventory_vault: Pubkey,
-    pub usdc_reserve_vault: Pubkey,
-    pub inventory_raw: u64,
-    pub bump: u8,
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+pub enum Network {
+    Mainnet,
+    Devnet,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+pub enum PriceSource {
+    /// Pyth Receiver `PriceUpdateV2` accounts.
+    Pyth,
+    /// tenet-devnet `PriceFeed` accounts: operator-published DEVNET TEST
+    /// valuations, Pyth-shaped so the same checks and arithmetic apply.
+    DevnetFeed,
 }
 
 // ---------------------------------------------------------------- registry
@@ -489,21 +504,60 @@ mod tests {
         // from an instruction, and Phase 1 has no instructions that take these.
         let sizes: &[(&str, &[u8], usize)] = &[
             ("Config", Config::DISCRIMINATOR, Config::INIT_SPACE),
-            ("DevnetTestMarket", DevnetTestMarket::DISCRIMINATOR, DevnetTestMarket::INIT_SPACE),
-            ("AssetRegistryEntry", AssetRegistryEntry::DISCRIMINATOR, AssetRegistryEntry::INIT_SPACE),
+            (
+                "AssetRegistryEntry",
+                AssetRegistryEntry::DISCRIMINATOR,
+                AssetRegistryEntry::INIT_SPACE,
+            ),
             ("Mandate", Mandate::DISCRIMINATOR, Mandate::INIT_SPACE),
-            ("MandateAsset", MandateAsset::DISCRIMINATOR, MandateAsset::INIT_SPACE),
-            ("AmendmentProposal", AmendmentProposal::DISCRIMINATOR, AmendmentProposal::INIT_SPACE),
-            ("AmendmentVote", AmendmentVote::DISCRIMINATOR, AmendmentVote::INIT_SPACE),
+            (
+                "MandateAsset",
+                MandateAsset::DISCRIMINATOR,
+                MandateAsset::INIT_SPACE,
+            ),
+            (
+                "AmendmentProposal",
+                AmendmentProposal::DISCRIMINATOR,
+                AmendmentProposal::INIT_SPACE,
+            ),
+            (
+                "AmendmentVote",
+                AmendmentVote::DISCRIMINATOR,
+                AmendmentVote::INIT_SPACE,
+            ),
             ("Circle", Circle::DISCRIMINATOR, Circle::INIT_SPACE),
-            ("CircleAsset", CircleAsset::DISCRIMINATOR, CircleAsset::INIT_SPACE),
+            (
+                "CircleAsset",
+                CircleAsset::DISCRIMINATOR,
+                CircleAsset::INIT_SPACE,
+            ),
             ("Member", Member::DISCRIMINATOR, Member::INIT_SPACE),
             ("Epoch", Epoch::DISCRIMINATOR, Epoch::INIT_SPACE),
-            ("ContributionReceipt", ContributionReceipt::DISCRIMINATOR, ContributionReceipt::INIT_SPACE),
-            ("NavSnapshot", NavSnapshot::DISCRIMINATOR, NavSnapshot::INIT_SPACE),
-            ("Redemption", Redemption::DISCRIMINATOR, Redemption::INIT_SPACE),
-            ("RedemptionAsset", RedemptionAsset::DISCRIMINATOR, RedemptionAsset::INIT_SPACE),
-            ("ExecutionAuth", ExecutionAuth::DISCRIMINATOR, ExecutionAuth::INIT_SPACE),
+            (
+                "ContributionReceipt",
+                ContributionReceipt::DISCRIMINATOR,
+                ContributionReceipt::INIT_SPACE,
+            ),
+            (
+                "NavSnapshot",
+                NavSnapshot::DISCRIMINATOR,
+                NavSnapshot::INIT_SPACE,
+            ),
+            (
+                "Redemption",
+                Redemption::DISCRIMINATOR,
+                Redemption::INIT_SPACE,
+            ),
+            (
+                "RedemptionAsset",
+                RedemptionAsset::DISCRIMINATOR,
+                RedemptionAsset::INIT_SPACE,
+            ),
+            (
+                "ExecutionAuth",
+                ExecutionAuth::DISCRIMINATOR,
+                ExecutionAuth::INIT_SPACE,
+            ),
         ];
 
         let mut seen: Vec<&[u8]> = Vec::new();
@@ -523,7 +577,10 @@ mod tests {
             assert!(size > disc.len(), "{name} is empty");
             // 10 KiB is the practical ceiling for an account created via CPI in
             // one instruction. Anything approaching it needs a realloc strategy.
-            assert!(size < 10_240, "{name} is {size} bytes, too large to init in one ix");
+            assert!(
+                size < 10_240,
+                "{name} is {size} bytes, too large to init in one ix"
+            );
         }
     }
 

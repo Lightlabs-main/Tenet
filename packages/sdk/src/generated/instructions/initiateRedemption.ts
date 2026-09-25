@@ -8,7 +8,7 @@
 
 import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { getAccountMetaFactory, getAddressFromResolvedInstructionAccount, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
-import { findInitiateRedemptionMemberPda } from '../pdas';
+import { findMemberPda } from '../pdas';
 import { TENET_PROGRAM_ADDRESS } from '../programs';
 
 export const INITIATE_REDEMPTION_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([115, 149, 159, 170, 179, 169, 44, 56]);
@@ -61,7 +61,7 @@ const args = { ...input,  };
 
 // Resolve default values.
 if (!accounts.member.value) {
-accounts.member.value = await findInitiateRedemptionMemberPda({ circle: getAddressFromResolvedInstructionAccount("circle", accounts.circle.value), memberOwner: getAddressFromResolvedInstructionAccount("memberOwner", accounts.memberOwner.value) }, { programAddress });
+accounts.member.value = await findMemberPda({ circle: getAddressFromResolvedInstructionAccount("circle", accounts.circle.value), memberOwner: getAddressFromResolvedInstructionAccount("memberOwner", accounts.memberOwner.value) }, { programAddress });
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;

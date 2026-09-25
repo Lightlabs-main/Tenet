@@ -13,7 +13,6 @@ export * from './circle';
 export * from './circleAsset';
 export * from './config';
 export * from './contributionReceipt';
-export * from './devnetTestMarket';
 export * from './epoch';
 export * from './executionAuth';
 export * from './mandate';

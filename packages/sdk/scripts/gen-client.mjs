@@ -1,10 +1,14 @@
 /**
- * Generate the Kit program client from the Anchor IDL (D-05).
+ * Generate the Kit program clients from the Anchor IDLs (D-05).
  *
- *   node packages/sdk/scripts/gen-client.mjs            write src/generated
- *   node packages/sdk/scripts/gen-client.mjs --check    fail if it would change
+ *   node packages/sdk/scripts/gen-client.mjs            write the clients
+ *   node packages/sdk/scripts/gen-client.mjs --check    fail if either would change
  *
- * Input is packages/sdk/idl/tenet.json — a COMMITTED copy of the IDL, because
+ *   idl/tenet.json         -> src/generated          the Tenet program
+ *   idl/tenet_devnet.json  -> src/devnet/generated   DEVNET-ONLY test venue,
+ *                                                     faucet and price feeds
+ *
+ * Inputs are COMMITTED copies of the IDLs, because
  * target/ is deleted to reclaim disk (ENV-01) and the client must be
  * reproducible without a program build. scripts/wsl-build-tenet.sh refreshes
  * the copy after every successful `anchor build`.
@@ -18,9 +22,10 @@ import { rootNodeFromAnchor } from "@codama/nodes-from-anchor";
 import { renderVisitor } from "@codama/renderers-js";
 
 const pkg = fileURLToPath(new URL("..", import.meta.url));
-const idl = JSON.parse(readFileSync(join(pkg, "idl", "tenet.json"), "utf8"));
-const target = join(pkg, "src", "generated");
-const generatedIn = (packageDir) => join(packageDir, "src", "generated");
+const CLIENTS = [
+  { idl: "tenet.json", folder: "src/generated" },
+  { idl: "tenet_devnet.json", folder: "src/devnet/generated" },
+];
 const check = process.argv.includes("--check");
 
 /**
@@ -28,11 +33,12 @@ const check = process.argv.includes("--check");
  * by default the renderer rewrites the package's dependencies with loose `^`
  * ranges, which would undo the exact pins in packages/sdk/package.json.
  */
-async function render(packageDir) {
+async function render(packageDir, client) {
+  const idl = JSON.parse(readFileSync(join(pkg, "idl", client.idl), "utf8"));
   const codama = createFromRoot(rootNodeFromAnchor(idl));
   await codama.accept(
     renderVisitor(packageDir, {
-      generatedFolder: "src/generated",
+      generatedFolder: client.folder,
       syncPackageJson: false,
       formatCode: false,
       deleteFolderBeforeRendering: true,
@@ -53,22 +59,25 @@ function files(dir) {
   return out;
 }
 
-if (!check) {
-  await render(pkg);
-  console.log(`generated ${files(target).size} files into ${relative(process.cwd(), target) || "."}`);
-} else {
+for (const client of CLIENTS) {
+  const target = join(pkg, client.folder);
+  if (!check) {
+    await render(pkg, client);
+    console.log(`generated ${files(target).size} files into ${relative(process.cwd(), target) || "."}`);
+    continue;
+  }
   const tmp = mkdtempSync(join(tmpdir(), "tenet-sdk-"));
   try {
-    await render(tmp);
-    const want = files(generatedIn(tmp));
+    await render(tmp, client);
+    const want = files(join(tmp, client.folder));
     const have = files(target);
     const drift = [...new Set([...want.keys(), ...have.keys()])].filter((k) => want.get(k) !== have.get(k));
     if (drift.length) {
-      console.error(`generated client is stale (${drift.length} files differ), e.g. ${drift.slice(0, 5).join(", ")}`);
+      console.error(`${client.folder} is stale (${drift.length} files differ), e.g. ${drift.slice(0, 5).join(", ")}`);
       console.error("run: node packages/sdk/scripts/gen-client.mjs");
       process.exit(1);
     }
-    console.log(`generated client up to date (${want.size} files)`);
+    console.log(`${client.folder} up to date (${want.size} files)`);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

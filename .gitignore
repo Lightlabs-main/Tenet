@@ -9,3 +9,4 @@ dist/
 test-ledger/
 **/*.keypair.json
 .keys/
+packages/sdk/.local-deployment.json

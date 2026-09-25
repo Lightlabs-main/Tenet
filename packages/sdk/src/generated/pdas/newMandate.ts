@@ -13,6 +13,6 @@ newMandateSeed: Address;
 };
 
 export async function findNewMandatePda(seeds: NewMandateSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
+  const { programAddress = '7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf' as Address<'7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf'> } = config;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([109, 97, 110, 100, 97, 116, 101])), getAddressEncoder().encode(seeds.newMandateSeed)]});
 }

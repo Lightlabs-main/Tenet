@@ -90,7 +90,12 @@ pub fn nav_snapshot(epoch: &Pubkey) -> (Pubkey, u8) {
 
 /// `seq` allows repeated partial exits by the same owner.
 pub fn redemption(circle: &Pubkey, owner: &Pubkey, seq: u64) -> (Pubkey, u8) {
-    find(&[REDEMPTION_SEED, circle.as_ref(), owner.as_ref(), &seq.to_le_bytes()])
+    find(&[
+        REDEMPTION_SEED,
+        circle.as_ref(),
+        owner.as_ref(),
+        &seq.to_le_bytes(),
+    ])
 }
 
 pub fn redemption_asset(redemption: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
@@ -100,7 +105,12 @@ pub fn redemption_asset(redemption: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
 /// `epoch` is the Epoch ACCOUNT address, not its index. Seeding on `nonce` makes
 /// replay structurally impossible: the account already exists (INV-020).
 pub fn exec_auth(circle: &Pubkey, epoch: &Pubkey, nonce: u64) -> (Pubkey, u8) {
-    find(&[EXEC_AUTH_SEED, circle.as_ref(), epoch.as_ref(), &nonce.to_le_bytes()])
+    find(&[
+        EXEC_AUTH_SEED,
+        circle.as_ref(),
+        epoch.as_ref(),
+        &nonce.to_le_bytes(),
+    ])
 }
 
 /// One governance proposal per caller-chosen id. The id is explicit so the
@@ -111,13 +121,4 @@ pub fn amendment(mandate: &Pubkey, proposal_id: u64) -> (Pubkey, u8) {
 
 pub fn amendment_vote(proposal: &Pubkey, voter: &Pubkey) -> (Pubkey, u8) {
     find(&[AMENDMENT_VOTE_SEED, proposal.as_ref(), voter.as_ref()])
-}
-
-/// Singleton inventory and reserve for the explicitly valueless Devnet test market.
-pub fn devnet_test_market() -> (Pubkey, u8) {
-    find(&[DEVNET_TEST_MARKET_SEED])
-}
-
-pub fn devnet_test_mint() -> (Pubkey, u8) {
-    find(&[DEVNET_TEST_MINT_SEED])
 }

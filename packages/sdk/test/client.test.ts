@@ -14,8 +14,8 @@ import * as sdk from "../src/index.ts";
 import {
   findActiveUsdcVaultPda, findCircleAssetPda, findCirclePda, findConfigPda,
   findEpochEscrowPda, findEpochPda, findMandatePda, findMemberPda, findReceiptPda,
-  findRegistryEntryPda, findTestMarketPda, findTestMintPda, findVaultAuthorityPda, findVaultPda,
-  getCircleSize, TENET_PROGRAM_ADDRESS,
+  findRegistryEntryPda, findVaultAuthorityPda, findVaultPda,
+  getCircleSize, pda, TENET_PROGRAM_ADDRESS,
   TENET_ERROR__NOT_UPGRADE_AUTHORITY, TENET_ERROR__REDEMPTION_PENDING,
   TENET_ERROR__ASSET_NOT_IN_SNAPSHOT,
   u64, contribute, PROGRAM_ID,
@@ -37,10 +37,8 @@ test("generated PDA helpers reproduce every Rust-verified derivation they cover"
   // the same address and bump — a mismatch would address the wrong account.
   const helpers: Record<string, (a: string[]) => Promise<readonly [Address, number]>> = {
     config: () => findConfigPda(),
-    devnet_test_market: () => findTestMarketPda(),
-    devnet_test_mint: () => findTestMintPda(),
     mandate: (a) => findMandatePda({ mandateSeed: addr(a[0]) }),
-    registry: (a) => findRegistryEntryPda({ testMint: addr(a[0]) }),
+    registry: (a) => findRegistryEntryPda({ mint: addr(a[0]) }),
     circle: (a) => findCirclePda({ mandate: addr(a[0]) }),
     circle_asset: (a) => findCircleAssetPda({ circle: addr(a[0]), mint: addr(a[1]) }),
     vault_authority: (a) => findVaultAuthorityPda({ circle: addr(a[0]) }),
@@ -49,7 +47,7 @@ test("generated PDA helpers reproduce every Rust-verified derivation they cover"
     epoch: (a) => findEpochPda({ circle: addr(a[0]), index: BigInt(a[1]) }),
     epoch_escrow: (a) => findEpochEscrowPda({ circle: addr(a[0]), index: BigInt(a[1]) }),
     receipt: (a) => findReceiptPda({ epoch: addr(a[0]), contributor: addr(a[1]) }),
-    member: (a) => findMemberPda({ circle: addr(a[0]), buyer: addr(a[1]) }),
+    member: (a) => findMemberPda({ circle: addr(a[0]), memberOwner: addr(a[1]) }),
   };
   let checked = 0;
   for (const v of vectors.vectors) {
@@ -60,9 +58,25 @@ test("generated PDA helpers reproduce every Rust-verified derivation they cover"
     assert.equal(bump, v.bump, `${v.fn} bump`);
     checked++;
   }
-  // Config, Devnet test market and test mint have one fixed-seed vector each;
-  // the other 11 generated helpers have six vectors each.
-  assert.equal(checked, 3 + 11 * 6, "every generated helper was exercised");
+  // Config has one vector; the other eleven generated helpers have six each.
+  assert.equal(checked, 1 + 11 * 6, "every generated helper was exercised");
+});
+
+test("stable pda helpers reproduce EVERY Rust-verified derivation", async () => {
+  const camel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+  let checked = 0;
+  for (const v of vectors.vectors) {
+    const name = camel(v.fn) as keyof typeof pda;
+    const f = pda[name] as (...a: unknown[]) => Promise<readonly [Address, number]>;
+    assert.ok(f, `pda.${name} exists`);
+    // Keys are 64 hex chars; integer seeds are decimal strings.
+    const args = v.args.map((x: string) => (/^[0-9a-f]{64}$/.test(x) ? addr(x) : BigInt(x)));
+    const [address, bump] = await f(...args);
+    assert.equal(address, addr(v.address), `${v.fn}(${v.args.join(", ")})`);
+    assert.equal(bump, v.bump, `${v.fn} bump`);
+    checked++;
+  }
+  assert.equal(checked, vectors.vectors.length);
 });
 
 test("generated error codes match what the on-chain tests observed", () => {

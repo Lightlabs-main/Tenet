@@ -8,7 +8,7 @@
 
 import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { getAccountMetaFactory, getAddressFromResolvedInstructionAccount, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
-import { findForkMandateAssetRegistryEntryPda } from '../pdas';
+import { findRegistryEntryPda } from '../pdas';
 import { TENET_PROGRAM_ADDRESS } from '../programs';
 
 export const REFRESH_ASSET_METADATA_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([126, 229, 129, 225, 64, 140, 47, 119]);
@@ -58,7 +58,7 @@ const accounts = originalAccounts as Record<keyof typeof originalAccounts, Resol
 
 // Resolve default values.
 if (!accounts.registryEntry.value) {
-accounts.registryEntry.value = await findForkMandateAssetRegistryEntryPda({ mint: getAddressFromResolvedInstructionAccount("mint", accounts.mint.value) }, { programAddress });
+accounts.registryEntry.value = await findRegistryEntryPda({ mint: getAddressFromResolvedInstructionAccount("mint", accounts.mint.value) }, { programAddress });
 }
 
 return Object.freeze({ accounts: [getAccountMeta("payer", accounts.payer), getAccountMeta("registryEntry", accounts.registryEntry), getAccountMeta("mint", accounts.mint)], data: getRefreshAssetMetadataInstructionDataEncoder().encode({}), programAddress } as RefreshAssetMetadataInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>, ResolvedInstructionAccountMeta<TAccountRegistryEntry, InstructionAccountInputAddress<TAccountRegistryEntry>>, ResolvedInstructionAccountMeta<TAccountMint, InstructionAccountInputAddress<TAccountMint>>>);

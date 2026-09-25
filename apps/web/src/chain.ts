@@ -1,83 +1,45 @@
 /**
- * Everything that talks to the chain: sending through the connected wallet,
- * loading a Circle's full state, and the transfer-fee lookup for exit claims.
+ * Everything that talks to the chain: the Devnet guard, sending through the
+ * connected wallet, loading a Circle's full state (vaults, prices, receipts),
+ * the Circle directory with fork lineage, and recent activity.
  */
 import {
-  AccountRole, address, appendTransactionMessageInstructions, createSolanaRpc,
-  createTransactionMessage, getAddressEncoder, getBase58Decoder, getBase58Encoder,
-  getBase64Encoder, getProgramDerivedAddress, pipe, setTransactionMessageFeePayerSigner,
+  address, appendTransactionMessageInstructions, createTransactionMessage,
+  getBase58Decoder, getBase58Encoder, getBase64Encoder, pipe, setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash, signAndSendTransactionMessageWithSigners,
   type Address, type Instruction, type TransactionSendingSigner,
 } from "@solana/kit";
 import {
-  CIRCLE_ASSET_DISCRIMINATOR, TENET_PROGRAM_ADDRESS, seeds,
-  fetchCircle, fetchMandate, fetchMaybeEpoch, fetchMaybeMember, fetchMaybeContributionReceipt,
-  fetchMaybeNavSnapshot,
-  fetchMaybeRedemption, fetchMaybeRedemptionAsset, getCircleAssetDecoder,
-  fetchAssetRegistryEntry, fetchMandateAsset, fetchConfig,
-  findActiveUsdcVaultPda, findConfigPda, findEpochPda, findMemberPda, findReceiptPda, findRegistryEntryPda,
-  findNavSnapshotPda,
-  type AssetRegistryEntry, type Circle, type CircleAsset, type Epoch, type Mandate, type Member,
-  type ContributionReceipt, type Redemption, type RedemptionAsset, type NavSnapshot,
+  CIRCLE_ASSET_DISCRIMINATOR, CIRCLE_DISCRIMINATOR, CONTRIBUTION_RECEIPT_DISCRIMINATOR, MANDATE_DISCRIMINATOR,
+  TENET_PROGRAM_ADDRESS, createAtaIdempotentIx, fetchAssetRegistryEntry, fetchCircle, fetchConfig, fetchMandate,
+  fetchMandateAsset, fetchMaybeContributionReceipt, fetchMaybeEpoch, fetchMaybeMember, fetchMaybeNavSnapshot,
+  fetchMaybeRedemption, fetchMaybeRedemptionAsset, findAta, getCircleAssetDecoder, getCircleDecoder,
+  getContributionReceiptDecoder, getMandateDecoder, mintSupply, pda,
+  type AssetRegistryEntry, type Circle, type CircleAsset, type ContributionReceipt, type Epoch, type Mandate,
+  type Member, type NavSnapshot, type Redemption, type RedemptionAsset,
 } from "@tenet/sdk";
+import { assertDevnet } from "@tenet/sdk/devnet";
 import {
   activeTransferFee, transferFeeAmount, type TransferFeeConfig,
 } from "../../../packages/domain/src/display.ts";
-import { ATA_PROGRAM, RPC_URL, SYSTEM_PROGRAM, TRANSACTIONS_ENABLED } from "./config.ts";
+import { TRANSACTIONS_ENABLED } from "./config.ts";
+import { priceProvider, type PriceObservation } from "./adapters.ts";
+import { rpc } from "./rpc.ts";
 
-export const rpc = createSolanaRpc(RPC_URL);
+export { rpc };
+
+let devnetChecked: Promise<void> | null = null;
+/** Fail closed unless the RPC really is Solana Devnet (genesis hash, not URL). */
+export function ensureDevnet(): Promise<void> {
+  devnetChecked ??= assertDevnet(rpc).catch((e) => { devnetChecked = null; throw e; });
+  return devnetChecked;
+}
 
 /** Read-only deployment check; an executable account is required before reads. */
 export async function isTenetProgramDeployed(): Promise<boolean> {
-  const { value } = await rpc.getAccountInfo(TENET_PROGRAM_ADDRESS, {
-    encoding: "base64",
-    commitment: "finalized",
-  }).send();
+  const { value } = await rpc.getAccountInfo(TENET_PROGRAM_ADDRESS, { encoding: "base64", commitment: "confirmed" }).send();
   return value?.executable === true;
 }
-
-const DEVNET_TEST_MARKET_BINARY_SHA256 = "bac5398fc6e020b5c39692555ddb2d68a789cf6fc5367de8ef7f9d5fbc5d2ce2";
-let testMarketBuildCheck: { at: number; current: boolean | null } | null = null;
-
-/** Enable test-market wallet actions only when the exact tested program build is live. */
-export async function isDevnetTestMarketBuildDeployed(): Promise<boolean | null> {
-  if (testMarketBuildCheck && Date.now() - testMarketBuildCheck.at < 30_000) return testMarketBuildCheck.current;
-  try {
-    const { value: program } = await rpc.getAccountInfo(TENET_PROGRAM_ADDRESS, { encoding: "base64", commitment: "finalized" }).send();
-    if (!program?.executable || !Array.isArray(program.data)) throw new Error("Program account is unavailable");
-    const programState = getBase64Encoder().encode(program.data[0]);
-    if (programState.length < 36 || new DataView(programState.buffer, programState.byteOffset, 4).getUint32(0, true) !== 2) {
-      throw new Error("Program loader state is invalid");
-    }
-    const programDataAddress = address(getBase58Decoder().decode(programState.slice(4, 36)));
-    const { value: programData } = await rpc.getAccountInfo(programDataAddress, { encoding: "base64", commitment: "finalized" }).send();
-    if (!programData || !Array.isArray(programData.data)) throw new Error("ProgramData account is unavailable");
-    const bytes = getBase64Encoder().encode(programData.data[0]);
-    if (bytes.length < 45 || new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0, true) !== 3) {
-      throw new Error("ProgramData loader state is invalid");
-    }
-    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes.slice(45));
-    const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-    const current = hash === DEVNET_TEST_MARKET_BINARY_SHA256;
-    testMarketBuildCheck = { at: Date.now(), current };
-    return current;
-  } catch {
-    testMarketBuildCheck = { at: Date.now(), current: null };
-    return null;
-  }
-}
-
-const addrBytes = (a: Address) => new Uint8Array(getAddressEncoder().encode(a));
-
-/** PDAs Codama did not generate, from the SDK's Rust-verified seeds. */
-export async function tenetPda(seedList: Uint8Array[]): Promise<Address> {
-  const [a] = await getProgramDerivedAddress({ programAddress: TENET_PROGRAM_ADDRESS, seeds: seedList });
-  return a;
-}
-export const redemptionPda = (circle: Address, owner: Address, seq: bigint) =>
-  tenetPda(seeds.redemption(addrBytes(circle), addrBytes(owner), seq));
-export const redemptionAssetPda = (redemption: Address, mint: Address) =>
-  tenetPda(seeds.redemptionAsset(addrBytes(redemption), addrBytes(mint)));
 
 // ---------------------------------------------------------------- sending
 
@@ -86,7 +48,8 @@ export const redemptionAssetPda = (redemption: Address, mint: Address) =>
  * signature. Throws with the program's logs attached when it fails.
  */
 export async function send(signer: TransactionSendingSigner, ixs: Instruction[]): Promise<string> {
-  if (!TRANSACTIONS_ENABLED) throw new Error("Devnet wallet transactions are disabled in this build.");
+  if (!TRANSACTIONS_ENABLED) throw new Error("Devnet is not set up for this build yet; no transaction was sent.");
+  await ensureDevnet();
   const { value: blockhash } = await rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
   const msg = pipe(
     createTransactionMessage({ version: 0 }),
@@ -103,7 +66,7 @@ export async function send(signer: TransactionSendingSigner, ixs: Instruction[])
       const tx = await rpc.getTransaction(signature as never, {
         commitment: "confirmed", encoding: "json", maxSupportedTransactionVersion: 0,
       }).send();
-      const logs = tx?.meta?.logMessages?.slice(-6).join("\n") ?? "";
+      const logs = tx?.meta?.logMessages?.slice(-8).join("\n") ?? "";
       throw new Error(`transaction failed: ${JSON.stringify(s.err, (_, v) => typeof v === "bigint" ? v.toString() : v)}\n${logs}`);
     }
     if (s?.confirmationStatus === "confirmed" || s?.confirmationStatus === "finalized") return signature;
@@ -112,37 +75,21 @@ export async function send(signer: TransactionSendingSigner, ixs: Instruction[])
   throw new Error(`not confirmed after 60s: ${signature}`);
 }
 
+/** Send several transactions in order; returns every signature. */
+export async function sendGroups(signer: TransactionSendingSigner, groups: Instruction[][], onStep?: (i: number, n: number) => void): Promise<string[]> {
+  const sigs: string[] = [];
+  for (const [i, g] of groups.entries()) {
+    onStep?.(i + 1, groups.length);
+    sigs.push(await send(signer, g));
+  }
+  return sigs;
+}
+
 // ---------------------------------------------------------------- token accounts
 
-export async function ataAddress(owner: Address, mint: Address, tokenProgram: Address): Promise<Address> {
-  const [a] = await getProgramDerivedAddress({
-    programAddress: ATA_PROGRAM,
-    seeds: [addrBytes(owner), addrBytes(tokenProgram), addrBytes(mint)],
-  });
-  return a;
-}
-
-/**
- * Associated Token Account "create idempotent" (instruction 1): a no-op if the
- * account exists. Built by hand to avoid pulling a token-program client into
- * the app for one instruction.
- */
-export function createAtaIdempotent(
-  payer: TransactionSendingSigner, ata: Address, owner: Address, mint: Address, tokenProgram: Address,
-): Instruction {
-  return {
-    programAddress: ATA_PROGRAM,
-    accounts: [
-      { address: payer.address, role: AccountRole.WRITABLE_SIGNER, signer: payer } as never,
-      { address: ata, role: AccountRole.WRITABLE },
-      { address: owner, role: AccountRole.READONLY },
-      { address: mint, role: AccountRole.READONLY },
-      { address: SYSTEM_PROGRAM, role: AccountRole.READONLY },
-      { address: tokenProgram, role: AccountRole.READONLY },
-    ],
-    data: new Uint8Array([1]),
-  };
-}
+export const ataAddress = (owner: Address, mint: Address, tokenProgram: Address) => findAta(owner, mint, tokenProgram);
+export const createAtaIdempotent = (payer: TransactionSendingSigner, owner: Address, mint: Address, tokenProgram: Address) =>
+  createAtaIdempotentIx(payer, owner, mint, tokenProgram);
 
 export async function tokenBalance(account: Address): Promise<bigint | null> {
   try {
@@ -151,6 +98,11 @@ export async function tokenBalance(account: Address): Promise<bigint | null> {
   } catch {
     return null; // account does not exist
   }
+}
+
+async function mintSupplyOf(mint: Address): Promise<bigint> {
+  const { value } = await rpc.getAccountInfo(mint, { encoding: "base64" }).send();
+  return value ? mintSupply(getBase64Encoder().encode(value.data[0]) as Uint8Array).supply : 0n;
 }
 
 // ---------------------------------------------------------------- circle state
@@ -162,103 +114,171 @@ export interface ExitView {
   claims: { mint: Address; address: Address; asset: RedemptionAsset }[];
 }
 
-/** One asset the Circle holds: what it is, what the Mandate targets, and what
- * the vault actually contains. All values are read from the chain. */
+/** One asset the Mandate permits: what it is, its target, the real vault balance and its price. */
 export interface Holding {
   address: Address;
   asset: CircleAsset;
   registry: AssetRegistryEntry;
   targetWeightBps: number;
   vaultRaw: bigint;
+  mintSupplyRaw: bigint;
+  price: PriceObservation | null;
 }
 
 export interface CircleView {
   circle: Circle;
   mandate: Mandate;
+  mandateAddress: Address;
   usdcMint: Address;
   assets: { address: Address; asset: CircleAsset }[];
   holdings: Holding[];
   activeUsdcRaw: bigint;
   epoch: { address: Address; data: Epoch } | null;
   navSnapshot: { address: Address; data: NavSnapshot } | null;
+  /** Every contribution receipt of the current epoch (for settling everyone). */
+  receipts: { address: Address; data: ContributionReceipt }[];
   member: Member | null;
   receipt: ContributionReceipt | null;
   exits: ExitView[];
 }
 
+const b58 = getBase58Decoder();
+const b64 = getBase64Encoder();
+const memcmp = (offset: bigint, bytes: string) => ({ memcmp: { offset, bytes: bytes as never, encoding: "base58" as const } });
+
 export async function loadCircle(circleAddr: Address, wallet: Address | null): Promise<CircleView> {
   const circle = (await fetchCircle(rpc, circleAddr)).data;
   const mandate = (await fetchMandate(rpc, circle.mandate)).data;
-  const [configAddr] = await findConfigPda();
-  const usdcMint = (await fetchConfig(rpc, configAddr)).data.usdcMint;
+  const usdcMint = (await fetchConfig(rpc, (await pda.config())[0])).data.usdcMint;
 
   // Every CircleAsset of this circle: discriminator + circle field (offset 8).
-  const b58 = getBase58Decoder();
   const raw = await rpc.getProgramAccounts(TENET_PROGRAM_ADDRESS, {
     encoding: "base64",
-    filters: [
-      { memcmp: { offset: 0n, bytes: b58.decode(CIRCLE_ASSET_DISCRIMINATOR) as never, encoding: "base58" } },
-      { memcmp: { offset: 8n, bytes: circleAddr as never, encoding: "base58" } },
-    ],
+    filters: [memcmp(0n, b58.decode(CIRCLE_ASSET_DISCRIMINATOR)), memcmp(8n, circleAddr)],
   }).send();
-  const b64 = getBase64Encoder();
   const assets = raw
     .map((r) => ({ address: r.pubkey, asset: getCircleAssetDecoder().decode(b64.encode(r.account.data[0])) }))
     .sort((a, b) => a.asset.index - b.asset.index);
 
-  const [epochAddr] = await findEpochPda({ circle: circleAddr, index: circle.currentEpoch });
+  const [epochAddr] = await pda.epoch(circleAddr, circle.currentEpoch);
   const e = await fetchMaybeEpoch(rpc, epochAddr);
   const epoch = e.exists ? { address: epochAddr, data: e.data } : null;
   let navSnapshot: CircleView["navSnapshot"] = null;
+  let receipts: CircleView["receipts"] = [];
   if (epoch) {
-    const [snapshotAddr] = await findNavSnapshotPda({ epoch: epoch.address });
+    const [snapshotAddr] = await pda.navSnapshot(epoch.address);
     const snapshot = await fetchMaybeNavSnapshot(rpc, snapshotAddr);
     navSnapshot = snapshot.exists ? { address: snapshotAddr, data: snapshot.data } : null;
+    // Receipt layout: discriminator, circle (8), epoch (40), owner (72), ...
+    const rr = await rpc.getProgramAccounts(TENET_PROGRAM_ADDRESS, {
+      encoding: "base64",
+      filters: [memcmp(0n, b58.decode(CONTRIBUTION_RECEIPT_DISCRIMINATOR)), memcmp(40n, epoch.address)],
+    }).send();
+    receipts = rr.map((r) => ({ address: r.pubkey, data: getContributionReceiptDecoder().decode(b64.encode(r.account.data[0])) }));
   }
 
   let member: Member | null = null;
   let receipt: ContributionReceipt | null = null;
   const exits: ExitView[] = [];
   if (wallet) {
-    const [memberAddr] = await findMemberPda({ circle: circleAddr, buyer: wallet });
-    const m = await fetchMaybeMember(rpc, memberAddr);
+    const m = await fetchMaybeMember(rpc, (await pda.member(circleAddr, wallet))[0]);
     member = m.exists ? m.data : null;
     if (epoch) {
-      const [receiptAddr] = await findReceiptPda({ epoch: epoch.address, contributor: wallet });
-      const r = await fetchMaybeContributionReceipt(rpc, receiptAddr);
+      const r = await fetchMaybeContributionReceipt(rpc, (await pda.receipt(epoch.address, wallet))[0]);
       receipt = r.exists ? r.data : null;
     }
     for (let seq = 0n; member && seq < member.nextRedemptionSeq; seq++) {
-      const rAddr = await redemptionPda(circleAddr, wallet, seq);
+      const [rAddr] = await pda.redemption(circleAddr, wallet, seq);
       const r = await fetchMaybeRedemption(rpc, rAddr);
       if (!r.exists) continue;
       const claims: ExitView["claims"] = [];
       for (const mint of [...assets.map((a) => a.asset.mint), usdcMint]) {
-        const raAddr = await redemptionAssetPda(rAddr, mint);
+        const [raAddr] = await pda.redemptionAsset(rAddr, mint);
         const ra = await fetchMaybeRedemptionAsset(rpc, raAddr);
         if (ra.exists) claims.push({ mint, address: raAddr, asset: ra.data });
       }
       exits.push({ seq, address: rAddr, redemption: r.data, claims });
     }
   }
-  const [activeUsdcVault] = await findActiveUsdcVaultPda({ circle: circleAddr });
+  const [activeUsdcVault] = await pda.usdcVault(circleAddr);
   const [holdings, activeUsdcRaw] = await Promise.all([
     Promise.all(assets.map(async ({ address, asset }) => {
-      const [registryAddr] = await findRegistryEntryPda({ testMint: asset.mint });
-      const [registry, mandateAsset, vaultRaw] = await Promise.all([
+      const [registryAddr] = await pda.registry(asset.mint);
+      const [registry, mandateAsset, vaultRaw, mintSupplyRaw, price] = await Promise.all([
         fetchAssetRegistryEntry(rpc, registryAddr),
         fetchMandateAsset(rpc, asset.mandateAsset),
         tokenBalance(asset.vault),
+        mintSupplyOf(asset.mint),
+        priceProvider.get(asset.mint).catch(() => null),
       ]);
       return {
-        address, asset, registry: registry.data,
-        targetWeightBps: mandateAsset.data.targetWeightBps, vaultRaw: vaultRaw ?? 0n,
+        address, asset, registry: registry.data, targetWeightBps: mandateAsset.data.targetWeightBps,
+        vaultRaw: vaultRaw ?? 0n, mintSupplyRaw, price,
       };
     })),
     tokenBalance(activeUsdcVault).then((b) => b ?? 0n),
   ]);
 
-  return { circle, mandate, usdcMint, assets, holdings, activeUsdcRaw, epoch, navSnapshot, member, receipt, exits };
+  return {
+    circle, mandate, mandateAddress: circle.mandate, usdcMint, assets, holdings, activeUsdcRaw, epoch, navSnapshot,
+    receipts, member, receipt, exits,
+  };
+}
+
+// ---------------------------------------------------------------- directory & lineage
+
+export interface DirectoryEntry {
+  circle: Address;
+  data: Circle;
+  mandateAddress: Address;
+  mandate: Mandate;
+}
+
+/** Every Circle on this Tenet deployment, with its Mandate. */
+export async function loadDirectory(): Promise<DirectoryEntry[]> {
+  const [circles, mandates] = await Promise.all([
+    rpc.getProgramAccounts(TENET_PROGRAM_ADDRESS, { encoding: "base64", filters: [memcmp(0n, b58.decode(CIRCLE_DISCRIMINATOR))] }).send(),
+    rpc.getProgramAccounts(TENET_PROGRAM_ADDRESS, { encoding: "base64", filters: [memcmp(0n, b58.decode(MANDATE_DISCRIMINATOR))] }).send(),
+  ]);
+  const byAddress = new Map(mandates.map((m) => [m.pubkey, getMandateDecoder().decode(b64.encode(m.account.data[0]))]));
+  return circles.flatMap((c) => {
+    const data = getCircleDecoder().decode(b64.encode(c.account.data[0]));
+    const mandate = byAddress.get(data.mandate);
+    return mandate ? [{ circle: c.pubkey, data, mandateAddress: data.mandate, mandate }] : [];
+  }).sort((a, b) => Number(b.data.createdAt - a.data.createdAt));
+}
+
+/** Ancestors (oldest first) and direct children of a Mandate, from the directory. */
+export function lineage(dir: DirectoryEntry[], mandate: Address) {
+  const byMandate = new Map(dir.map((d) => [d.mandateAddress, d]));
+  const ancestors: DirectoryEntry[] = [];
+  let cur = byMandate.get(mandate);
+  const seen = new Set<Address>();
+  while (cur && cur.mandate.forkedFrom.__option === "Some" && !seen.has(cur.mandateAddress)) {
+    seen.add(cur.mandateAddress);
+    const parent = byMandate.get(cur.mandate.forkedFrom.value);
+    if (!parent) break;
+    ancestors.unshift(parent);
+    cur = parent;
+  }
+  const children = dir.filter((d) => d.mandate.forkedFrom.__option === "Some" && d.mandate.forkedFrom.value === mandate);
+  return { ancestors, children };
+}
+
+// ---------------------------------------------------------------- activity
+
+export interface ActivityItem {
+  signature: string;
+  slot: bigint;
+  blockTime: bigint | null;
+  ok: boolean;
+  memo: string | null;
+}
+
+/** Recent transactions that touched this Circle account, newest first. */
+export async function loadActivity(circle: Address, limit = 25): Promise<ActivityItem[]> {
+  const sigs = await rpc.getSignaturesForAddress(circle, { limit }).send();
+  return sigs.map((s) => ({ signature: s.signature, slot: s.slot, blockTime: s.blockTime ?? null, ok: s.err === null, memo: s.memo ?? null }));
 }
 
 // ---------------------------------------------------------------- transfer fee

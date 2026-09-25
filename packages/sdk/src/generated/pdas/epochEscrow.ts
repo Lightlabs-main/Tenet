@@ -14,6 +14,6 @@ index: number | bigint;
 };
 
 export async function findEpochEscrowPda(seeds: EpochEscrowSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
+  const { programAddress = '7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf' as Address<'7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf'> } = config;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([101, 112, 111, 99, 104, 95, 101, 115, 99, 114, 111, 119])), getAddressEncoder().encode(seeds.circle), getU64Encoder().encode(seeds.index)]});
 }

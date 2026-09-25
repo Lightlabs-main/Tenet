@@ -68,8 +68,6 @@ fn rust_derivations_match_the_sdk_seed_builders() {
             "exec_auth" => pda::exec_auth(&key(a, 0), &key(a, 1), int(a, 2)),
             "amendment" => pda::amendment(&key(a, 0), int(a, 1)),
             "amendment_vote" => pda::amendment_vote(&key(a, 0), &key(a, 1)),
-            "devnet_test_market" => pda::devnet_test_market(),
-            "devnet_test_mint" => pda::devnet_test_mint(),
             other => panic!("vector {i}: unknown derivation {other}"),
         };
         let want_addr = v["address"].as_str().unwrap();
@@ -81,7 +79,12 @@ fn rust_derivations_match_the_sdk_seed_builders() {
             ));
         }
     }
-    assert!(failures.is_empty(), "{} mismatches:\n{}", failures.len(), failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "{} mismatches:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 
     // Guard against a vacuous pass: some vectors must need a bump below 255,
     // i.e. the first candidate was ON the curve and had to be rejected.

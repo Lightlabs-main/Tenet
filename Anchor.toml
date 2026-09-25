@@ -7,10 +7,12 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-tenet = "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh"
+tenet = "7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf"
+tenet_devnet = "6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm"
 
 [programs.devnet]
-tenet = "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh"
+tenet = "7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf"
+tenet_devnet = "6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm"
 
 [provider]
 cluster = "localnet"

@@ -1,8 +1,8 @@
 //! On-chain EXECUTE boundary tests.
 //!
-//! These tests intentionally stop before any real Jupiter route is enabled.
-//! They prove that the structural window exists but remains fail-closed while
-//! verified price policy is not yet available.
+//! Mainnet-profile structural checks. The full execution path — a real venue
+//! moving real tokens, target weights, price impact, feed binding — runs on
+//! the Devnet profile in `devnet_e2e.rs`.
 
 mod common;
 
@@ -34,7 +34,8 @@ fn end_execution_ix(
             out_mint: *out_mint,
             mandate_asset_out: *mandate_asset_out,
             registry_entry: tenet::pda::registry(out_mint).0,
-            price_update: Pubkey::default(), // Begin fails before End is reached
+            config: tenet::pda::config().0,
+            price_account: Pubkey::default(), // Begin fails before End is reached
             source_vault: tenet::pda::usdc_vault(circle).0,
             circle_asset_out,
             dest_vault: tenet::pda::asset_vault(circle, out_mint).0,
@@ -143,5 +144,5 @@ fn test_end_execution_builder_binds_circle_usdc_vault() {
 
     // EndExecution's source vault must remain Circle-scoped. It must never be
     // derived from the user-provided input mint or execution authorization.
-    assert_eq!(instruction.accounts[10].pubkey, tenet::pda::usdc_vault(&circle).0);
+    assert_eq!(instruction.accounts[11].pubkey, tenet::pda::usdc_vault(&circle).0);
 }

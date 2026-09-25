@@ -75,7 +75,10 @@ pub fn validate_params(p: &MandateParams) -> Result<()> {
     ] {
         require!(bps as u64 <= BPS_DENOMINATOR, TenetError::InvalidBps);
     }
-    require!(p.min_contribution_usdc > 0, TenetError::InvalidMinContribution);
+    require!(
+        p.min_contribution_usdc > 0,
+        TenetError::InvalidMinContribution
+    );
     require!(
         p.max_pool_size_usdc > p.min_contribution_usdc,
         TenetError::InvalidMaxPoolSize
@@ -160,28 +163,33 @@ pub struct ForkMandate<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn fork_handler(ctx: Context<ForkMandate>) -> Result<()> {
+/// The child's rules are supplied by the forker — a fork exists to disagree
+/// with its parent about something — and pass exactly the validation
+/// `create_mandate` applies. Lineage is the only thing inherited: `forked_from`
+/// records the parent. To reproduce the parent verbatim, pass its rules back.
+pub fn fork_handler(ctx: Context<ForkMandate>, p: MandateParams) -> Result<()> {
+    validate_params(&p)?;
     let parent = &ctx.accounts.parent_mandate;
     let child = &mut ctx.accounts.new_mandate;
 
     child.author = ctx.accounts.forker.key();
     child.mandate_seed = ctx.accounts.new_mandate_seed.key();
-    child.name = parent.name.clone();
-    child.description = parent.description.clone();
+    child.name = p.name;
+    child.description = p.description;
     child.state = MandateState::Draft;
     child.asset_count = 0;
-    child.max_weight_per_asset_bps = parent.max_weight_per_asset_bps;
-    child.max_pre_ipo_weight_bps = parent.max_pre_ipo_weight_bps;
-    child.max_issuer_weight_bps = parent.max_issuer_weight_bps;
-    child.max_underlying_weight_bps = parent.max_underlying_weight_bps;
-    child.max_supply_consumption_bps = parent.max_supply_consumption_bps;
-    child.max_price_impact_bps = parent.max_price_impact_bps;
-    child.min_contribution_usdc = parent.min_contribution_usdc;
-    child.max_pool_size_usdc = parent.max_pool_size_usdc;
-    child.epoch_duration = parent.epoch_duration;
-    child.membership_policy = parent.membership_policy;
-    child.amendment_threshold_bps = parent.amendment_threshold_bps;
-    child.amendment_delay_seconds = parent.amendment_delay_seconds;
+    child.max_weight_per_asset_bps = p.max_weight_per_asset_bps;
+    child.max_pre_ipo_weight_bps = p.max_pre_ipo_weight_bps;
+    child.max_issuer_weight_bps = p.max_issuer_weight_bps;
+    child.max_underlying_weight_bps = p.max_underlying_weight_bps;
+    child.max_supply_consumption_bps = p.max_supply_consumption_bps;
+    child.max_price_impact_bps = p.max_price_impact_bps;
+    child.min_contribution_usdc = p.min_contribution_usdc;
+    child.max_pool_size_usdc = p.max_pool_size_usdc;
+    child.epoch_duration = p.epoch_duration;
+    child.membership_policy = p.membership_policy;
+    child.amendment_threshold_bps = p.amendment_threshold_bps;
+    child.amendment_delay_seconds = p.amendment_delay_seconds;
     child.forked_from = Some(parent.key());
     child.version = 1;
     child.created_at = Clock::get()?.unix_timestamp;
@@ -242,10 +250,20 @@ pub struct ForkMandateAsset<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn fork_asset_handler(ctx: Context<ForkMandateAsset>) -> Result<()> {
+/// Copies one parent asset in parent order, with a target weight chosen for
+/// the child's rules (the parent's target may exceed a tightened child cap).
+/// The whole target set is proven against every cap at `finalize_mandate`.
+pub fn fork_asset_handler(ctx: Context<ForkMandateAsset>, target_weight_bps: u16) -> Result<()> {
     let parent_asset = &ctx.accounts.parent_asset;
     let child = &mut ctx.accounts.new_mandate;
-    require!(child.asset_count < MAX_CIRCLE_ASSETS, TenetError::TooManyAssets);
+    require!(
+        child.asset_count < MAX_CIRCLE_ASSETS,
+        TenetError::TooManyAssets
+    );
+    require!(
+        target_weight_bps <= child.max_weight_per_asset_bps,
+        TenetError::AssetWeightCapExceeded
+    );
     require!(
         parent_asset.index == child.asset_count,
         TenetError::IncompleteMandateAssets
@@ -255,11 +273,14 @@ pub fn fork_asset_handler(ctx: Context<ForkMandateAsset>) -> Result<()> {
     copied.mandate = child.key();
     copied.mint = parent_asset.mint;
     copied.registry_entry = ctx.accounts.registry_entry.key();
-    copied.target_weight_bps = parent_asset.target_weight_bps;
+    copied.target_weight_bps = target_weight_bps;
     copied.index = parent_asset.index;
     copied.enabled = parent_asset.enabled;
     copied.bump = ctx.bumps.new_asset;
-    child.asset_count = child.asset_count.checked_add(1).ok_or(TenetError::MathOverflow)?;
+    child.asset_count = child
+        .asset_count
+        .checked_add(1)
+        .ok_or(TenetError::MathOverflow)?;
     Ok(())
 }
 
@@ -317,7 +338,10 @@ pub fn add_asset_handler(ctx: Context<AddMandateAsset>, target_weight_bps: u16) 
     a.enabled = true;
     a.bump = ctx.bumps.mandate_asset;
 
-    m.asset_count = m.asset_count.checked_add(1).ok_or(TenetError::MathOverflow)?;
+    m.asset_count = m
+        .asset_count
+        .checked_add(1)
+        .ok_or(TenetError::MathOverflow)?;
     Ok(())
 }
 
@@ -353,14 +377,20 @@ pub fn check_weights(m: &Mandate, assets: &[WeightInput]) -> Result<()> {
     require!(!assets.is_empty(), TenetError::EmptyAssetUniverse);
 
     let total: u32 = assets.iter().map(|a| a.target_weight_bps as u32).sum();
-    require!(total as u64 <= BPS_DENOMINATOR, TenetError::TargetWeightsExceedTotal);
+    require!(
+        total as u64 <= BPS_DENOMINATOR,
+        TenetError::TargetWeightsExceedTotal
+    );
 
     let pre_ipo: u32 = assets
         .iter()
         .filter(|a| a.asset_class == AssetClass::PreIpo)
         .map(|a| a.target_weight_bps as u32)
         .sum();
-    require!(pre_ipo <= m.max_pre_ipo_weight_bps as u32, TenetError::PreIpoWeightCapExceeded);
+    require!(
+        pre_ipo <= m.max_pre_ipo_weight_bps as u32,
+        TenetError::PreIpoWeightCapExceeded
+    );
 
     // Per-issuer and per-underlying sums. At most 8 assets, so a quadratic scan
     // is bounded and needs no map.
@@ -370,7 +400,10 @@ pub fn check_weights(m: &Mandate, assets: &[WeightInput]) -> Result<()> {
             .filter(|b| b.issuer == a.issuer)
             .map(|b| b.target_weight_bps as u32)
             .sum();
-        require!(by_issuer <= m.max_issuer_weight_bps as u32, TenetError::IssuerWeightCapExceeded);
+        require!(
+            by_issuer <= m.max_issuer_weight_bps as u32,
+            TenetError::IssuerWeightCapExceeded
+        );
 
         // Same company through two issuers is still one concentration (R-23).
         let by_underlying: u32 = assets
@@ -386,9 +419,7 @@ pub fn check_weights(m: &Mandate, assets: &[WeightInput]) -> Result<()> {
     Ok(())
 }
 
-pub fn finalize_handler<'info>(
-    ctx: Context<'info, FinalizeMandate<'info>>,
-) -> Result<()> {
+pub fn finalize_handler<'info>(ctx: Context<'info, FinalizeMandate<'info>>) -> Result<()> {
     let mandate_key = ctx.accounts.mandate.key();
     let count = ctx.accounts.mandate.asset_count as usize;
     let rest = ctx.remaining_accounts;
@@ -406,7 +437,11 @@ pub fn finalize_handler<'info>(
         let entry: Account<AssetRegistryEntry> = Account::try_from(&pair[1])?;
 
         require_keys_eq!(asset.mandate, mandate_key, TenetError::AccountSubstitution);
-        require_keys_eq!(asset.registry_entry, entry.key(), TenetError::AccountSubstitution);
+        require_keys_eq!(
+            asset.registry_entry,
+            entry.key(),
+            TenetError::AccountSubstitution
+        );
         require_keys_eq!(asset.mint, entry.mint, TenetError::MintMismatch);
 
         // Index bitmap: each of 0..count must appear exactly once. Together with
@@ -507,9 +542,17 @@ mod tests {
             set(&mut p, 10_000);
             assert!(validate_params(&p).is_ok(), "field {i} at 10_000");
             set(&mut p, 10_001);
-            assert_eq!(err(validate_params(&p)), TenetError::InvalidBps, "field {i} at 10_001");
+            assert_eq!(
+                err(validate_params(&p)),
+                TenetError::InvalidBps,
+                "field {i} at 10_001"
+            );
             set(&mut p, u16::MAX);
-            assert_eq!(err(validate_params(&p)), TenetError::InvalidBps, "field {i} at u16::MAX");
+            assert_eq!(
+                err(validate_params(&p)),
+                TenetError::InvalidBps,
+                "field {i} at u16::MAX"
+            );
         }
     }
 
@@ -549,7 +592,10 @@ mod tests {
 
         let mut p = params();
         p.description = "x".repeat(MAX_MANDATE_DESCRIPTION_LEN + 1);
-        assert_eq!(err(validate_params(&p)), TenetError::InvalidMandateDescription);
+        assert_eq!(
+            err(validate_params(&p)),
+            TenetError::InvalidMandateDescription
+        );
 
         // Length is BYTES, matching the account space: 16 three-byte
         // characters are 48 bytes and fit; one more does not.
@@ -572,12 +618,21 @@ mod tests {
             if ok {
                 assert!(validate_params(&p).is_ok(), "duration {d}");
             } else {
-                assert_eq!(err(validate_params(&p)), TenetError::InvalidEpochDuration, "duration {d}");
+                assert_eq!(
+                    err(validate_params(&p)),
+                    TenetError::InvalidEpochDuration,
+                    "duration {d}"
+                );
             }
         }
 
         // Threshold must be a strict majority: (5_000, 10_000].
-        for (t, ok) in [(5_000, false), (5_001, true), (10_000, true), (10_001, false)] {
+        for (t, ok) in [
+            (5_000, false),
+            (5_001, true),
+            (10_000, true),
+            (10_001, false),
+        ] {
             let mut p = params();
             p.amendment_threshold_bps = t;
             if ok {
@@ -644,7 +699,11 @@ mod tests {
         assert_eq!(err(check_weights(&m, &[])), TenetError::EmptyAssetUniverse);
 
         // Exactly 100% across distinct issuers and underlyings is fine.
-        let ok = [asset(4_000, Pub, 1, 1), asset(3_000, Pub, 2, 2), asset(3_000, PreIpo, 3, 3)];
+        let ok = [
+            asset(4_000, Pub, 1, 1),
+            asset(3_000, Pub, 2, 2),
+            asset(3_000, PreIpo, 3, 3),
+        ];
         assert!(check_weights(&m, &ok).is_ok());
 
         // 100.01% is not.
@@ -654,19 +713,36 @@ mod tests {
             asset(2_500, Pub, 3, 3),
             asset(2_500, Pub, 4, 4),
         ];
-        assert_eq!(err(check_weights(&m, &over)), TenetError::TargetWeightsExceedTotal);
+        assert_eq!(
+            err(check_weights(&m, &over)),
+            TenetError::TargetWeightsExceedTotal
+        );
 
         // Pre-IPO: 30% allowed, 30.01% not, summed ACROSS assets.
         let pre = [asset(1_500, PreIpo, 1, 1), asset(1_500, PreIpo, 2, 2)];
         assert!(check_weights(&m, &pre).is_ok());
         let pre = [asset(1_500, PreIpo, 1, 1), asset(1_501, PreIpo, 2, 2)];
-        assert_eq!(err(check_weights(&m, &pre)), TenetError::PreIpoWeightCapExceeded);
+        assert_eq!(
+            err(check_weights(&m, &pre)),
+            TenetError::PreIpoWeightCapExceeded
+        );
 
         // Issuer: three assets from one issuer, 60% allowed, 60.01% not.
-        let iss = [asset(2_000, Pub, 9, 1), asset(2_000, Pub, 9, 2), asset(2_000, Pub, 9, 3)];
+        let iss = [
+            asset(2_000, Pub, 9, 1),
+            asset(2_000, Pub, 9, 2),
+            asset(2_000, Pub, 9, 3),
+        ];
         assert!(check_weights(&m, &iss).is_ok());
-        let iss = [asset(2_000, Pub, 9, 1), asset(2_000, Pub, 9, 2), asset(2_001, Pub, 9, 3)];
-        assert_eq!(err(check_weights(&m, &iss)), TenetError::IssuerWeightCapExceeded);
+        let iss = [
+            asset(2_000, Pub, 9, 1),
+            asset(2_000, Pub, 9, 2),
+            asset(2_001, Pub, 9, 3),
+        ];
+        assert_eq!(
+            err(check_weights(&m, &iss)),
+            TenetError::IssuerWeightCapExceeded
+        );
     }
 
     #[test]
@@ -678,6 +754,9 @@ mod tests {
         let ok = [asset(2_500, Pub, 1, 7), asset(2_500, PreIpo, 2, 7)];
         assert!(check_weights(&m, &ok).is_ok());
         let over = [asset(2_500, Pub, 1, 7), asset(2_501, PreIpo, 2, 7)];
-        assert_eq!(err(check_weights(&m, &over)), TenetError::UnderlyingWeightCapExceeded);
+        assert_eq!(
+            err(check_weights(&m, &over)),
+            TenetError::UnderlyingWeightCapExceeded
+        );
     }
 }

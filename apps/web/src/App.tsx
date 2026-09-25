@@ -1,13 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSelectedWalletAccount } from "@solana/react";
 import type { Address } from "@solana/kit";
-import { CLUSTER, DEFAULT_CIRCLE, TOKEN_PROGRAM, USDC_DECIMALS } from "./config.ts";
-import { ataAddress, b58ToAddress, isTenetProgramDeployed, loadCircle, tokenBalance, type CircleView } from "./chain.ts";
-import { Dashboard, PreStocksMarketSurface, type CirclePanel } from "./dashboard.tsx";
+import { CASH_TICKER, CLUSTER, DEPLOYMENT, TOKEN_PROGRAM, USDC_DECIMALS } from "./config.ts";
+import { ataAddress, b58ToAddress, isTenetProgramDeployed, loadCircle, loadDirectory, tokenBalance, type CircleView, type DirectoryEntry } from "./chain.ts";
+import { Dashboard, FirstCircleSetup, type CirclePanel } from "./dashboard.tsx";
 import { AddressLink, Badge, formatBps, Spinner, ToastProvider } from "./ui.tsx";
 import { formatRaw } from "./money.ts";
 import { TENET_PROGRAM_ADDRESS } from "@tenet/sdk";
 import { WalletButton } from "./wallet.tsx";
+
+const circleStorageKey = `tenet:devnet:circle:${TENET_PROGRAM_ADDRESS}`;
+function initialCircleAddress(): Address | null {
+  try {
+    const saved = localStorage.getItem(circleStorageKey);
+    if (saved) return b58ToAddress(saved);
+    return DEPLOYMENT?.reference ? b58ToAddress(DEPLOYMENT.reference.circle) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function App() {
   return (
@@ -89,9 +100,9 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
   const [account] = useSelectedWalletAccount();
   const me = (account?.address ?? null) as Address | null;
   const [surface, setSurface] = useState<Surface>(() => surfaceFromHash());
-  const [input, setInput] = useState(DEFAULT_CIRCLE ?? "");
   const [addressError, setAddressError] = useState<string | null>(null);
-  const [circle, setCircle] = useState<Address | null>(() => DEFAULT_CIRCLE ? b58ToAddress(DEFAULT_CIRCLE) : null);
+  const [circle, setCircle] = useState<Address | null>(initialCircleAddress);
+  const [input, setInput] = useState(() => circle ? String(circle) : "");
   const [view, setView] = useState<CircleView | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<bigint | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +161,9 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
 
   const open = () => {
     try {
-      setCircle(b58ToAddress(input.trim()));
+      const nextCircle = b58ToAddress(input.trim());
+      setCircle(nextCircle);
+      try { localStorage.setItem(circleStorageKey, String(nextCircle)); } catch { /* private mode */ }
       setAddressError(null);
       setError(null);
     } catch {
@@ -161,6 +174,7 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
   const openResolvedCircle = (nextCircle: Address) => {
     setInput(String(nextCircle));
     setCircle(nextCircle);
+    try { localStorage.setItem(circleStorageKey, String(nextCircle)); } catch { /* private mode */ }
     setAddressError(null);
     setError(null);
     navigate("overview");
@@ -214,30 +228,33 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
         <main className="page" id="top">
           {programStatus !== "deployed" ? <>
           <section className="card empty load-error Devnet-gate" aria-live="polite">
-            <span className="eyebrow">Solana Devnet · read-only</span>
-            <h1>{programStatus === "checking" ? "Checking Tenet on Devnet…" : programStatus === "missing" ? "Tenet is not deployed on Devnet yet." : "Couldn’t verify Tenet on Devnet."}</h1>
+            <span className="eyebrow">Solana Devnet · setup</span>
+            <h1>{programStatus === "checking" ? "Checking Tenet on Devnet…" : programStatus === "missing" ? "Tenet isn't live on Devnet yet" : "Couldn't reach Solana Devnet"}</h1>
             <p>{programStatus === "checking"
-              ? "Reading the configured Tenet program account at finalized commitment. No wallet or transaction is involved."
+              ? "Reading the Tenet program account. No wallet or transaction is involved."
               : programStatus === "missing"
-                ? "The configured Tenet program address has no executable program account on this network. No devnet Circle, test USDC, or test balances are being shown here."
-                : "The Devnet RPC could not confirm whether Tenet is deployed. The app stays read-only and does not substitute devnet data."}</p>
-            <div className="Devnet-gate-meta"><span>Configured program</span><AddressLink address={TENET_PROGRAM_ADDRESS} /></div>
-            <p className="muted">This build is connected to Solana Devnet, but all wallet transactions remain disabled until the program is deployed and the release checks are complete.</p>
+                ? "Once the operator deploys the two programs and runs the setup script, this page becomes the full workspace. Nothing is simulated in the meantime."
+                : "The Devnet RPC did not answer. Check your connection and try again."}</p>
+            {programStatus === "missing" ? <ol className="first-circle-steps">
+              <li><strong>Deploy</strong><span><code>anchor deploy --provider.cluster devnet</code> (tenet + tenet-devnet)</span></li>
+              <li><strong>Set up</strong><span><code>pnpm devnet:setup</code> — TUSDC faucet, 6 test instruments, feeds, markets</span></li>
+              <li><strong>Demo</strong><span>Get TUSDC → create a Circle → contribute → execute → value → exit → fork</span></li>
+            </ol> : null}
+            <div className="Devnet-gate-meta"><span>Tenet program</span><AddressLink address={TENET_PROGRAM_ADDRESS} /></div>
             <button className="btn ghost" type="button" disabled={programStatus === "checking"} onClick={() => { void checkProgram(); }}>{programStatus === "checking" ? "Checking…" : "Check again"}</button>
             {programError ? <p className="error-text" role="status">RPC read failed: {programError}</p> : null}
           </section>
-          <PreStocksMarketSurface holdings={[]} />
-          </> : <>
+                    </> : <>
           <div className="notice">
             <span className="notice-icon">!</span>
             <div className="notice-copy">
               <strong>Solana Devnet · test assets only</strong>
-              <span>Contributions, exits and Forks use valueless test tokens. Stock purchases are not enabled.</span>
+              <span>Everything here is a real Devnet transaction with valueless test tokens: TUSDC and DEVNET TEST INSTRUMENTS, priced by a devnet pricing simulation.</span>
             </div>
           </div>
 
           {surface === "explore" ? (
-            <ExploreSurface view={view} error={error} loading={loading} onRetry={() => { void reload(); }} onOpen={() => navigate("overview")} />
+            <ExploreSurface current={circle} onOpenCircle={openResolvedCircle} onCreate={() => { setCircle(null); setView(null); try { localStorage.removeItem(circleStorageKey); } catch { /* private mode */ } navigate("overview"); }} />
           ) : surface === "mandate" && view ? (
             <MandateSurface view={view} onOpenCircle={() => navigate("overview")} onFork={() => navigate("fork")} />
           ) : error ? (
@@ -251,7 +268,7 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
           ) : view && circle ? (
             <Dashboard panel={surface === "mandate" ? "overview" : surface} navigate={navigate} view={view} circle={circle} account={account} me={me} usdcBalance={usdcBalance} onChanged={reload} onOpenCircle={openResolvedCircle} />
           ) : (
-            <div className="card empty">{loading ? <><Spinner /> <p>Reading the Circle from Solana Devnet…</p></> : <p>Enter a Circle address above.</p>}</div>
+            loading ? <div className="card empty"><Spinner /> <p>Reading the Circle from Solana Devnet…</p></div> : <FirstCircleSetup account={account} onOpenCircle={openResolvedCircle} />
           )}
           </>}
         </main>
@@ -275,7 +292,7 @@ function surfaceFromHash(): Surface {
   return "overview";
 }
 
-const displayCircleName = (onChainName: string) => CLUSTER === "devnet" ? "Devnet test Circle" : onChainName;
+const displayCircleName = (onChainName: string) => onChainName;
 const displayAmount = (raw: bigint, decimals: number) => {
   const value = formatRaw(raw, decimals);
   return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
@@ -287,36 +304,34 @@ const formatDuration = (seconds: bigint) => {
   return `${seconds} second${seconds === 1n ? "" : "s"}`;
 };
 
-function ExploreSurface({ view, error, loading, onRetry, onOpen }: { view: CircleView | null; error: string | null; loading: boolean; onRetry: () => void; onOpen: () => void }) {
+function ExploreSurface({ current, onOpenCircle, onCreate }: { current: Address | null; onOpenCircle: (c: Address) => void; onCreate: () => void }) {
+  const [dir, setDir] = useState<DirectoryEntry[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { void loadDirectory().then(setDir).catch((e) => setErr((e as Error).message)); }, []);
   return (
     <div className="explore-page" id="explore">
       <section className="explore-hero">
         <div>
           <span className="eyebrow">Discover</span>
-          <h1>{CLUSTER === "devnet" ? "Explore the demo Circle." : "Explore group portfolios."}</h1>
-          <p>A Circle pools capital under a Mandate: the investment rules everyone can inspect. Open a Circle to see its on-chain state.</p>
+          <h1>Every Circle on Tenet Devnet.</h1>
+          <p>Read straight from the program: each Circle, its Mandate, members and where its rules were forked from. Open one, or create your own.</p>
         </div>
-        <Badge tone="info">Data from Solana</Badge>
+        <button className="btn primary" type="button" onClick={onCreate}>Create a Circle</button>
       </section>
-
-      <div className="explore-toolbar">
-        <div><span className="eyebrow">Circle preview</span><h2>What this Circle has recorded</h2></div>
-        <span className="muted">{CLUSTER === "devnet" ? "One verified devnet Circle" : "Solana Devnet"}</span>
-      </div>
-
-      <div className="explore-grid">
-        {view ? (
-          <article className="card explore-card">
-            <div className="explore-card-top"><Badge tone={CLUSTER === "devnet" ? "warn" : "info"}>{CLUSTER === "devnet" ? "Devnet test Circle" : "Devnet Circle"}</Badge><span>Shared portfolio</span></div>
-            <h2>{displayCircleName(view.mandate.name)}</h2>
-            <p>This is what the Circle currently has recorded on Solana. Test tokens have no real-world value; an asset allowed by its rules is not automatically held.</p>
-            <div className="explore-meta"><span>{view.holdings.filter((h) => h.vaultRaw > 0n).length} tokens held</span><span>{view.holdings.length} assets allowed by rules</span><span>{view.circle.memberCount.toString()} members</span></div>
-            <details className="execution-details"><summary>Show technical Circle name</summary><span>{view.mandate.name}</span></details>
-            <button className="btn primary" type="button" onClick={onOpen}>See what it holds</button>
-          </article>
-        ) : error ? <article className="card explore-load-error"><span className="eyebrow">Network read failed</span><h2>The Circle could not be loaded</h2><p>Check that this address belongs to a Circle on Solana Devnet. No devnet data is substituted.</p><button className="btn primary" type="button" disabled={loading} onClick={onRetry}>{loading ? "Trying again…" : "Try again"}</button><details className="execution-details"><summary>Technical details</summary><pre>{error}</pre></details></article> : <article className="card explore-load-error"><span className="eyebrow">No Circle selected</span><h2>Open a Circle address</h2><p>Only Circles deployed under the configured Tenet Devnet program can be read here.</p></article>}
-      </div>
-      <p className="explore-footnote">A full Circle directory is not connected yet. This is the only verified Circle in the preview; performance history is unavailable.</p>
+      {err ? <div className="card explore-load-error"><h2>Could not list Circles</h2><pre>{err}</pre></div> : dir === null ? <div className="card empty"><Spinner /> <p>Reading Circles from Solana Devnet…</p></div> : dir.length === 0 ? <div className="card empty"><h2>No Circles yet</h2><p>Be the first: create a Circle.</p></div> : (
+        <div className="explore-grid">
+          {dir.map((d) => {
+            const parent = d.mandate.forkedFrom.__option === "Some" ? dir.find((x) => x.mandateAddress === (d.mandate.forkedFrom as { value: Address }).value) : undefined;
+            return <article className="card explore-card" key={d.circle}>
+              <div className="explore-card-top"><Badge tone={d.circle === current ? "good" : "warn"}>{d.circle === current ? "Open now" : "Devnet test Circle"}</Badge><span>{parent ? `Fork of ${parent.mandate.name}` : "Original rules"}</span></div>
+              <h2>{d.mandate.name}</h2>
+              <p>{d.mandate.description}</p>
+              <div className="explore-meta"><span>{d.data.memberCount.toString()} members</span><span>epoch {d.data.currentEpoch.toString()}</span><span>pre-IPO cap {formatBps(BigInt(d.mandate.maxPreIpoWeightBps))}</span></div>
+              <button className="btn primary" type="button" onClick={() => onOpenCircle(d.circle)}>Open Circle</button>
+            </article>;
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -445,7 +460,7 @@ function LandingSurface({ view, circleLoadStatus, onExplore, onCircle, onMandate
 
       <section className="market-feature" id="market-data">
         <div><span className="eyebrow">Market intelligence</span><h2>Price is not always value.</h2><p>Public tokenized equities need a verified token price and, where available, an underlying-equity comparison. PreStocks need a clear separation between executable market price and issuer reference mark.</p><div className="market-tags"><span>Underlying vs token</span><span>Market vs reference mark</span><span>Supply & liquidity</span><span>Corporate actions</span></div></div>
-        <div className="market-data-column"><div className="market-readout"><div><span>Underlying ↔ token comparison</span><strong>Unavailable</strong><small>{CLUSTER === "devnet" ? "No verified Pyth pair is connected in this devnet preview." : "A paired, fresh Pyth source is not connected."}</small></div></div><PreStocksMarketSurface holdings={allowedAssets} /></div>
+        <div className="market-data-column"><div className="market-readout"><div><span>Underlying ↔ token · market ↔ mark</span><strong>Live in the app</strong><small>On Devnet, computed from on-chain test price feeds and labelled DEVNET TEST DATA.</small></div></div></div>
       </section>
 
       <section className="landing-contribution" id="contributions">
@@ -517,8 +532,8 @@ function MandateSurface({ view, onOpenCircle, onFork }: { view: CircleView; onOp
       <section className="mandate-controls card">
         <div><span className="eyebrow">Pool controls</span><h2>How the Circle operates</h2></div>
         <div className="mandate-control-grid">
-          <div><span>Minimum contribution</span><strong>{displayAmount(mandate.minContributionUsdc, USDC_DECIMALS)} USDC</strong></div>
-          <div><span>Maximum Circle size</span><strong>{displayAmount(mandate.maxPoolSizeUsdc, USDC_DECIMALS)} USDC</strong></div>
+          <div><span>Minimum contribution</span><strong>{displayAmount(mandate.minContributionUsdc, USDC_DECIMALS)} {CASH_TICKER}</strong></div>
+          <div><span>Maximum Circle size</span><strong>{displayAmount(mandate.maxPoolSizeUsdc, USDC_DECIMALS)} {CASH_TICKER}</strong></div>
           <div><span>Contribution window duration</span><strong>{formatDuration(mandate.epochDuration)}</strong></div>
           <div><span>Membership</span><strong>{mandate.membershipPolicy === 0 ? "Open" : "Invite only"}</strong></div>
           <div><span>Share of members needed to change rules</span><strong>{formatBps(BigInt(mandate.amendmentThresholdBps))}</strong></div>

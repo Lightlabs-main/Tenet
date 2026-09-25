@@ -1,0 +1,26 @@
+[package]
+name = "tenet-devnet"
+version = "0.1.0"
+description = "DEVNET ONLY: test-USDC faucet, test-instrument price feeds and a test market for Tenet. Never deployed to mainnet."
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "tenet_devnet"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = { version = "1.2.0", features = ["init-if-needed"] }
+anchor-spl = { version = "1.2.0", features = ["token_2022"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

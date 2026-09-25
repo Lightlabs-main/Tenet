@@ -1,0 +1,56 @@
+/**
+ * The devnet client: its quote must be the program's quote to the unit, and
+ * its guard must refuse any cluster but Devnet.
+ *
+ *   node --import tsx --test packages/sdk/test/devnet.test.ts
+ */
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  assertDevnet, buy, DEVNET_GENESIS_HASH, FRONTIER_TECHNOLOGY, INSTRUMENTS, MAINNET_GENESIS_HASH,
+  quoteBuy, TENET_DEVNET_PROGRAM_ADDRESS, transferFee,
+} from "../src/devnet/index.ts";
+
+test("quoteBuy reproduces the Rust quote_buy vectors", () => {
+  // programs/tenet-devnet/src/lib.rs `quote_buy_is_exact_and_floors`.
+  assert.equal(quoteBuy(100_000_000n, 40_000_000n, 6, 0), 2_500_000n);
+  assert.equal(quoteBuy(100_000_000n, 40_000_000n, 9, 0), 2_500_000_000n);
+  assert.equal(quoteBuy(100_000_000n, 40_000_000n, 6, 30), 2_492_500n);
+  assert.equal(quoteBuy(1n, 3_000_000n, 0, 0), 0n);
+  assert.throws(() => quoteBuy(1n, 0n, 6, 0), RangeError);
+});
+
+test("transfer fee is a capped ceiling, like Token-2022", () => {
+  assert.equal(transferFee(10_000n, 25, 1n << 60n), 25n);
+  assert.equal(transferFee(10_001n, 25, 1n << 60n), 26n);
+  assert.equal(transferFee(10_000_000n, 25, 100n), 100n);
+});
+
+test("assertDevnet refuses mainnet and accepts devnet", async () => {
+  const rpc = (hash: string) => ({ getGenesisHash: () => ({ send: async () => hash }) });
+  await assertDevnet(rpc(DEVNET_GENESIS_HASH));
+  await assert.rejects(assertDevnet(rpc(MAINNET_GENESIS_HASH)), /REFUSING/);
+});
+
+test("catalog: six labelled test instruments, and the reference Mandate fits its own caps", () => {
+  assert.equal(INSTRUMENTS.length, 6);
+  for (const i of INSTRUMENTS) {
+    assert.match(i.name, /DEVNET TEST INSTRUMENT$/);
+    assert.ok(new TextEncoder().encode(i.name).length <= 48, `${i.symbol} name fits the registry`);
+    assert.ok(i.symbol.startsWith("T"));
+  }
+  const bySymbol = new Map(INSTRUMENTS.map((i) => [i.symbol, i]));
+  let total = 0, preIpo = 0;
+  for (const [sym, bps] of FRONTIER_TECHNOLOGY.targets) {
+    assert.ok(bps <= FRONTIER_TECHNOLOGY.maxWeightPerAssetBps);
+    total += bps;
+    if (bySymbol.get(sym)!.assetClass === "preIpo") preIpo += bps;
+  }
+  assert.ok(total <= 10_000);
+  assert.ok(preIpo <= FRONTIER_TECHNOLOGY.maxPreIpoWeightBps);
+});
+
+test("amounts must be bigint", () => {
+  assert.equal(TENET_DEVNET_PROGRAM_ADDRESS, "6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm");
+  assert.throws(() => buy({ amountInRaw: 1, minOutRaw: 1n } as never), TypeError);
+});

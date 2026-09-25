@@ -6,11 +6,11 @@ Collectively owned portfolios of tokenized stocks, governed by an on-chain inves
 
 ---
 
-> **Status: devnet program; mainnet read-only client preview.**
-> POOL and staged EXIT are implemented in the Anchor program, but no Tenet program or Circle is
-> deployed on mainnet. The local web app now connects read-only to Solana Mainnet and disables all
-> wallet transactions; this is not an end-to-end mainnet product or production release. There are
-> no production users or production assets under management. Live gates are tracked in [PROGRESS.md](PROGRESS.md).
+> **Status: complete Devnet build — POOL → EXECUTE → VALUE → EXIT → FORK.**
+> The whole loop runs against real on-chain state with valueless test assets: TUSDC from an
+> on-chain faucet, six DEVNET TEST INSTRUMENTS, a devnet price feed and a devnet market standing in
+> for Pyth and Jupiter. Nothing is deployed on mainnet; there are no production users or assets.
+> Start here: **[docs/devnet.md](docs/devnet.md)** (setup, architecture, demo script).
 
 ---
 
@@ -104,11 +104,12 @@ Redemption is staged — the entitlement is fixed, reserved per asset, then clai
 
 ## Forking
 
-`fork_mandate` copies the constitution and records lineage. Dedicated asset-rule
-PDAs are copied into the new child through a separate bound instruction, then
-the child is finalized independently. It never copies Circle assets, members,
-money or trade history. The parent Mandate account is read-only throughout the
-fork path, so a child cannot mutate its parent.
+`fork_mandate` creates a new Mandate with the **forker's own rules** — validated exactly like
+`create_mandate` — and records `forked_from`. `fork_mandate_asset` copies each asset in the
+parent's order with a target the forker chooses (it must fit the child's caps), then the child is
+finalized independently. Example: lower the pre-IPO cap from 30% to 15%; the child's own Circle is
+then held to 15% on every buy. A fork never copies Circle assets, members, money or trade history,
+and the parent Mandate is read-only throughout.
 
 Rules are portable. Capital is independent.
 
@@ -144,7 +145,29 @@ Read-only by default. Mainnet writes require `ALLOW_MAINNET_WRITES=true` and an 
 
 ## Setup
 
-Requires WSL on Windows — Anchor cannot build natively there. Toolchain selection is unresolved pending the D-04 spike; see [docs/dependencies.md](docs/dependencies.md). Setup instructions will be written once a version combination has actually been built rather than merely chosen.
+Toolchain: Anchor 1.2.0, Solana CLI 4.1.x, Rust 1.98, Node 22, pnpm (see [docs/dependencies.md](docs/dependencies.md)). On Windows build in WSL or on Linux.
+
+```bash
+pnpm install
+anchor build                          # programs/tenet + programs/tenet-devnet
+cargo test -p tenet-program-tests     # LiteSVM, against the built .so files
+pnpm test                             # domain + SDK
+pnpm --filter @tenet/web dev          # web app on http://localhost:5173/app
+```
+
+Devnet deployment, `pnpm devnet:setup`, price control and the end-to-end script: [docs/devnet.md](docs/devnet.md).
+
+## Demo
+
+1. Connect a wallet on **Devnet** → **Get 1,000 TUSDC** (faucet, signed by you).
+2. **Create Mandate & Circle** (Frontier Technology: TNVDA, TAAPL, TSPY, TSPACEX, TOPENAI).
+3. Contribute → close the window → shares issued.
+4. **Execute epoch** — each asset bought to its Mandate target through the devnet market; the program checks real vault deltas, price impact, supply and target weight.
+5. **Prices & value** — NAV, weight vs target, market vs mark, token vs underlying, compliance. Labelled DEVNET TEST DATA.
+6. **Exit** 25 / 50 / 100% in kind to your wallet.
+7. **Fork** with a lower pre-IPO cap → independent Circle, lineage shown.
+
+A guided checklist on the Circle overview ticks each step from chain state. Full video script in [docs/devnet.md](docs/devnet.md#demo-video-script--5-minutes).
 
 ## Testing
 
@@ -152,14 +175,13 @@ Unit, integration, property/fuzz and invariant suites, plus adversarial tests co
 
 ## Deployment
 
-Not yet deployed. Upgrade-authority policy must be resolved first (Trust assumptions #2).
+Devnet: see [docs/devnet.md](docs/devnet.md). Mainnet: not deployed; upgrade-authority policy must be resolved first (Trust assumptions #2).
 
 ## Known limitations
 
-- Public-equity execution and Pyth's post-upgrade feed state remain unverified and block execution/value work.
-- The Anchor program and its existing Circle cover POOL/Epoch 0 and staged EXIT on devnet. The current web client is a mainnet read-only preview; the program is not deployed on mainnet and wallet transactions are disabled.
-- The Vite development server provides a fixed-target read-only Solana RPC proxy. Production hosting must provide an equivalent same-origin proxy or verified browser-authorized endpoint before mainnet reads can be relied on; do not expose private RPC credentials in the client bundle.
-- Rolling (post-activation) contributions are architecturally present but will remain disabled until NAV can be determined safely for every held asset. Exit is never disabled.
+- Devnet prices are a **pricing simulation** set by the devnet operator, and the devnet market is a fixed-price inventory venue. They exercise every on-chain check but are not market data.
+- Mainnet execution (Jupiter routes) and live Pyth / PreStocks price adapters are defined as interfaces (`apps/web/src/adapters.ts`) but not wired in this build.
+- The execution target check uses the NAV fixed at the most recent epoch settlement; prices moving afterwards can leave an asset above target (shown as drift), and further buys of it are refused.
 - Tenet cannot guarantee transferability of assets whose issuers retain pause, freeze or permanent-delegate authority.
 - `contributed_basis_usdc` is a contribution record, not tax cost basis under any jurisdiction's methodology.
 - Nothing here constitutes investment advice.

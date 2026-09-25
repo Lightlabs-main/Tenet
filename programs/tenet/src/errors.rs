@@ -225,4 +225,21 @@ pub enum TenetError {
     TestInventoryInsufficient,
     #[msg("Test-market purchase amount must be greater than zero")]
     InvalidTestPurchase,
+    #[msg("Synthetic Devnet instrument id is outside the supported range")]
+    InvalidTestInstrumentId,
+    #[msg("Devnet test-USDC faucet cooldown is still active")]
+    FaucetCooldownActive,
+    #[msg("Devnet test-USDC faucet supply cap has been reached")]
+    FaucetSupplyExhausted,
+    // ---- A-23: environment seams (appended; earlier codes unchanged) -------
+    #[msg("Config combination is not allowed for this network")]
+    InvalidNetworkConfig,
+    #[msg("Price account is not owned by the configured price program")]
+    PriceSourceMismatch,
+    #[msg("Price account does not carry the expected feed")]
+    PriceFeedMismatch,
+    #[msg("Execution would take this asset above its Mandate target weight")]
+    TargetWeightExceeded,
+    #[msg("Execution needs a completed epoch with a positive NAV")]
+    ExecutionNavUnavailable,
 }

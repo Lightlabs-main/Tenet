@@ -15,6 +15,6 @@ nonce: number | bigint;
 };
 
 export async function findExecutionAuthPda(seeds: ExecutionAuthSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
+  const { programAddress = '7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf' as Address<'7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf'> } = config;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([101, 120, 101, 99, 95, 97, 117, 116, 104])), getAddressEncoder().encode(seeds.circle), getAddressEncoder().encode(seeds.epoch), getU64Encoder().encode(seeds.nonce)]});
 }

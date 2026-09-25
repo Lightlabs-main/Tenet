@@ -14,6 +14,6 @@ proposalId: number | bigint;
 };
 
 export async function findProposalPda(seeds: ProposalSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
+  const { programAddress = '7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf' as Address<'7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf'> } = config;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([97, 109, 101, 110, 100, 109, 101, 110, 116])), getAddressEncoder().encode(seeds.mandate), getU64Encoder().encode(seeds.proposalId)]});
 }

@@ -20,12 +20,14 @@ pub fn to_u64(v: u128) -> Result<u64> {
 
 #[inline]
 pub fn checked_add_u64(a: u64, b: u64) -> Result<u64> {
-    a.checked_add(b).ok_or_else(|| error!(TenetError::MathOverflow))
+    a.checked_add(b)
+        .ok_or_else(|| error!(TenetError::MathOverflow))
 }
 
 #[inline]
 pub fn checked_sub_u64(a: u64, b: u64) -> Result<u64> {
-    a.checked_sub(b).ok_or_else(|| error!(TenetError::MathUnderflow))
+    a.checked_sub(b)
+        .ok_or_else(|| error!(TenetError::MathUnderflow))
 }
 
 /// `floor(a * b / d)` computed in u128, refusing on overflow or zero divisor.
@@ -121,7 +123,10 @@ mod tests {
 
     #[test]
     fn epoch_zero_is_exact_and_needs_no_division() {
-        assert_eq!(shares_for_contribution(30_000_000, 0, 0).unwrap(), 30_000_000);
+        assert_eq!(
+            shares_for_contribution(30_000_000, 0, 0).unwrap(),
+            30_000_000
+        );
     }
 
     #[test]
@@ -182,10 +187,14 @@ mod tests {
     #[test]
     fn transfer_fee_rounds_up_and_respects_the_cap() {
         // V-004: 100 bps, uncapped.
-        assert_eq!(transfer_fee_amount(1_000_000_000, 100, u64::MAX).unwrap(), 10_000_000);
+        assert_eq!(
+            transfer_fee_amount(1_000_000_000, 100, u64::MAX).unwrap(),
+            10_000_000
+        );
         assert_eq!(transfer_fee_amount(1, 100, u64::MAX).unwrap(), 1); // rounds up
         assert_eq!(transfer_fee_amount(0, 100, u64::MAX).unwrap(), 0);
         assert_eq!(transfer_fee_amount(1_000_000_000, 100, 5).unwrap(), 5); // capped
-        assert_eq!(transfer_fee_amount(1_000_000_000, 0, u64::MAX).unwrap(), 0); // xStocks
+        assert_eq!(transfer_fee_amount(1_000_000_000, 0, u64::MAX).unwrap(), 0);
+        // xStocks
     }
 }

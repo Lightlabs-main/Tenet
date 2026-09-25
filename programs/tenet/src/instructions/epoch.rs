@@ -42,7 +42,12 @@ pub(crate) fn transfer_signed<'info>(
     let bump = [vault_authority_bump];
     let seeds: &[&[u8]] = &[VAULT_AUTHORITY_SEED, circle.as_ref(), &bump];
     let signer = &[seeds];
-    let accounts = TransferChecked { from, mint: mint.to_account_info(), to, authority: vault_authority };
+    let accounts = TransferChecked {
+        from,
+        mint: mint.to_account_info(),
+        to,
+        authority: vault_authority,
+    };
     token_interface::transfer_checked(
         CpiContext::new_with_signer(token_program.key(), accounts, signer),
         amount,
@@ -214,14 +219,23 @@ pub fn contribute_handler(ctx: Context<Contribute>, amount: u64) -> Result<()> {
         mandate.membership_policy == MembershipPolicy::Open,
         TenetError::MembershipPolicyRejected
     );
-    require!(amount >= mandate.min_contribution_usdc, TenetError::BelowMinimumContribution);
+    require!(
+        amount >= mandate.min_contribution_usdc,
+        TenetError::BelowMinimumContribution
+    );
 
     // Pool cap: active capital + everything pending + this contribution.
-    let after = ctx.accounts.active_usdc_vault.amount
+    let after = ctx
+        .accounts
+        .active_usdc_vault
+        .amount
         .checked_add(epoch.pending_usdc_raw)
         .and_then(|v| v.checked_add(amount))
         .ok_or(TenetError::MathOverflow)?;
-    require!(after <= mandate.max_pool_size_usdc, TenetError::ExceedsMaxPoolSize);
+    require!(
+        after <= mandate.max_pool_size_usdc,
+        TenetError::ExceedsMaxPoolSize
+    );
 
     // Move the money first; the token program enforces the balance.
     let accounts = TransferChecked {
@@ -244,7 +258,10 @@ pub fn contribute_handler(ctx: Context<Contribute>, amount: u64) -> Result<()> {
         r.shares_entitled = 0;
         r.settled = false;
         r.bump = ctx.bumps.receipt;
-        epoch.receipt_count = epoch.receipt_count.checked_add(1).ok_or(TenetError::MathOverflow)?;
+        epoch.receipt_count = epoch
+            .receipt_count
+            .checked_add(1)
+            .ok_or(TenetError::MathOverflow)?;
     }
     r.amount_usdc_raw = math::checked_add_u64(r.amount_usdc_raw, amount)?;
     epoch.pending_usdc_raw = math::checked_add_u64(epoch.pending_usdc_raw, amount)?;
@@ -323,7 +340,10 @@ pub fn cancel_handler(ctx: Context<CancelContribution>) -> Result<()> {
     )?;
     let e = &mut ctx.accounts.epoch;
     e.pending_usdc_raw = math::checked_sub_u64(e.pending_usdc_raw, amount)?;
-    e.receipt_count = e.receipt_count.checked_sub(1).ok_or(TenetError::MathUnderflow)?;
+    e.receipt_count = e
+        .receipt_count
+        .checked_sub(1)
+        .ok_or(TenetError::MathUnderflow)?;
     // The receipt is closed by `close = contributor`, returning its rent.
     Ok(())
 }
@@ -403,7 +423,10 @@ pub fn finalize_epoch_handler(ctx: Context<FinalizeEpoch>) -> Result<()> {
     // concrete case: a sole member redeems every share (total_shares -> 0, so
     // an epoch may open), newcomers contribute, and this sweep lands in the
     // vault the exit has not yet reserved against.
-    require!(circle.pending_reservations == 0, TenetError::RedemptionPending);
+    require!(
+        circle.pending_reservations == 0,
+        TenetError::RedemptionPending
+    );
 
     let epoch = &mut ctx.accounts.epoch;
     let pending = epoch.pending_usdc_raw;
@@ -411,7 +434,10 @@ pub fn finalize_epoch_handler(ctx: Context<FinalizeEpoch>) -> Result<()> {
     // The escrow must hold at least what the receipts promise. It can hold
     // MORE (anyone can send tokens to any account); the surplus is swept with
     // the rest and accrues to the new shareholders, never to one actor.
-    require!(ctx.accounts.epoch_escrow.amount >= pending, TenetError::EscrowShortfall);
+    require!(
+        ctx.accounts.epoch_escrow.amount >= pending,
+        TenetError::EscrowShortfall
+    );
 
     let (shares_before, nav_before, reserved) = if circle.total_shares == 0 {
         // Epoch 0: shares = micro-USDC, exact, NAV unused (accounting.md §3).
@@ -422,14 +448,24 @@ pub fn finalize_epoch_handler(ctx: Context<FinalizeEpoch>) -> Result<()> {
             .nav_snapshot
             .as_ref()
             .ok_or_else(|| error!(TenetError::NavSnapshotIncomplete))?;
-        require_keys_eq!(snapshot.circle, circle.key(), TenetError::AccountSubstitution);
+        require_keys_eq!(
+            snapshot.circle,
+            circle.key(),
+            TenetError::AccountSubstitution
+        );
         require_keys_eq!(snapshot.epoch, epoch.key(), TenetError::AccountSubstitution);
-        require!(snapshot.assets_remaining == 0, TenetError::NavSnapshotIncomplete);
+        require!(
+            snapshot.assets_remaining == 0,
+            TenetError::NavSnapshotIncomplete
+        );
         let elapsed = Clock::get()?
             .slot
             .checked_sub(snapshot.slot_opened)
             .ok_or(TenetError::NavSnapshotExpired)?;
-        require!(elapsed <= NAV_SNAPSHOT_MAX_SLOTS, TenetError::NavSnapshotExpired);
+        require!(
+            elapsed <= NAV_SNAPSHOT_MAX_SLOTS,
+            TenetError::NavSnapshotExpired
+        );
         require!(snapshot.nav_accum > 0, TenetError::ZeroNav);
         require!(
             snapshot.nav_accum >= MIN_NAV_FOR_ISSUANCE,
@@ -548,14 +584,22 @@ pub fn settle_handler(ctx: Context<SettleContribution>) -> Result<()> {
     // A settled receipt can belong to an existing Member whose previous
     // balance was fully redeemed. Count active Members, not settlement events.
     if was_new_member || was_zero_balance {
-        ctx.accounts.circle.member_count =
-            ctx.accounts.circle.member_count.checked_add(1).ok_or(TenetError::MathOverflow)?;
+        ctx.accounts.circle.member_count = ctx
+            .accounts
+            .circle
+            .member_count
+            .checked_add(1)
+            .ok_or(TenetError::MathOverflow)?;
     }
     m.shares = math::checked_add_u64(m.shares, shares)?;
-    m.contributed_basis_usdc = math::checked_add_u64(m.contributed_basis_usdc, receipt.amount_usdc_raw)?;
+    m.contributed_basis_usdc =
+        math::checked_add_u64(m.contributed_basis_usdc, receipt.amount_usdc_raw)?;
 
     epoch.settled_shares = math::checked_add_u64(epoch.settled_shares, shares)?;
-    epoch.settled_count = epoch.settled_count.checked_add(1).ok_or(TenetError::MathOverflow)?;
+    epoch.settled_count = epoch
+        .settled_count
+        .checked_add(1)
+        .ok_or(TenetError::MathOverflow)?;
     let circle = &mut ctx.accounts.circle;
     circle.reserved_shares = math::checked_sub_u64(circle.reserved_shares, shares)?;
     Ok(())

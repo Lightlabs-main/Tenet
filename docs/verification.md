@@ -1226,3 +1226,17 @@ To run the verifier with credentials stored outside the checkout, set `TENET_ENV
 | Code depending on it | programs/tenet/src/instructions/test_market.rs, generated IDL/SDK, apps/web/src/dashboard.tsx, apps/web/src/chain.ts (exact SBF-hash preflight), apps/web/src/config.ts, and /opt/tenet-preview/dist. |
 
 LiteSVM validation for this increment: 59 program tests passed, including the new market initialization, account-substitution, vault-delta, and pending-Epoch isolation tests. Package tests passed 51/51, RPC proxy 7/7, SDK client 6/6; TypeScript, production web build, and money-lint passed. These are not live Devnet wallet transactions or external token-faucet verification.
+
+## Candidate status clarification  2026-09-25
+
+| Field | Observation |
+|---|---|
+| Timestamp | 2026-09-25 (UTC; source observation from VPS session) |
+| Network | Solana Devnet |
+| Source | VPS build artifact, offline tests, and prior finalized account/RPC reads |
+| Request/account | Candidate Tenet program 7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf; deployed program 7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh |
+| Observed result | Candidate absent from Devnet. Candidate artifact 1,216,976 bytes, SHA-256 08fc524d656bfe50b1b9291e40e87314ce437339cee8fdbefb267af84a04a355; estimated buffer rent 6.18288832 SOL. No transaction slot. |
+| Conclusion | Candidate is not deployed. Its single fixed-inventory TST-EQ and fixed 1:1 transfer are not a six-instrument on-chain-priced market. No candidate transaction, mint, upgrade, or wallet signature was submitted. |
+| Code depending on it | programs/tenet/src/instructions/test_market.rs, generated IDL/SDK, and Devnet-only UI |
+
+The locally passing test suites validate fixture/LiteSVM behavior only. They do not validate public-Devnet execution or authorize publishing this candidate as a complete app.

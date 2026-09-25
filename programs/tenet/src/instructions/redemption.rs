@@ -99,12 +99,21 @@ pub fn initiate_handler(ctx: Context<InitiateRedemption>, shares: u64) -> Result
     r.bump = ctx.bumps.redemption;
 
     member.shares = math::checked_sub_u64(member.shares, shares)?;
-    member.next_redemption_seq = member.next_redemption_seq.checked_add(1).ok_or(TenetError::MathOverflow)?;
+    member.next_redemption_seq = member
+        .next_redemption_seq
+        .checked_add(1)
+        .ok_or(TenetError::MathOverflow)?;
     circle.total_shares = math::checked_sub_u64(circle.total_shares, shares)?;
     if member.shares == 0 {
-        circle.member_count = circle.member_count.checked_sub(1).ok_or(TenetError::MathUnderflow)?;
+        circle.member_count = circle
+            .member_count
+            .checked_sub(1)
+            .ok_or(TenetError::MathUnderflow)?;
     }
-    circle.pending_reservations = circle.pending_reservations.checked_add(1).ok_or(TenetError::MathOverflow)?;
+    circle.pending_reservations = circle
+        .pending_reservations
+        .checked_add(1)
+        .ok_or(TenetError::MathOverflow)?;
     Ok(())
 }
 
@@ -178,17 +187,28 @@ pub fn reserve_asset_handler(ctx: Context<ReserveRedemptionAsset>) -> Result<()>
         &[VAULT_AUTHORITY_SEED, ctx.accounts.circle.key().as_ref()],
         &crate::ID,
     );
-    require_keys_eq!(ctx.accounts.vault.mint, ctx.accounts.circle_asset.mint, TenetError::MintMismatch);
-    require_keys_eq!(ctx.accounts.vault.owner, expected_authority, TenetError::AccountSubstitution);
+    require_keys_eq!(
+        ctx.accounts.vault.mint,
+        ctx.accounts.circle_asset.mint,
+        TenetError::MintMismatch
+    );
+    require_keys_eq!(
+        ctx.accounts.vault.owner,
+        expected_authority,
+        TenetError::AccountSubstitution
+    );
 
     let ca = &mut ctx.accounts.circle_asset;
     let r = &mut ctx.accounts.redemption;
 
     // Existing reservations are subtracted first, or concurrent obligations
     // would be counted twice (REVIEW.md H-01, accounting.md §6).
-    let available = math::checked_sub_u64(ctx.accounts.vault.amount, ca.reserved_for_redemption_raw)?;
-    let entitled = math::entitlement_for_redemption(available, r.shares_redeemed, r.total_shares_at_snapshot)?;
-    ca.reserved_for_redemption_raw = math::checked_add_u64(ca.reserved_for_redemption_raw, entitled)?;
+    let available =
+        math::checked_sub_u64(ctx.accounts.vault.amount, ca.reserved_for_redemption_raw)?;
+    let entitled =
+        math::entitlement_for_redemption(available, r.shares_redeemed, r.total_shares_at_snapshot)?;
+    ca.reserved_for_redemption_raw =
+        math::checked_add_u64(ca.reserved_for_redemption_raw, entitled)?;
 
     let ra = &mut ctx.accounts.redemption_asset;
     ra.redemption = r.key();
@@ -239,14 +259,20 @@ pub fn reserve_usdc_handler(ctx: Context<ReserveRedemptionUsdc>) -> Result<()> {
     let circle = &mut ctx.accounts.circle;
     let r = &mut ctx.accounts.redemption;
 
-    let (expected_authority, _) = Pubkey::find_program_address(
-        &[VAULT_AUTHORITY_SEED, circle.key().as_ref()],
-        &crate::ID,
+    let (expected_authority, _) =
+        Pubkey::find_program_address(&[VAULT_AUTHORITY_SEED, circle.key().as_ref()], &crate::ID);
+    require_keys_eq!(
+        ctx.accounts.active_usdc_vault.owner,
+        expected_authority,
+        TenetError::AccountSubstitution
     );
-    require_keys_eq!(ctx.accounts.active_usdc_vault.owner, expected_authority, TenetError::AccountSubstitution);
 
-    let available = math::checked_sub_u64(ctx.accounts.active_usdc_vault.amount, circle.usdc_reserved_raw)?;
-    let entitled = math::entitlement_for_redemption(available, r.shares_redeemed, r.total_shares_at_snapshot)?;
+    let available = math::checked_sub_u64(
+        ctx.accounts.active_usdc_vault.amount,
+        circle.usdc_reserved_raw,
+    )?;
+    let entitled =
+        math::entitlement_for_redemption(available, r.shares_redeemed, r.total_shares_at_snapshot)?;
     circle.usdc_reserved_raw = math::checked_add_u64(circle.usdc_reserved_raw, entitled)?;
 
     let ra = &mut ctx.accounts.redemption_asset;
@@ -277,7 +303,16 @@ fn pay_out<'info>(
     if amount == 0 {
         return Ok(());
     }
-    transfer_signed(token_program, vault, mint, to, vault_authority, circle, vault_authority_bump, amount)
+    transfer_signed(
+        token_program,
+        vault,
+        mint,
+        to,
+        vault_authority,
+        circle,
+        vault_authority_bump,
+        amount,
+    )
 }
 
 #[derive(Accounts)]
@@ -340,7 +375,11 @@ pub fn claim_asset_handler(ctx: Context<ClaimRedemptionAsset>) -> Result<()> {
         &[VAULT_AUTHORITY_SEED, ctx.accounts.circle.key().as_ref()],
         &crate::ID,
     );
-    require_keys_eq!(ctx.accounts.vault.owner, expected_authority, TenetError::AccountSubstitution);
+    require_keys_eq!(
+        ctx.accounts.vault.owner,
+        expected_authority,
+        TenetError::AccountSubstitution
+    );
 
     let amount = ctx.accounts.redemption_asset.amount_raw;
     pay_out(
@@ -413,7 +452,11 @@ pub fn claim_usdc_handler(ctx: Context<ClaimRedemptionUsdc>) -> Result<()> {
         &[VAULT_AUTHORITY_SEED, ctx.accounts.circle.key().as_ref()],
         &crate::ID,
     );
-    require_keys_eq!(ctx.accounts.active_usdc_vault.owner, expected_authority, TenetError::AccountSubstitution);
+    require_keys_eq!(
+        ctx.accounts.active_usdc_vault.owner,
+        expected_authority,
+        TenetError::AccountSubstitution
+    );
 
     let amount = ctx.accounts.redemption_asset.amount_raw;
     pay_out(

@@ -10,10 +10,10 @@ import { getAddressEncoder, getBytesEncoder, getProgramDerivedAddress, type Addr
 
 export type MemberSeeds = {
 circle: Address;
-buyer: Address;
+memberOwner: Address;
 };
 
 export async function findMemberPda(seeds: MemberSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
-  return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([109, 101, 109, 98, 101, 114])), getAddressEncoder().encode(seeds.circle), getAddressEncoder().encode(seeds.buyer)]});
+  const { programAddress = '7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf' as Address<'7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf'> } = config;
+  return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([109, 101, 109, 98, 101, 114])), getAddressEncoder().encode(seeds.circle), getAddressEncoder().encode(seeds.memberOwner)]});
 }

@@ -28,15 +28,19 @@ pub const REDEMPTION_ASSET_SEED: &[u8] = b"redemption_asset";
 pub const EXEC_AUTH_SEED: &[u8] = b"exec_auth";
 pub const AMENDMENT_SEED: &[u8] = b"amendment";
 pub const AMENDMENT_VOTE_SEED: &[u8] = b"amendment_vote";
-pub const DEVNET_TEST_MARKET_SEED: &[u8] = b"devnet_test_market";
-pub const DEVNET_TEST_MINT_SEED: &[u8] = b"devnet_test_equity_mint";
-
-/// Guard for the explicitly valueless Devnet-only test market. This is the
-/// project's test USDC mint, not canonical or redeemable USDC.
-pub const DEVNET_TEST_USDC_MINT: Pubkey = pubkey!("8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt");
-pub const DEVNET_TEST_EQUITY_DECIMALS: u8 = 6;
-/// Fixed inventory: one million test units, minted once into a protocol PDA.
-pub const DEVNET_TEST_EQUITY_INVENTORY_RAW: u64 = 1_000_000_000_000;
+/// Canonical USDC. Devnet test infrastructure is refused whenever Config
+/// points at this mint (A-23): test prices and test venues never touch value.
+pub const CANONICAL_USDC_MINT: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+/// Pyth Solana Receiver — owner of every `PriceUpdateV2` account.
+pub const PYTH_RECEIVER_PROGRAM_ID: Pubkey = pubkey!("rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ");
+/// Pyth freshness bound; also the ceiling for any Mainnet Config.
+pub const MAINNET_MAX_PRICE_AGE_SECONDS: u64 = 60;
+/// Devnet test prices are operator-published, not a live tick stream, so the
+/// freshness bound is a Config value. 30 days is the ceiling.
+pub const DEVNET_MAX_PRICE_AGE_SECONDS: u64 = 30 * 24 * 60 * 60;
+/// Anchor discriminator of tenet-devnet's `PriceFeed` (sha256("account:PriceFeed")[..8]).
+/// Asserted equal to the devnet crate's own value in tests.
+pub const DEVNET_PRICE_FEED_DISCRIMINATOR: [u8; 8] = [189, 103, 252, 23, 152, 35, 243, 156];
 
 /// Jupiter's current aggregator program, verified in V-020. The execution
 /// window accepts only this program between `begin_execution` and

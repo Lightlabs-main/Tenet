@@ -25,7 +25,9 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::constants::*;
 use crate::errors::TenetError;
-use crate::state::{AssetStatus, Circle, CircleAsset, CircleState, Config, Mandate, MandateAsset, MandateState};
+use crate::state::{
+    AssetStatus, Circle, CircleAsset, CircleState, Config, Mandate, MandateAsset, MandateState,
+};
 
 // ---------------------------------------------------------------- create
 
@@ -175,7 +177,10 @@ pub struct AddCircleAsset<'info> {
 
 pub fn add_circle_asset_handler(ctx: Context<AddCircleAsset>) -> Result<()> {
     let circle = &mut ctx.accounts.circle;
-    require!(circle.asset_count < MAX_CIRCLE_ASSETS, TenetError::TooManyAssets);
+    require!(
+        circle.asset_count < MAX_CIRCLE_ASSETS,
+        TenetError::TooManyAssets
+    );
 
     let a = &mut ctx.accounts.circle_asset;
     a.circle = circle.key();
@@ -190,7 +195,10 @@ pub fn add_circle_asset_handler(ctx: Context<AddCircleAsset>) -> Result<()> {
     a.reserved_for_redemption_raw = 0;
     a.bump = ctx.bumps.circle_asset;
 
-    circle.asset_count = circle.asset_count.checked_add(1).ok_or(TenetError::MathOverflow)?;
+    circle.asset_count = circle
+        .asset_count
+        .checked_add(1)
+        .ok_or(TenetError::MathOverflow)?;
     // Mandate indexes are < MAX_CIRCLE_ASSETS (8), which fits u16; the shift is
     // still checked rather than assumed.
     let bit = 1u16

@@ -103,8 +103,6 @@ export function generatePdaVectors(perFunction = 6): { programId: string; vector
     const [a, b] = [k(), k()];
     const n = ints[i % ints.length];
     if (i === 0) add("config", [], seeds.config()); // takes no inputs: one vector
-    if (i === 0) add("devnet_test_market", [], seeds.devnetTestMarket());
-    if (i === 0) add("devnet_test_mint", [], seeds.devnetTestMint());
     add("mandate", [a], seeds.mandate(a));
     add("mandate_asset", [a, b], seeds.mandateAsset(a, b));
     add("registry", [a], seeds.registry(a));

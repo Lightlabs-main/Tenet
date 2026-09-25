@@ -65,7 +65,9 @@ fn rust_math_reproduces_the_domain_model_on_every_vector() {
         let actual = got.map_err(error_name);
 
         if actual != expected {
-            failures.push(format!("#{i} {f}({a:?}): rust {actual:?}, domain {expected:?}"));
+            failures.push(format!(
+                "#{i} {f}({a:?}): rust {actual:?}, domain {expected:?}"
+            ));
         }
     }
 
@@ -74,6 +76,11 @@ fn rust_math_reproduces_the_domain_model_on_every_vector() {
         "{} of {} vectors disagree:\n{}",
         failures.len(),
         vectors.len(),
-        failures.iter().take(20).cloned().collect::<Vec<_>>().join("\n")
+        failures
+            .iter()
+            .take(20)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
     );
 }

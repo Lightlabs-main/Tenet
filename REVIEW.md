@@ -467,3 +467,10 @@ Worked in this order as code lands (mirrors `docs/threat-model.md`, highest valu
 - Test-USDC live metadata is verified at 6 decimals, supply 110, mint authority 9pCJ96uVkHb6wiSvbSpTNL99A3jsieQ9R8w6A9s2o6aE, and no freeze authority. The authority key was not found in the inspected keypair locations, so there is no verified faucet path. The feature must not invent funding.
 - Rent estimate for a buffer equal to the new binary is 5.83846432 Devnet SOL; the upgrade-authority wallet showed 4.985368466 Devnet SOL at observation time. This is test SOL, not a USD cost, and still does not provide the authority signature or test-USDC.
 - This section is implementation evidence, not adversarial security approval or live E2E. No Devnet transaction, program upgrade, token mint, Mainnet operation, or user-wallet signature was submitted.
+
+## 2026-09-25 Devnet candidate review addendum
+
+- Critical scope gap: current candidate implements one fixed-inventory TST-EQ at a fixed 1:1 test-USDC ratio. It does not meet the requested six-instrument synthetic universe, on-chain price observations, or multi-asset Circle allocations. Keep the portfolio market unavailable rather than presenting the single token as a stock market.
+- Deployment/identity gap: candidate ID 7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf is absent on Devnet and differs from deployed Tenet ID 7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh. Existing accounts must not be migrated or redirected implicitly.
+- No live E2E evidence exists for this candidate. Local unit, type, build, and LiteSVM checks do not prove wallet transactions on public Devnet.
+- Do not promote or mark complete until synthetic prices are derived from on-chain state, all six mint/vault bindings and cap checks are adversarially tested, deployment is authorized, and actual wallet-signed Devnet flow succeeds.

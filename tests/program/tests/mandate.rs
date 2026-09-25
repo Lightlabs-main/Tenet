@@ -19,6 +19,10 @@ fn pair(mandate: &Pubkey, mint: &Pubkey) -> (Pubkey, Pubkey) {
     (tenet::pda::mandate_asset(mandate, mint).0, tenet::pda::registry(mint).0)
 }
 
+fn parent_target(svm: &litesvm::LiteSVM, parent: &Pubkey, mint: &Pubkey) -> u16 {
+    read::<MandateAsset>(svm, &tenet::pda::mandate_asset(parent, mint).0).target_weight_bps
+}
+
 // ---------------------------------------------------------------- create
 
 #[test]
@@ -237,7 +241,7 @@ fn test_fork_copies_rules() {
 
     let seed = Keypair::new().pubkey();
     let child = tenet::pda::mandate(&seed).0;
-    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed)], &forker, &[]).unwrap();
+    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed, mandate_params())], &forker, &[]).unwrap();
 
     let child_m: Mandate = read(&e.svm, &child);
     let parent_m: Mandate = read(&e.svm, &parent);
@@ -267,13 +271,65 @@ fn test_fork_copies_rules() {
         read::<MandateAsset>(&e.svm, &pairs[1].0).mint,
     ];
     for mint in mints {
-        send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mint)], &forker, &[]).unwrap();
+        let w = parent_target(&e.svm, &parent, &mint);
+        send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mint, w)], &forker, &[]).unwrap();
     }
     let child_pairs = [(tenet::pda::mandate_asset(&child, &mints[0]).0, tenet::pda::registry(&mints[0]).0),
         (tenet::pda::mandate_asset(&child, &mints[1]).0, tenet::pda::registry(&mints[1]).0)];
     send(&mut e.svm, &[finalize_ix(&forker.pubkey(), &child, &child_pairs)], &forker, &[]).unwrap();
     assert_eq!(read::<Mandate>(&e.svm, &child).state, MandateState::Active);
     assert_eq!(e.svm.get_account(&parent).unwrap().data, parent_before);
+}
+
+#[test]
+fn test_fork_can_change_a_rule_and_is_held_to_it() {
+    // Parent: pre-IPO cap 30%, the pre-IPO asset targeted at 30%.
+    // Child: same everything except a 15% pre-IPO cap.
+    let mut e = with_config();
+    let (forker, parent, pairs) = two_asset_draft(&mut e);
+    send(&mut e.svm, &[finalize_ix(&forker.pubkey(), &parent, &pairs)], &forker, &[]).unwrap();
+    let mints: Vec<Pubkey> = pairs.iter().map(|(a, _)| read::<MandateAsset>(&e.svm, a).mint).collect();
+
+    // Invalid child rules are refused exactly as create_mandate refuses them.
+    let mut bad = mandate_params();
+    bad.max_pre_ipo_weight_bps = 10_001;
+    let r = send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &Keypair::new().pubkey(), bad)], &forker, &[]);
+    expect_err(r, TenetError::InvalidBps);
+
+    let mut rules = mandate_params();
+    rules.name = "Frontier Tech — lower pre-IPO".into();
+    rules.max_pre_ipo_weight_bps = 1_500;
+    let seed = Keypair::new().pubkey();
+    let child = tenet::pda::mandate(&seed).0;
+    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed, rules.clone())], &forker, &[]).unwrap();
+    let m: Mandate = read(&e.svm, &child);
+    assert_eq!(m.forked_from, Some(parent));
+    assert_eq!(m.max_pre_ipo_weight_bps, 1_500);
+    assert_eq!(m.name, rules.name);
+    assert_eq!(read::<Mandate>(&e.svm, &parent).max_pre_ipo_weight_bps, 3_000);
+
+    // A target above the child's per-asset cap is refused at copy time.
+    let r = send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mints[0], 4_001)], &forker, &[]);
+    expect_err(r, TenetError::AssetWeightCapExceeded);
+
+    // Copying the parent's 30% pre-IPO target is allowed per asset, but the
+    // child's own 15% class cap then refuses finalization.
+    send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mints[0], 4_000)], &forker, &[]).unwrap();
+    send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mints[1], 3_000)], &forker, &[]).unwrap();
+    let child_pairs: Vec<(Pubkey, Pubkey)> = mints.iter().map(|m| pair(&child, m)).collect();
+    let r = send(&mut e.svm, &[finalize_ix(&forker.pubkey(), &child, &child_pairs)], &forker, &[]);
+    expect_err(r, TenetError::PreIpoWeightCapExceeded);
+
+    // A second fork that rebalances to 15% finalizes.
+    let seed2 = Keypair::new().pubkey();
+    let child2 = tenet::pda::mandate(&seed2).0;
+    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed2, rules)], &forker, &[]).unwrap();
+    send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child2, &mints[0], 4_000)], &forker, &[]).unwrap();
+    send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child2, &mints[1], 1_500)], &forker, &[]).unwrap();
+    let child2_pairs: Vec<(Pubkey, Pubkey)> = mints.iter().map(|m| pair(&child2, m)).collect();
+    send(&mut e.svm, &[finalize_ix(&forker.pubkey(), &child2, &child2_pairs)], &forker, &[]).unwrap();
+    assert_eq!(read::<Mandate>(&e.svm, &child2).state, MandateState::Active);
+    assert_eq!(read::<MandateAsset>(&e.svm, &child2_pairs[1].0).target_weight_bps, 1_500);
 }
 
 #[test]
@@ -285,10 +341,11 @@ fn test_fork_does_not_move_parent_assets() {
 
     let seed = Keypair::new().pubkey();
     let child = tenet::pda::mandate(&seed).0;
-    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed)], &forker, &[]).unwrap();
+    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed, mandate_params())], &forker, &[]).unwrap();
     for (asset, _) in &pairs {
         let mint = read::<MandateAsset>(&e.svm, asset).mint;
-        send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mint)], &forker, &[]).unwrap();
+        let w = parent_target(&e.svm, &parent, &mint);
+        send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mint, w)], &forker, &[]).unwrap();
     }
     let after: Vec<Vec<u8>> = pairs.iter().map(|(asset, _)| e.svm.get_account(asset).unwrap().data).collect();
     assert_eq!(before, after);
@@ -322,9 +379,10 @@ fn test_forked_mandate_creates_independent_circle_and_vaults() {
     let seed = Keypair::new().pubkey();
     let child = tenet::pda::mandate(&seed).0;
     let child_circle = tenet::pda::circle(&child).0;
-    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed)], &forker, &[]).unwrap();
+    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed, mandate_params())], &forker, &[]).unwrap();
     for &mint in &mints {
-        send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mint)], &forker, &[]).unwrap();
+        let w = parent_target(&e.svm, &parent, &mint);
+        send(&mut e.svm, &[fork_asset_ix(&forker.pubkey(), &parent, &child, &mint, w)], &forker, &[]).unwrap();
     }
     let child_pairs: Vec<(Pubkey, Pubkey)> = mints.iter().map(|mint| pair(&child, mint)).collect();
     send(&mut e.svm, &[finalize_ix(&forker.pubkey(), &child, &child_pairs)], &forker, &[]).unwrap();
@@ -366,7 +424,7 @@ fn test_child_mandate_cannot_modify_parent() {
     let parent_before = e.svm.get_account(&parent).unwrap().data;
     let seed = Keypair::new().pubkey();
     let child = tenet::pda::mandate(&seed).0;
-    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed)], &forker, &[]).unwrap();
+    send(&mut e.svm, &[fork_ix(&forker.pubkey(), &parent, &seed, mandate_params())], &forker, &[]).unwrap();
     let extra = register_equity(&mut e, AssetClass::PublicTokenizedEquity, 9, 9);
     let r = send(&mut e.svm, &[add_asset_ix(&forker.pubkey(), &parent, &extra, 100)], &forker, &[]);
     expect_err(r, TenetError::InvalidMandateState);

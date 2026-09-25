@@ -6,10 +6,11 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
+import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type Codec, type Decoder, type Encoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { getAccountMetaFactory, getAddressFromResolvedInstructionAccount, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
 import { findNewMandatePda } from '../pdas';
 import { TENET_PROGRAM_ADDRESS } from '../programs';
+import { getMandateParamsDecoder, getMandateParamsEncoder, type MandateParams, type MandateParamsArgs } from '../types';
 
 export const FORK_MANDATE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([210, 180, 56, 219, 28, 123, 151, 189]);
 
@@ -18,19 +19,19 @@ export function getForkMandateDiscriminatorBytes(): ReadonlyUint8Array { return 
 export type ForkMandateInstruction<TProgram extends string = typeof TENET_PROGRAM_ADDRESS, TAccountForker extends string | AccountMeta<string> = string, TAccountParentMandate extends string | AccountMeta<string> = string, TAccountNewMandateSeed extends string | AccountMeta<string> = string, TAccountNewMandate extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountForker extends string ? WritableSignerAccount<TAccountForker> & AccountSignerMeta<TAccountForker> : TAccountForker, TAccountParentMandate extends string ? ReadonlyAccount<TAccountParentMandate> : TAccountParentMandate, TAccountNewMandateSeed extends string ? ReadonlyAccount<TAccountNewMandateSeed> : TAccountNewMandateSeed, TAccountNewMandate extends string ? WritableAccount<TAccountNewMandate> : TAccountNewMandate, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>;
 
-export type ForkMandateInstructionData = { discriminator: ReadonlyUint8Array;  };
+export type ForkMandateInstructionData = { discriminator: ReadonlyUint8Array; params: MandateParams;  };
 
-export type ForkMandateInstructionDataArgs = {  };
+export type ForkMandateInstructionDataArgs = { params: MandateParamsArgs;  };
 
-export function getForkMandateInstructionDataEncoder(): FixedSizeEncoder<ForkMandateInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]), (value) => ({ ...value, discriminator: FORK_MANDATE_DISCRIMINATOR }));
+export function getForkMandateInstructionDataEncoder(): Encoder<ForkMandateInstructionDataArgs> {
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['params', getMandateParamsEncoder()]]), (value) => ({ ...value, discriminator: FORK_MANDATE_DISCRIMINATOR }));
 }
 
-export function getForkMandateInstructionDataDecoder(): FixedSizeDecoder<ForkMandateInstructionData> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)]]);
+export function getForkMandateInstructionDataDecoder(): Decoder<ForkMandateInstructionData> {
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['params', getMandateParamsDecoder()]]);
 }
 
-export function getForkMandateInstructionDataCodec(): FixedSizeCodec<ForkMandateInstructionDataArgs, ForkMandateInstructionData> {
+export function getForkMandateInstructionDataCodec(): Codec<ForkMandateInstructionDataArgs, ForkMandateInstructionData> {
     return combineCodec(getForkMandateInstructionDataEncoder(), getForkMandateInstructionDataDecoder());
 }
 
@@ -40,6 +41,7 @@ parentMandate: TAccountParentMandate;
 newMandateSeed: TAccountNewMandateSeed;
 newMandate?: TAccountNewMandate;
 systemProgram?: TAccountSystemProgram;
+params: ForkMandateInstructionDataArgs["params"];
 }
 
 export async function getForkMandateInstructionAsync<TAccountForker extends InstructionSignerInput, TAccountParentMandate extends InstructionAccountInput, TAccountNewMandateSeed extends InstructionAccountInput, TAccountNewMandate extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof TENET_PROGRAM_ADDRESS>(input: ForkMandateAsyncInput<TAccountForker, TAccountParentMandate, TAccountNewMandateSeed, TAccountNewMandate, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): Promise<ForkMandateInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountForker, InstructionAccountInputAddress<TAccountForker>>, ResolvedInstructionAccountMeta<TAccountParentMandate, InstructionAccountInputAddress<TAccountParentMandate>>, ResolvedInstructionAccountMeta<TAccountNewMandateSeed, InstructionAccountInputAddress<TAccountNewMandateSeed>>, ResolvedInstructionAccountMeta<TAccountNewMandate, InstructionAccountInputAddress<TAccountNewMandate>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>> {
@@ -54,6 +56,10 @@ const originalAccounts = { forker: { value: input.forker ?? null, isSigner: true
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
+// Original args.
+const args = { ...input,  };
+
+
 // Resolve default values.
 if (!accounts.newMandate.value) {
 accounts.newMandate.value = await findNewMandatePda({ newMandateSeed: getAddressFromResolvedInstructionAccount("newMandateSeed", accounts.newMandateSeed.value) }, { programAddress });
@@ -62,7 +68,7 @@ if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
 }
 
-return Object.freeze({ accounts: [getAccountMeta("forker", accounts.forker), getAccountMeta("parentMandate", accounts.parentMandate), getAccountMeta("newMandateSeed", accounts.newMandateSeed), getAccountMeta("newMandate", accounts.newMandate), getAccountMeta("systemProgram", accounts.systemProgram)], data: getForkMandateInstructionDataEncoder().encode({}), programAddress } as ForkMandateInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountForker, InstructionAccountInputAddress<TAccountForker>>, ResolvedInstructionAccountMeta<TAccountParentMandate, InstructionAccountInputAddress<TAccountParentMandate>>, ResolvedInstructionAccountMeta<TAccountNewMandateSeed, InstructionAccountInputAddress<TAccountNewMandateSeed>>, ResolvedInstructionAccountMeta<TAccountNewMandate, InstructionAccountInputAddress<TAccountNewMandate>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>);
+return Object.freeze({ accounts: [getAccountMeta("forker", accounts.forker), getAccountMeta("parentMandate", accounts.parentMandate), getAccountMeta("newMandateSeed", accounts.newMandateSeed), getAccountMeta("newMandate", accounts.newMandate), getAccountMeta("systemProgram", accounts.systemProgram)], data: getForkMandateInstructionDataEncoder().encode(args as ForkMandateInstructionDataArgs), programAddress } as ForkMandateInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountForker, InstructionAccountInputAddress<TAccountForker>>, ResolvedInstructionAccountMeta<TAccountParentMandate, InstructionAccountInputAddress<TAccountParentMandate>>, ResolvedInstructionAccountMeta<TAccountNewMandateSeed, InstructionAccountInputAddress<TAccountNewMandateSeed>>, ResolvedInstructionAccountMeta<TAccountNewMandate, InstructionAccountInputAddress<TAccountNewMandate>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>);
 }
 
 export type ForkMandateInput<TAccountForker extends InstructionSignerInput = InstructionSignerInput, TAccountParentMandate extends InstructionAccountInput = InstructionAccountInput, TAccountNewMandateSeed extends InstructionAccountInput = InstructionAccountInput, TAccountNewMandate extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput> =  {
@@ -71,6 +77,7 @@ parentMandate: TAccountParentMandate;
 newMandateSeed: TAccountNewMandateSeed;
 newMandate: TAccountNewMandate;
 systemProgram?: TAccountSystemProgram;
+params: ForkMandateInstructionDataArgs["params"];
 }
 
 export function getForkMandateInstruction<TAccountForker extends InstructionSignerInput, TAccountParentMandate extends InstructionAccountInput, TAccountNewMandateSeed extends InstructionAccountInput, TAccountNewMandate extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof TENET_PROGRAM_ADDRESS>(input: ForkMandateInput<TAccountForker, TAccountParentMandate, TAccountNewMandateSeed, TAccountNewMandate, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): ForkMandateInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountForker, InstructionAccountInputAddress<TAccountForker>>, ResolvedInstructionAccountMeta<TAccountParentMandate, InstructionAccountInputAddress<TAccountParentMandate>>, ResolvedInstructionAccountMeta<TAccountNewMandateSeed, InstructionAccountInputAddress<TAccountNewMandateSeed>>, ResolvedInstructionAccountMeta<TAccountNewMandate, InstructionAccountInputAddress<TAccountNewMandate>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>> {
@@ -85,12 +92,16 @@ const originalAccounts = { forker: { value: input.forker ?? null, isSigner: true
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
+// Original args.
+const args = { ...input,  };
+
+
 // Resolve default values.
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
 }
 
-return Object.freeze({ accounts: [getAccountMeta("forker", accounts.forker), getAccountMeta("parentMandate", accounts.parentMandate), getAccountMeta("newMandateSeed", accounts.newMandateSeed), getAccountMeta("newMandate", accounts.newMandate), getAccountMeta("systemProgram", accounts.systemProgram)], data: getForkMandateInstructionDataEncoder().encode({}), programAddress } as ForkMandateInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountForker, InstructionAccountInputAddress<TAccountForker>>, ResolvedInstructionAccountMeta<TAccountParentMandate, InstructionAccountInputAddress<TAccountParentMandate>>, ResolvedInstructionAccountMeta<TAccountNewMandateSeed, InstructionAccountInputAddress<TAccountNewMandateSeed>>, ResolvedInstructionAccountMeta<TAccountNewMandate, InstructionAccountInputAddress<TAccountNewMandate>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>);
+return Object.freeze({ accounts: [getAccountMeta("forker", accounts.forker), getAccountMeta("parentMandate", accounts.parentMandate), getAccountMeta("newMandateSeed", accounts.newMandateSeed), getAccountMeta("newMandate", accounts.newMandate), getAccountMeta("systemProgram", accounts.systemProgram)], data: getForkMandateInstructionDataEncoder().encode(args as ForkMandateInstructionDataArgs), programAddress } as ForkMandateInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountForker, InstructionAccountInputAddress<TAccountForker>>, ResolvedInstructionAccountMeta<TAccountParentMandate, InstructionAccountInputAddress<TAccountParentMandate>>, ResolvedInstructionAccountMeta<TAccountNewMandateSeed, InstructionAccountInputAddress<TAccountNewMandateSeed>>, ResolvedInstructionAccountMeta<TAccountNewMandate, InstructionAccountInputAddress<TAccountNewMandate>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>);
 }
 
 export type ParsedForkMandateInstruction<TProgram extends string = typeof TENET_PROGRAM_ADDRESS, TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]> = { programAddress: Address<TProgram>;

@@ -44,6 +44,7 @@ pub mod math;
 #[cfg(test)]
 mod math_vectors;
 pub mod pda;
+pub mod price;
 #[cfg(test)]
 mod pda_vectors;
 pub mod state;
@@ -57,7 +58,7 @@ pub use state::*;
 // target/deploy/ for builds, since target/ is deleted to reclaim disk) and is
 // the program's upgrade identity — see R-14 on burning or disclosing it before
 // any production claim.
-declare_id!("7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh");
+declare_id!("7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf");
 
 #[program]
 pub mod tenet {
@@ -65,13 +66,16 @@ pub mod tenet {
 
     // ---- config (A-18) ------------------------------------------------------
 
-    pub fn initialize_config(ctx: Context<InitializeConfig>, registry_authority: Pubkey) -> Result<()> {
-        instructions::config::initialize_handler(ctx, registry_authority)
+    pub fn initialize_config(ctx: Context<InitializeConfig>, params: ConfigParams) -> Result<()> {
+        instructions::config::initialize_handler(ctx, params)
     }
 
     // ---- registry -----------------------------------------------------------
 
-    pub fn upsert_registry_entry(ctx: Context<UpsertRegistryEntry>, params: RegistryParams) -> Result<()> {
+    pub fn upsert_registry_entry(
+        ctx: Context<UpsertRegistryEntry>,
+        params: RegistryParams,
+    ) -> Result<()> {
         instructions::registry::upsert_handler(ctx, params)
     }
 
@@ -85,21 +89,19 @@ pub mod tenet {
         instructions::mandate::create_handler(ctx, params)
     }
 
-    pub fn fork_mandate(ctx: Context<ForkMandate>) -> Result<()> {
-        instructions::mandate::fork_handler(ctx)
+    pub fn fork_mandate(ctx: Context<ForkMandate>, params: MandateParams) -> Result<()> {
+        instructions::mandate::fork_handler(ctx, params)
     }
 
-    pub fn fork_mandate_asset(ctx: Context<ForkMandateAsset>) -> Result<()> {
-        instructions::mandate::fork_asset_handler(ctx)
+    pub fn fork_mandate_asset(ctx: Context<ForkMandateAsset>, target_weight_bps: u16) -> Result<()> {
+        instructions::mandate::fork_asset_handler(ctx, target_weight_bps)
     }
 
     pub fn add_mandate_asset(ctx: Context<AddMandateAsset>, target_weight_bps: u16) -> Result<()> {
         instructions::mandate::add_asset_handler(ctx, target_weight_bps)
     }
 
-    pub fn finalize_mandate<'info>(
-        ctx: Context<'info, FinalizeMandate<'info>>,
-    ) -> Result<()> {
+    pub fn finalize_mandate<'info>(ctx: Context<'info, FinalizeMandate<'info>>) -> Result<()> {
         instructions::mandate::finalize_handler(ctx)
     }
 
@@ -187,20 +189,6 @@ pub mod tenet {
 
     pub fn end_execution(ctx: Context<EndExecution>) -> Result<()> {
         instructions::execution::end_handler(ctx)
-    }
-
-    // ---- explicitly valueless Devnet test market -------------------------
-
-    pub fn initialize_devnet_test_market(ctx: Context<InitializeDevnetTestMarket>) -> Result<()> {
-        instructions::test_market::initialize_test_market_handler(ctx)
-    }
-
-    pub fn create_devnet_test_circle(ctx: Context<CreateDevnetTestCircle>, mandate_seed: Pubkey) -> Result<()> {
-        instructions::test_market::create_test_circle_handler(ctx, mandate_seed)
-    }
-
-    pub fn buy_devnet_test_equity(ctx: Context<BuyDevnetTestEquity>, amount_usdc_raw: u64) -> Result<()> {
-        instructions::test_market::buy_test_equity_handler(ctx, amount_usdc_raw)
     }
 
     // ---- redemption (moves value) -------------------------------------------

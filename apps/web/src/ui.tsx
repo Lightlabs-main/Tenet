@@ -6,6 +6,13 @@ export const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 /** 1250n bps -> "12.50%", in integer arithmetic. */
 export const formatBps = (bps: bigint) => `${bps / 100n}.${(bps % 100n).toString().padStart(2, "0")}%`;
 
+/** Signed bps -> "−1.96%" / "+10.00%"; "—" when unavailable. */
+export const formatSignedBps = (bps: bigint | null) => {
+  if (bps === null) return "—";
+  const abs = bps < 0n ? -bps : bps;
+  return `${bps < 0n ? "−" : "+"}${formatBps(abs)}`;
+};
+
 /** part/whole as bps, floored, integer only. */
 export const ratioBps = (part: bigint, whole: bigint) => (whole === 0n ? 0n : (part * 10_000n) / whole);
 

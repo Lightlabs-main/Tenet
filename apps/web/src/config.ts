@@ -1,18 +1,26 @@
-/** Devnet profile: all configured mints and balances are test assets with no real-world value. */
-import { address } from "@solana/kit";
+/**
+ * Network profile: Solana Devnet. Everything this build shows is DEVNET TEST
+ * DATA — TUSDC and the test instruments have no monetary value, and prices
+ * are a devnet pricing simulation.
+ *
+ * The instruments, TUSDC mint and program addresses come from the SDK's
+ * deployment record (written by `pnpm devnet:setup`). Until that exists the
+ * app stays read-only and says so.
+ */
+import { address, type Address } from "@solana/kit";
+import { DEVNET_DEPLOYMENT, type DevnetInstrumentDeployment } from "@tenet/sdk/devnet";
 
 export const CLUSTER = "devnet" as const;
 export const CHAIN = "solana:devnet" as const;
-// Use the public Devnet endpoint directly; the VPS /api/solana proxy is mainnet read-only.
 export const RPC_URL = import.meta.env.VITE_SOLANA_RPC_URL || "https://api.devnet.solana.com";
 
-export const USDC_MINT = address("8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt");
+export const DEPLOYMENT = DEVNET_DEPLOYMENT;
+/** TUSDC — "Tenet Devnet USDC — no monetary value". */
+export const USDC_MINT: Address | null = DEPLOYMENT ? address(DEPLOYMENT.tusdcMint) : null;
 export const USDC_DECIMALS = 6;
-// Empty Epoch-0 Circle created for wallet testing; it contains no active assets.
-export const DEFAULT_CIRCLE: string | null = "6UB4NCMKLZbMAJ2uS9ynmQ8m8TsaCjFDnURQfmpE5rK2";
-// Devnet-only contribution, exit and Fork paths passed the on-chain E2E suite.
-// Stock purchases remain explicitly disabled until Jupiter/Pyth vault execution is verified.
-export const TRANSACTIONS_ENABLED = true;
+export const CASH_TICKER = "TUSDC";
+export const TRANSACTIONS_ENABLED = DEPLOYMENT !== null;
+export const INSTRUMENTS: DevnetInstrumentDeployment[] = DEPLOYMENT?.instruments ?? [];
 
 export const TOKEN_PROGRAM = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 export const TOKEN_2022_PROGRAM = address("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");

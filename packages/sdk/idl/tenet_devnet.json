@@ -1,0 +1,1255 @@
+{
+  "address": "6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm",
+  "metadata": {
+    "name": "tenet_devnet",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "DEVNET ONLY: test-USDC faucet, test-instrument price feeds and a test market for Tenet. Never deployed to mainnet."
+  },
+  "instructions": [
+    {
+      "name": "buy",
+      "docs": [
+        "Buy an instrument with TUSDC at the feed price minus the spread.",
+        "",
+        "`payer` is whoever may move `source`: its owner, or — inside Tenet's",
+        "execution window — the executor the Circle approved as a bounded",
+        "delegate. Real tokens move in both directions; the caller's `min_out`",
+        "and Tenet's own post-trade delta checks bound the result."
+      ],
+      "discriminator": [
+        102,
+        6,
+        61,
+        18,
+        1,
+        218,
+        235,
+        234
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "docs": [
+            "Owner or approved delegate of `source`."
+          ],
+          "signer": true
+        },
+        {
+          "name": "admin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.mint",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "feed",
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "inventory",
+          "writable": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "usdc_vault",
+          "writable": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "source",
+          "docs": [
+            "TUSDC being spent."
+          ],
+          "writable": true
+        },
+        {
+          "name": "destination",
+          "docs": [
+            "Where the instrument is delivered."
+          ],
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "tusdc_mint"
+        },
+        {
+          "name": "asset_token_program"
+        },
+        {
+          "name": "usdc_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_in_raw",
+          "type": "u64"
+        },
+        {
+          "name": "min_out_raw",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_feed",
+      "docs": [
+        "Create the price feed for one test instrument. Operator only."
+      ],
+      "discriminator": [
+        173,
+        86,
+        95,
+        94,
+        13,
+        193,
+        67,
+        180
+      ],
+      "accounts": [
+        {
+          "name": "operator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "admin"
+          ]
+        },
+        {
+          "name": "admin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "prices",
+          "type": {
+            "defined": {
+              "name": "FeedPrices"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_market",
+      "docs": [
+        "Open a fixed-price market for one instrument, with program-owned",
+        "inventory and TUSDC vaults. Operator only; inventory is funded by",
+        "ordinary token transfers into `inventory`."
+      ],
+      "discriminator": [
+        103,
+        226,
+        97,
+        235,
+        200,
+        188,
+        251,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "operator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "admin"
+          ]
+        },
+        {
+          "name": "admin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "feed",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "inventory",
+          "docs": [
+            "Instrument inventory, owned by the market PDA."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  110,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tusdc_mint"
+        },
+        {
+          "name": "usdc_vault",
+          "docs": [
+            "TUSDC proceeds, owned by the market PDA."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  117,
+                  115,
+                  100,
+                  99
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "usdc_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "spread_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Create the admin record, the TUSDC mint and its faucet. Only this",
+        "program's upgrade authority may call it, so nobody can race the deploy",
+        "to become the operator."
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "upgrade_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "program",
+          "address": "6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm"
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "faucet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  97,
+                  117,
+                  99,
+                  101,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "tusdc_mint",
+          "docs": [
+            "TUSDC: classic SPL, 6 decimals, mint authority = the faucet PDA, no",
+            "freeze authority. Created here so no keypair ever controls issuance."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "operator",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "request_tusdc",
+      "docs": [
+        "Mint 1,000 TUSDC to the caller's own token account. The caller signs",
+        "and pays; the mint authority is the faucet PDA, so no private key",
+        "controls TUSDC issuance."
+      ],
+      "discriminator": [
+        114,
+        225,
+        167,
+        111,
+        48,
+        164,
+        113,
+        193
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "faucet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  97,
+                  117,
+                  99,
+                  101,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  97,
+                  105,
+                  109
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tusdc_mint",
+          "writable": true
+        },
+        {
+          "name": "destination",
+          "docs": [
+            "The caller's own TUSDC account: the faucet cannot be pointed at anyone",
+            "else's wallet."
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_spread",
+      "discriminator": [
+        194,
+        179,
+        203,
+        7,
+        196,
+        128,
+        242,
+        85
+      ],
+      "accounts": [
+        {
+          "name": "operator",
+          "signer": true,
+          "relations": [
+            "admin"
+          ]
+        },
+        {
+          "name": "admin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.mint",
+                "account": "Market"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "spread_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "update_feed",
+      "docs": [
+        "Publish new test prices (appreciation, depreciation, mark moves).",
+        "Operator only."
+      ],
+      "discriminator": [
+        222,
+        6,
+        52,
+        131,
+        173,
+        81,
+        113,
+        247
+      ],
+      "accounts": [
+        {
+          "name": "operator",
+          "signer": true,
+          "relations": [
+            "admin"
+          ]
+        },
+        {
+          "name": "admin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "feed.mint",
+                "account": "PriceFeed"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "prices",
+          "type": {
+            "defined": {
+              "name": "FeedPrices"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Admin",
+      "discriminator": [
+        244,
+        158,
+        220,
+        65,
+        8,
+        73,
+        4,
+        65
+      ]
+    },
+    {
+      "name": "Claim",
+      "discriminator": [
+        155,
+        70,
+        22,
+        176,
+        123,
+        215,
+        246,
+        102
+      ]
+    },
+    {
+      "name": "Faucet",
+      "discriminator": [
+        146,
+        11,
+        249,
+        142,
+        199,
+        197,
+        61,
+        0
+      ]
+    },
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    },
+    {
+      "name": "PriceFeed",
+      "discriminator": [
+        189,
+        103,
+        252,
+        23,
+        152,
+        35,
+        243,
+        156
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "Bought",
+      "discriminator": [
+        193,
+        56,
+        215,
+        24,
+        156,
+        76,
+        42,
+        104
+      ]
+    },
+    {
+      "name": "DevnetInitialized",
+      "discriminator": [
+        244,
+        240,
+        13,
+        122,
+        6,
+        169,
+        129,
+        118
+      ]
+    },
+    {
+      "name": "FeedUpdated",
+      "discriminator": [
+        200,
+        60,
+        190,
+        86,
+        247,
+        9,
+        50,
+        81
+      ]
+    },
+    {
+      "name": "MarketCreated",
+      "discriminator": [
+        88,
+        184,
+        130,
+        231,
+        226,
+        84,
+        6,
+        58
+      ]
+    },
+    {
+      "name": "TusdcClaimed",
+      "discriminator": [
+        233,
+        178,
+        236,
+        79,
+        206,
+        62,
+        124,
+        213
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NotUpgradeAuthority",
+      "msg": "Signer is not this program's upgrade authority"
+    },
+    {
+      "code": 6001,
+      "name": "NotOperator",
+      "msg": "Signer is not the devnet operator"
+    },
+    {
+      "code": 6002,
+      "name": "FaucetCooldown",
+      "msg": "Wait a minute between faucet claims"
+    },
+    {
+      "code": 6003,
+      "name": "FaucetExhausted",
+      "msg": "The test-USDC faucet has reached its supply cap"
+    },
+    {
+      "code": 6004,
+      "name": "WrongMint",
+      "msg": "Wrong mint for this account"
+    },
+    {
+      "code": 6005,
+      "name": "WrongTokenProgram",
+      "msg": "Wrong token program for this mint"
+    },
+    {
+      "code": 6006,
+      "name": "WrongFeed",
+      "msg": "Account is not this market's feed"
+    },
+    {
+      "code": 6007,
+      "name": "WrongVault",
+      "msg": "Account is not this market's vault"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidSymbol",
+      "msg": "Symbol is empty or too long"
+    },
+    {
+      "code": 6009,
+      "name": "PriceNotPositive",
+      "msg": "Price must be positive"
+    },
+    {
+      "code": 6010,
+      "name": "ConfidenceTooWide",
+      "msg": "Confidence interval exceeds 1% of price"
+    },
+    {
+      "code": 6011,
+      "name": "SpreadTooWide",
+      "msg": "Spread exceeds 10%"
+    },
+    {
+      "code": 6012,
+      "name": "ZeroAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6013,
+      "name": "SlippageExceeded",
+      "msg": "Output is below the caller's minimum"
+    },
+    {
+      "code": 6014,
+      "name": "InsufficientInventory",
+      "msg": "The market does not hold enough inventory"
+    },
+    {
+      "code": 6015,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Admin",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "docs": [
+              "Publishes test prices and opens markets. Holds no custody power over",
+              "any Tenet Circle."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "tusdc_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Bought",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_in_raw",
+            "type": "u64"
+          },
+          {
+            "name": "amount_out_raw",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Claim",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "last_claim_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DevnetInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "tusdc_mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Faucet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tusdc_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_minted_raw",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeedPrices",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "price",
+            "docs": [
+              "Tokenized instrument price, 1e-6 USD per whole token. What Tenet values",
+              "the instrument at and what the market trades at."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "conf",
+            "docs": [
+              "Confidence interval, same units."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "reference_mark",
+            "docs": [
+              "PreStocks-style reference mark (0 = none). Market vs mark."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "underlying_price",
+            "docs": [
+              "Price of the underlying reference (0 = none). Underlying vs token."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeedUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "price",
+            "type": "i64"
+          },
+          {
+            "name": "reference_mark",
+            "type": "i64"
+          },
+          {
+            "name": "underlying_price",
+            "type": "i64"
+          },
+          {
+            "name": "revision",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "feed",
+            "type": "pubkey"
+          },
+          {
+            "name": "inventory",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "spread_bps",
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "spread_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceFeed",
+      "docs": [
+        "A devnet test price for one instrument. Field names and semantics of the",
+        "first block mirror Pyth's `Price` so Tenet's core reads both the same way."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feed_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "price",
+            "type": "i64"
+          },
+          {
+            "name": "conf",
+            "type": "u64"
+          },
+          {
+            "name": "exponent",
+            "type": "i32"
+          },
+          {
+            "name": "publish_time",
+            "type": "i64"
+          },
+          {
+            "name": "reference_mark",
+            "type": "i64"
+          },
+          {
+            "name": "underlying_price",
+            "type": "i64"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "name": "publish_slot",
+            "type": "u64"
+          },
+          {
+            "name": "revision",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TusdcClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_raw",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

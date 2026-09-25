@@ -2,19 +2,20 @@
 //!
 //! A snapshot is accumulated across bounded transactions. It reads the actual
 //! vault balances, excludes already-reserved exit claims, and prices each
-//! asset from a verified Pyth Receiver `PriceUpdateV2`. No client NAV or UI
+//! asset through the price adapter (`crate::price`): Pyth on mainnet, the
+//! tenet-devnet feed on Devnet, identical checks on both. No client NAV or UI
 //! quantity is accepted.
 
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount};
-use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
 use crate::constants::*;
 use crate::errors::TenetError;
-use crate::instructions::execution::{pyth_value_usdc_raw, validate_pyth_price};
+use crate::instructions::execution::pyth_value_usdc_raw;
+use crate::price::read_price;
 use crate::math;
 use crate::state::{
-    AssetRegistryEntry, Circle, CircleAsset, Epoch, EpochState, MandateAsset, NavSnapshot,
+    AssetRegistryEntry, Circle, CircleAsset, Config, Epoch, EpochState, MandateAsset, NavSnapshot,
 };
 
 #[derive(Accounts)]
@@ -140,7 +141,12 @@ pub struct RecordAssetNav<'info> {
     #[account(address = circle_asset.mint @ TenetError::MintMismatch)]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
 
-    pub price_update: Box<Account<'info, PriceUpdateV2>>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Box<Account<'info, Config>>,
+
+    /// CHECK: validated by `read_price`: owner must be `config.price_program`,
+    /// then decoded as that source's layout and bound to the registry's feed.
+    pub price_account: UncheckedAccount<'info>,
 
     /// CHECK: PDA with no data; validates the token account's authority.
     #[account(seeds = [VAULT_AUTHORITY_SEED, circle.key().as_ref()], bump = circle.vault_authority_bump)]
@@ -154,11 +160,20 @@ pub fn record_asset_nav_handler(ctx: Context<RecordAssetNav>) -> Result<()> {
         .slot
         .checked_sub(snapshot.slot_opened)
         .ok_or(TenetError::NavSnapshotExpired)?;
-    require!(elapsed <= NAV_SNAPSHOT_MAX_SLOTS, TenetError::NavSnapshotExpired);
-    require!(snapshot.assets_remaining > 0, TenetError::NavSnapshotIncomplete);
+    require!(
+        elapsed <= NAV_SNAPSHOT_MAX_SLOTS,
+        TenetError::NavSnapshotExpired
+    );
+    require!(
+        snapshot.assets_remaining > 0,
+        TenetError::NavSnapshotIncomplete
+    );
 
     let circle_asset = &ctx.accounts.circle_asset;
-    require!(circle_asset.index < u16::BITS as u16, TenetError::TooManyAssets);
+    require!(
+        circle_asset.index < u16::BITS as u16,
+        TenetError::TooManyAssets
+    );
     let bit = 1u16
         .checked_shl(circle_asset.index as u32)
         .ok_or(TenetError::TooManyAssets)?;
@@ -166,7 +181,10 @@ pub fn record_asset_nav_handler(ctx: Context<RecordAssetNav>) -> Result<()> {
         ctx.accounts.circle.asset_bitmap & bit != 0,
         TenetError::AccountSubstitution
     );
-    require!(snapshot.recorded_bitmap & bit == 0, TenetError::AssetAlreadyRecorded);
+    require!(
+        snapshot.recorded_bitmap & bit == 0,
+        TenetError::AssetAlreadyRecorded
+    );
     require_keys_eq!(
         ctx.accounts.vault.owner,
         ctx.accounts.vault_authority.key(),
@@ -185,10 +203,14 @@ pub fn record_asset_nav_handler(ctx: Context<RecordAssetNav>) -> Result<()> {
         .slot
         .checked_sub(ctx.accounts.registry_entry.last_verified_slot)
         .ok_or(TenetError::PriceObservationUnavailable)?;
-    require!(metadata_age <= NAV_SNAPSHOT_MAX_SLOTS, TenetError::PriceObservationUnavailable);
+    require!(
+        metadata_age <= NAV_SNAPSHOT_MAX_SLOTS,
+        TenetError::PriceObservationUnavailable
+    );
 
-    let price = validate_pyth_price(
-        &ctx.accounts.price_update,
+    let price = read_price(
+        &ctx.accounts.config,
+        &ctx.accounts.price_account.to_account_info(),
         &ctx.accounts.registry_entry.pyth_feed_tokenized,
     )?;
     let available_raw = math::checked_sub_u64(
@@ -247,13 +269,24 @@ pub struct CancelEpoch<'info> {
 pub fn cancel_epoch_handler(ctx: Context<CancelEpoch>) -> Result<()> {
     let clock = Clock::get()?;
     if let Some(snapshot) = ctx.accounts.nav_snapshot.as_ref() {
-        require_keys_eq!(snapshot.circle, ctx.accounts.circle.key(), TenetError::AccountSubstitution);
-        require_keys_eq!(snapshot.epoch, ctx.accounts.epoch.key(), TenetError::AccountSubstitution);
+        require_keys_eq!(
+            snapshot.circle,
+            ctx.accounts.circle.key(),
+            TenetError::AccountSubstitution
+        );
+        require_keys_eq!(
+            snapshot.epoch,
+            ctx.accounts.epoch.key(),
+            TenetError::AccountSubstitution
+        );
         let elapsed = clock
             .slot
             .checked_sub(snapshot.slot_opened)
             .ok_or(TenetError::NavSnapshotExpired)?;
-        require!(elapsed > NAV_SNAPSHOT_MAX_SLOTS, TenetError::NavSnapshotExpired);
+        require!(
+            elapsed > NAV_SNAPSHOT_MAX_SLOTS,
+            TenetError::NavSnapshotExpired
+        );
     } else {
         let grace_deadline = ctx
             .accounts
@@ -261,7 +294,10 @@ pub fn cancel_epoch_handler(ctx: Context<CancelEpoch>) -> Result<()> {
             .closes_at
             .checked_add(NAV_CANCELLATION_GRACE_SECONDS)
             .ok_or(TenetError::MathOverflow)?;
-        require!(clock.unix_timestamp >= grace_deadline, TenetError::NavSnapshotExpired);
+        require!(
+            clock.unix_timestamp >= grace_deadline,
+            TenetError::NavSnapshotExpired
+        );
     }
     ctx.accounts.epoch.state = EpochState::Cancelled;
     ctx.accounts.circle.execution_frozen = false;

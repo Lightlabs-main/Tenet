@@ -6,7 +6,8 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type EncodedAccount, type FetchAccountConfig, type FetchAccountsConfig, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
+import { assertAccountExists, assertAccountsExist, combineCodec, decodeAccount, fetchEncodedAccount, fetchEncodedAccounts, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, getU8Decoder, getU8Encoder, transformEncoder, type Account, type Address, type EncodedAccount, type FetchAccountConfig, type FetchAccountsConfig, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type MaybeAccount, type MaybeEncodedAccount, type ReadonlyUint8Array } from '@solana/kit';
+import { getNetworkDecoder, getNetworkEncoder, getPriceSourceDecoder, getPriceSourceEncoder, type Network, type NetworkArgs, type PriceSource, type PriceSourceArgs } from '../types';
 
 export const CONFIG_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([155, 12, 170, 224, 30, 250, 204, 130]);
 
@@ -18,8 +19,17 @@ export type Config = { discriminator: ReadonlyUint8Array;
  * assumption, R-13 — it can mislabel an asset but cannot move funds.
  */
 registryAuthority: Address; 
-/** The only mint Circles accept as USDC (V-014). */
-usdcMint: Address; bump: number;  };
+/** The only mint Circles accept as USDC (V-014). On Devnet: TUSDC. */
+usdcMint: Address; network: Network; 
+/**
+ * The ONLY program allowed between `begin_execution` and `end_execution`.
+ * Mainnet: Jupiter. Devnet: the tenet-devnet test market.
+ */
+executionVenue: Address; 
+/** How prices are read, and which program must own the price accounts. */
+priceSource: PriceSource; priceProgram: Address; 
+/** Older observations are refused. Mainnet: at most 60 s (Pyth). */
+maxPriceAgeSeconds: bigint; bump: number;  };
 
 export type ConfigArgs = { 
 /**
@@ -27,17 +37,26 @@ export type ConfigArgs = {
  * assumption, R-13 — it can mislabel an asset but cannot move funds.
  */
 registryAuthority: Address; 
-/** The only mint Circles accept as USDC (V-014). */
-usdcMint: Address; bump: number;  };
+/** The only mint Circles accept as USDC (V-014). On Devnet: TUSDC. */
+usdcMint: Address; network: NetworkArgs; 
+/**
+ * The ONLY program allowed between `begin_execution` and `end_execution`.
+ * Mainnet: Jupiter. Devnet: the tenet-devnet test market.
+ */
+executionVenue: Address; 
+/** How prices are read, and which program must own the price accounts. */
+priceSource: PriceSourceArgs; priceProgram: Address; 
+/** Older observations are refused. Mainnet: at most 60 s (Pyth). */
+maxPriceAgeSeconds: number | bigint; bump: number;  };
 
 /** Gets the encoder for {@link ConfigArgs} account data. */
 export function getConfigEncoder(): FixedSizeEncoder<ConfigArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['registryAuthority', getAddressEncoder()], ['usdcMint', getAddressEncoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: CONFIG_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['registryAuthority', getAddressEncoder()], ['usdcMint', getAddressEncoder()], ['network', getNetworkEncoder()], ['executionVenue', getAddressEncoder()], ['priceSource', getPriceSourceEncoder()], ['priceProgram', getAddressEncoder()], ['maxPriceAgeSeconds', getU64Encoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: CONFIG_DISCRIMINATOR }));
 }
 
 /** Gets the decoder for {@link Config} account data. */
 export function getConfigDecoder(): FixedSizeDecoder<Config> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['registryAuthority', getAddressDecoder()], ['usdcMint', getAddressDecoder()], ['bump', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['registryAuthority', getAddressDecoder()], ['usdcMint', getAddressDecoder()], ['network', getNetworkDecoder()], ['executionVenue', getAddressDecoder()], ['priceSource', getPriceSourceDecoder()], ['priceProgram', getAddressDecoder()], ['maxPriceAgeSeconds', getU64Decoder()], ['bump', getU8Decoder()]]);
 }
 
 /** Gets the codec for {@link Config} account data. */
@@ -90,5 +109,5 @@ export async function fetchAllMaybeConfig(
 }
 
 export function getConfigSize(): number {
-  return 73;
+  return 147;
 }

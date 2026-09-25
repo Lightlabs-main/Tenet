@@ -5,11 +5,16 @@
   "description": "Tenet client SDK on @solana/kit. The program client is generated from the Anchor IDL by Codama (D-05).",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./devnet": "./src/devnet/index.ts"
   },
   "scripts": {
     "gen": "node scripts/gen-client.mjs",
-    "test": "node --import tsx --test test/pda.test.ts test/client.test.ts"
+    "test": "node --import tsx --test test/pda.test.ts test/client.test.ts test/devnet.test.ts",
+    "devnet:setup": "node --import tsx scripts/devnet/setup.ts",
+    "devnet:reset": "node --import tsx scripts/devnet/reset.ts",
+    "devnet:price": "node --import tsx scripts/devnet/price.ts",
+    "devnet:e2e": "node --import tsx scripts/devnet-e2e.ts"
   },
   "dependencies": {
     "@solana/kit": "8.3.0",

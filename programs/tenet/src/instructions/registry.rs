@@ -8,10 +8,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     token_2022::spl_token_2022::extension::{
-        pausable::PausableConfig,
-        permanent_delegate::PermanentDelegate,
-        scaled_ui_amount::ScaledUiAmountConfig,
-        transfer_fee::TransferFeeConfig,
+        pausable::PausableConfig, permanent_delegate::PermanentDelegate,
+        scaled_ui_amount::ScaledUiAmountConfig, transfer_fee::TransferFeeConfig,
         transfer_hook::TransferHook,
     },
     token_interface::{get_mint_extension_data, Mint},
@@ -91,9 +89,6 @@ pub fn upsert_handler(ctx: Context<UpsertRegistryEntry>, p: RegistryParams) -> R
         AssetClass::PublicTokenizedEquity | AssetClass::PreIpo => {
             token_program == anchor_spl::token_2022::ID
         }
-        // Only initialize_devnet_test_market can create this class, and it
-        // pins the known Devnet test-USDC mint and test-equity PDA.
-        AssetClass::DevnetTestEquity => false,
     };
     require!(consistent, TenetError::AssetClassMismatch);
 
@@ -106,7 +101,11 @@ pub fn upsert_handler(ctx: Context<UpsertRegistryEntry>, p: RegistryParams) -> R
     } else {
         // A mint cannot change owner program; if it appears to, refuse rather
         // than silently re-pointing custody logic at a different program.
-        require_keys_eq!(entry.token_program, token_program, TenetError::TokenProgramMismatch);
+        require_keys_eq!(
+            entry.token_program,
+            token_program,
+            TenetError::TokenProgramMismatch
+        );
     }
 
     entry.asset_class = p.asset_class;
@@ -158,9 +157,15 @@ fn multiplier_e18(mint: &AccountInfo, now: i64) -> Result<u128> {
     } else {
         f64::from(cfg.multiplier)
     };
-    require!(multiplier.is_finite() && multiplier > 0.0, TenetError::InvalidRegistryMetadata);
+    require!(
+        multiplier.is_finite() && multiplier > 0.0,
+        TenetError::InvalidRegistryMetadata
+    );
     let scaled = multiplier * MULTIPLIER_SCALE_E18 as f64;
-    require!(scaled.is_finite() && scaled >= 1.0 && scaled <= u128::MAX as f64, TenetError::InvalidRegistryMetadata);
+    require!(
+        scaled.is_finite() && scaled >= 1.0 && scaled <= u128::MAX as f64,
+        TenetError::InvalidRegistryMetadata
+    );
     Ok(scaled.round() as u128)
 }
 

@@ -13,6 +13,5 @@ export * from './epochState';
 export * from './mandateParams';
 export * from './mandateState';
 export * from './membershipPolicy';
-export * from './priceFeedMessage';
-export * from './priceUpdateV2';
-export * from './verificationLevel';
+export * from './network';
+export * from './priceSource';

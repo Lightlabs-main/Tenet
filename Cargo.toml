@@ -3,6 +3,11 @@ members = ["programs/*", "tests/program"]
 resolver = "2"
 
 [profile.release]
+# Size over speed: program rent is paid per byte (tenet.so 967 KB at O3,
+# 846 KB at z — about 1.2 SOL less at deploy peak), and every instruction,
+# including the begin/venue/end execution window, stays well inside the
+# default compute budget at z (tests/program runs against this binary).
+opt-level = "z"
 overflow-checks = true
 lto = "fat"
 codegen-units = 1

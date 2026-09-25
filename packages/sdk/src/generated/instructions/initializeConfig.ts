@@ -6,28 +6,29 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { combineCodec, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
+import { combineCodec, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { getAccountMetaFactory, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
 import { findConfigPda } from '../pdas';
 import { TENET_PROGRAM_ADDRESS } from '../programs';
+import { getNetworkDecoder, getNetworkEncoder, getPriceSourceDecoder, getPriceSourceEncoder, type Network, type NetworkArgs, type PriceSource, type PriceSourceArgs } from '../types';
 
 export const INITIALIZE_CONFIG_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([208, 127, 21, 1, 194, 190, 196, 70]);
 
 export function getInitializeConfigDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(INITIALIZE_CONFIG_DISCRIMINATOR); }
 
-export type InitializeConfigInstruction<TProgram extends string = typeof TENET_PROGRAM_ADDRESS, TAccountUpgradeAuthority extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountProgram extends string | AccountMeta<string> = "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh", TAccountProgramData extends string | AccountMeta<string> = string, TAccountUsdcMint extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+export type InitializeConfigInstruction<TProgram extends string = typeof TENET_PROGRAM_ADDRESS, TAccountUpgradeAuthority extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountProgram extends string | AccountMeta<string> = "7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf", TAccountProgramData extends string | AccountMeta<string> = string, TAccountUsdcMint extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountUpgradeAuthority extends string ? WritableSignerAccount<TAccountUpgradeAuthority> & AccountSignerMeta<TAccountUpgradeAuthority> : TAccountUpgradeAuthority, TAccountConfig extends string ? WritableAccount<TAccountConfig> : TAccountConfig, TAccountProgram extends string ? ReadonlyAccount<TAccountProgram> : TAccountProgram, TAccountProgramData extends string ? ReadonlyAccount<TAccountProgramData> : TAccountProgramData, TAccountUsdcMint extends string ? ReadonlyAccount<TAccountUsdcMint> : TAccountUsdcMint, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>;
 
-export type InitializeConfigInstructionData = { discriminator: ReadonlyUint8Array; registryAuthority: Address;  };
+export type InitializeConfigInstructionData = { discriminator: ReadonlyUint8Array; registryAuthority: Address; network: Network; executionVenue: Address; priceSource: PriceSource; priceProgram: Address; maxPriceAgeSeconds: bigint;  };
 
-export type InitializeConfigInstructionDataArgs = { registryAuthority: Address;  };
+export type InitializeConfigInstructionDataArgs = { registryAuthority: Address; network: NetworkArgs; executionVenue: Address; priceSource: PriceSourceArgs; priceProgram: Address; maxPriceAgeSeconds: number | bigint;  };
 
 export function getInitializeConfigInstructionDataEncoder(): FixedSizeEncoder<InitializeConfigInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['registryAuthority', getAddressEncoder()]]), (value) => ({ ...value, discriminator: INITIALIZE_CONFIG_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['registryAuthority', getAddressEncoder()], ['network', getNetworkEncoder()], ['executionVenue', getAddressEncoder()], ['priceSource', getPriceSourceEncoder()], ['priceProgram', getAddressEncoder()], ['maxPriceAgeSeconds', getU64Encoder()]]), (value) => ({ ...value, discriminator: INITIALIZE_CONFIG_DISCRIMINATOR }));
 }
 
 export function getInitializeConfigInstructionDataDecoder(): FixedSizeDecoder<InitializeConfigInstructionData> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['registryAuthority', getAddressDecoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['registryAuthority', getAddressDecoder()], ['network', getNetworkDecoder()], ['executionVenue', getAddressDecoder()], ['priceSource', getPriceSourceDecoder()], ['priceProgram', getAddressDecoder()], ['maxPriceAgeSeconds', getU64Decoder()]]);
 }
 
 export function getInitializeConfigInstructionDataCodec(): FixedSizeCodec<InitializeConfigInstructionDataArgs, InitializeConfigInstructionData> {
@@ -47,6 +48,11 @@ programData: TAccountProgramData;
 usdcMint: TAccountUsdcMint;
 systemProgram?: TAccountSystemProgram;
 registryAuthority: InitializeConfigInstructionDataArgs["registryAuthority"];
+network: InitializeConfigInstructionDataArgs["network"];
+executionVenue: InitializeConfigInstructionDataArgs["executionVenue"];
+priceSource: InitializeConfigInstructionDataArgs["priceSource"];
+priceProgram: InitializeConfigInstructionDataArgs["priceProgram"];
+maxPriceAgeSeconds: InitializeConfigInstructionDataArgs["maxPriceAgeSeconds"];
 }
 
 export async function getInitializeConfigInstructionAsync<TAccountUpgradeAuthority extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountProgram extends InstructionAccountInput, TAccountProgramData extends InstructionAccountInput, TAccountUsdcMint extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof TENET_PROGRAM_ADDRESS>(input: InitializeConfigAsyncInput<TAccountUpgradeAuthority, TAccountConfig, TAccountProgram, TAccountProgramData, TAccountUsdcMint, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): Promise<InitializeConfigInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountUpgradeAuthority, InstructionAccountInputAddress<TAccountUpgradeAuthority>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountProgram, InstructionAccountInputAddress<TAccountProgram>>, ResolvedInstructionAccountMeta<TAccountProgramData, InstructionAccountInputAddress<TAccountProgramData>>, ResolvedInstructionAccountMeta<TAccountUsdcMint, InstructionAccountInputAddress<TAccountUsdcMint>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>> {
@@ -70,7 +76,7 @@ if (!accounts.config.value) {
 accounts.config.value = await findConfigPda({ programAddress });
 }
 if (!accounts.program.value) {
-accounts.program.value = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'>;
+accounts.program.value = '7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf' as Address<'7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf'>;
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
@@ -92,6 +98,11 @@ programData: TAccountProgramData;
 usdcMint: TAccountUsdcMint;
 systemProgram?: TAccountSystemProgram;
 registryAuthority: InitializeConfigInstructionDataArgs["registryAuthority"];
+network: InitializeConfigInstructionDataArgs["network"];
+executionVenue: InitializeConfigInstructionDataArgs["executionVenue"];
+priceSource: InitializeConfigInstructionDataArgs["priceSource"];
+priceProgram: InitializeConfigInstructionDataArgs["priceProgram"];
+maxPriceAgeSeconds: InitializeConfigInstructionDataArgs["maxPriceAgeSeconds"];
 }
 
 export function getInitializeConfigInstruction<TAccountUpgradeAuthority extends InstructionSignerInput, TAccountConfig extends InstructionAccountInput, TAccountProgram extends InstructionAccountInput, TAccountProgramData extends InstructionAccountInput, TAccountUsdcMint extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof TENET_PROGRAM_ADDRESS>(input: InitializeConfigInput<TAccountUpgradeAuthority, TAccountConfig, TAccountProgram, TAccountProgramData, TAccountUsdcMint, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress } ): InitializeConfigInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountUpgradeAuthority, InstructionAccountInputAddress<TAccountUpgradeAuthority>>, ResolvedInstructionAccountMeta<TAccountConfig, InstructionAccountInputAddress<TAccountConfig>>, ResolvedInstructionAccountMeta<TAccountProgram, InstructionAccountInputAddress<TAccountProgram>>, ResolvedInstructionAccountMeta<TAccountProgramData, InstructionAccountInputAddress<TAccountProgramData>>, ResolvedInstructionAccountMeta<TAccountUsdcMint, InstructionAccountInputAddress<TAccountUsdcMint>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>> {
@@ -112,7 +123,7 @@ const args = { ...input,  };
 
 // Resolve default values.
 if (!accounts.program.value) {
-accounts.program.value = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'>;
+accounts.program.value = '7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf' as Address<'7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf'>;
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;

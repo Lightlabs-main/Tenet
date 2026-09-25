@@ -812,3 +812,15 @@ What remains unchanged: No deployment, signature, or transaction was made. The a
 - Live Devnet E2E passed Epoch-0 contribution escrow, finalization, share settlement, partial redemption and claim checks using valueless test assets. No user wallet signature was requested by Codex.
 - The production web bundle is now served at `https://38.49.209.149/app`; browser verification confirms the deployed Circle loads, test-assets warning appears, and the header exposes Connect wallet.
 - Mainnet, Jupiter stock execution, equity-feed validation and automatic contribution authorization remain gated; this is not real-money functionality or overall Tenet completion.
+
+## Current Devnet build status  2026-09-25
+
+The older status above is superseded where it conflicts with this entry. The current working tree is a candidate targeting program ID 7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf. That program is not deployed on Devnet; the deployed Tenet program remains 7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh. Do not point the published app at the candidate until a wallet-authorized deployment/upgrade and live transaction checks succeed.
+
+Already verified locally: 64 package tests; 91 Rust/LiteSVM tests; TypeScript typecheck; production web build; and money-lint. These tests do not establish public-Devnet E2E.
+
+Still incomplete: user asked for six or more distinct synthetic test instruments, on-chain price observations, and multi-asset execution into Circle vaults. The candidate still exposes only one generic fixed-inventory TST-EQ with a 1:1 test-USDC transfer. It has no six-token universe and no price account or market curve. Do not label this as stock exposure, market pricing, or a working multi-asset portfolio.
+
+Funding/deployment remains a hard gate: latest candidate binary is 1,216,976 bytes (SHA-256 08fc524d656bfe50b1b9291e40e87314ce437339cee8fdbefb267af84a04a355); its rent-exempt deployment buffer was estimated at 6.18288832 Devnet SOL. The F5 upgrade-authority wallet was last observed at 4.985368466 Devnet SOL. No user funds or private keys were used and no candidate deployment, mint, or transaction occurred.
+
+Next: implement and test the synthetic instrument and price-account model against isolated fixtures, then rebuild and remeasure rent before requesting any Devnet funding or signature. Preserve the deployed 7YWV program and its existing accounts.
