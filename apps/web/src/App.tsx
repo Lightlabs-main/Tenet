@@ -510,7 +510,7 @@ function MandateSurface({ view, onOpenCircle, onFork }: { view: CircleView; onOp
       <section className="mandate-hero card">
         <div className="mandate-hero-top"><button className="text-action" type="button" onClick={onOpenCircle}>← Back to Circle</button><Badge tone="good">Mandate v{mandate.version}</Badge></div>
         <span className="eyebrow">Mandate · investment rules</span>
-        <h1>{CLUSTER === "devnet" ? "Investment rules for this test Circle" : `Investment rules · ${mandate.name}`}</h1>
+        <h1>Investment rules · {mandate.name}</h1>
         <p>The Mandate is this Circle’s shared rulebook. It decides which assets are allowed and sets the limits below.{CLUSTER === "devnet" ? " This devnet Circle is for testing, not real investing." : ""}</p>
         <div className="mandate-lineage"><span>Rules apply to this Circle’s pooled money</span><details><summary>Show on-chain Mandate details</summary><span>Name: {mandate.name}</span>{mandate.description ? <span>Description: {mandate.description}</span> : null}<span>Created by <AddressLink address={mandate.author} /></span><span>Based on {mandate.forkedFrom.__option === "Some" ? <AddressLink address={mandate.forkedFrom.value} /> : "an original Mandate"}</span></details></div>
       </section>

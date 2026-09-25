@@ -55,6 +55,9 @@
       "market": "3ewBvLwtvejvfx9JR2GAKCxxhzWbkwyB2jwkZ1GKqLKq"
     }
   ],
-  "reference": null,
+  "reference": {
+    "mandate": "H6Fq39VzQXHPyUYaGaDgkWBfKvrb4PMsFFt1FKp5dXmD",
+    "circle": "3GY5s6ruwxqRWBq1dcE8TgMssPH6KwANme5qqBnwrLvR"
+  },
   "updatedAt": "2026-09-25T18:41:31.513Z"
 }

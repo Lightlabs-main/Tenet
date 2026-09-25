@@ -351,19 +351,20 @@ function ValueSurface({ view }: { view: CircleView }) {
         <Badge tone="warn">DEVNET TEST DATA</Badge>
       </div>
       <table className="holdings">
-        <thead><tr><th>Asset</th><th className="r">Price</th><th className="r">Value</th><th className="r">Weight / target</th><th className="r hide-sm">Market vs mark</th><th className="r hide-sm">Token vs underlying</th><th className="r hide-sm">Supply held</th></tr></thead>
+        <thead><tr><th>Asset</th><th className="r">Price</th><th className="r">Value</th><th className="r">Weight / target</th><th className="r hide-sm">Supply held</th></tr></thead>
         <tbody>
-          <tr><td>{CASH_TICKER}</td><td className="r">1.00</td><td className="r">{usdc(pv.cashRaw)}</td><td className="r">{pv.navRaw ? formatBps(ratioBps(pv.cashRaw, pv.navRaw)) : "—"}</td><td className="hide-sm" /><td className="hide-sm" /><td className="hide-sm" /></tr>
+          <tr><td>{CASH_TICKER}</td><td className="r">1.00</td><td className="r">{usdc(pv.cashRaw)}</td><td className="r">{pv.navRaw ? formatBps(ratioBps(pv.cashRaw, pv.navRaw)) : "—"}</td><td className="hide-sm" /></tr>
           {view.holdings.map((h, i) => {
             const v = pv.holdings[i]!;
             const age = h.price ? now - h.price.publishTime : null;
             return <tr key={h.address}>
-              <td><strong>{h.registry.symbol}</strong>{isPre(h) ? <> <Badge tone="pre">Pre-IPO</Badge></> : null}<div className="asset-sub">{age !== null ? `price published ${age < 120n ? `${age}s` : age < 7200n ? `${age / 60n} min` : `${age / 3600n} h`} ago` : "no price"}</div></td>
+              <td><strong>{h.registry.symbol}</strong>{isPre(h) ? <> <Badge tone="pre">Pre-IPO</Badge></> : null}
+                {v.marketVsMarkBps !== null ? <div className={`asset-sub ${v.marketVsMarkBps < 0n ? "discount" : "premium"}`}>Market vs mark {formatSignedBps(v.marketVsMarkBps)} · mark {usdc(h.price!.mark!)}</div> : null}
+                {v.tokenVsUnderlyingBps !== null ? <div className={`asset-sub ${v.tokenVsUnderlyingBps < 0n ? "discount" : "premium"}`}>Token vs underlying {formatSignedBps(v.tokenVsUnderlyingBps)} · underlying {usdc(h.price!.underlyingPrice!)}</div> : null}
+                <div className="asset-sub">{age !== null ? `price published ${age < 120n ? `${age}s` : age < 7200n ? `${age / 60n} min` : `${age / 3600n} h`} ago` : "no price"}</div></td>
               <td className="r">{h.price ? usdc(h.price.price) : "—"}</td>
               <td className="r">{v.valueRaw === null ? "—" : usdc(v.valueRaw)}</td>
               <td className="r">{v.weightBps === null ? "—" : formatBps(v.weightBps)} / {formatBps(BigInt(h.targetWeightBps))}{v.driftBps !== null && v.driftBps !== 0n ? <div className={`asset-sub ${v.driftBps > 0n ? "premium" : "discount"}`}>{formatSignedBps(v.driftBps)} drift</div> : null}</td>
-              <td className="r hide-sm">{v.marketVsMarkBps === null ? "—" : <span className={v.marketVsMarkBps < 0n ? "discount" : "premium"}>{formatSignedBps(v.marketVsMarkBps)}<div className="asset-sub">mark {usdc(h.price!.mark!)}</div></span>}</td>
-              <td className="r hide-sm">{v.tokenVsUnderlyingBps === null ? "—" : <span className={v.tokenVsUnderlyingBps < 0n ? "discount" : "premium"}>{formatSignedBps(v.tokenVsUnderlyingBps)}<div className="asset-sub">underlying {usdc(h.price!.underlyingPrice!)}</div></span>}</td>
               <td className="r hide-sm">{v.supplyBps === null ? "—" : formatBps(v.supplyBps)}</td>
             </tr>;
           })}
@@ -436,12 +437,20 @@ function Actions({ panel, account, view, circle, me, usdcBalance, onChanged, onO
 }
 
 export function Faucet({ signer, balance, run, busy }: { signer: TransactionSendingSigner; balance: bigint | null; run: Run; busy: string | null }) {
+  const [sol, setSol] = useState<bigint | null>(null);
+  useEffect(() => {
+    let live = true;
+    void rpc.getBalance(signer.address).send().then(({ value }) => { if (live) setSol(value); }).catch(() => {});
+    return () => { live = false; };
+  }, [signer.address, balance]);
+  const lowSol = sol !== null && sol < 50_000_000n;
   return <aside className="devnet-test-faucet" aria-label="Devnet test USDC faucet">
     <div>
       <span className="eyebrow">Devnet only · no monetary value</span>
       <strong>Get test USDC</strong>
       <p>TUSDC is "Tenet Devnet USDC": minted by an on-chain faucet you sign for yourself. 1,000 per claim, one claim a minute. It is not a stablecoin and cannot be redeemed.</p>
-      <small>Your balance: {balance === null ? "0" : usdc(balance)} TUSDC</small>
+      <small>Your balance: {balance === null ? "0" : usdc(balance)} TUSDC · {sol === null ? "…" : trim(formatRaw(sol, 9))} Devnet SOL</small>
+      {lowSol ? <small className="error-text">You need a little free Devnet SOL for network fees (≈0.1 SOL is plenty). Get it at <a href="https://faucet.solana.com" target="_blank" rel="noreferrer">faucet.solana.com</a>, then come back.</small> : null}
     </div>
     <ActionButton block={false} busy={busy} label="Get 1,000 TUSDC" onClick={() => { void run("Get test USDC", () => faucetIxs(signer)); }} />
   </aside>;
