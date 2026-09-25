@@ -81,11 +81,15 @@ async function executeToTarget(ctx: Ctx, executor: KeyPairSigner, circle: Addres
   const usdcVault = (await pda.usdcVault(circle))[0];
   const dest = (await pda.assetVault(circle, i.mint as Address))[0];
   const [in0, out0] = [await balance(ctx, usdcVault), await balance(ctx, dest)];
+  // The market must deliver `quote`; the Circle receives it net of any
+  // Token-2022 transfer fee, so Tenet's own minimum is the net amount.
+  const spec0 = instrument(symbol);
+  const netQuote = quote - (spec0.extension.kind === "transferFee" ? transferFee(quote, spec0.extension.bps, spec0.extension.maxFee) : 0n);
   const venue = [await circleBuyIx({ executor, circle, mint: i.mint as Address, assetTokenProgram: i.tokenProgram as Address, amountInRaw: spend, minOutRaw: quote })];
   const now = BigInt(Math.floor(Date.now() / 1000));
   const ixs = await flows.execute({
     executor, circle, mandate, usdcMint, epochIndex: current - 1n, asset: assetRef(symbol), priceAccount: i.feed as Address,
-    nonce: nonce++, maxIn: spend, minOut: quote, expiresAt: now + 300n, venue,
+    nonce: nonce++, maxIn: spend, minOut: netQuote, expiresAt: now + 300n, venue,
   });
   await send(ctx, executor, ixs, `execute ${symbol}: ${Number(spend) / 1e6} TUSDC -> ${Number(quote) / 10 ** i.decimals} ${symbol}`);
   const [in1, out1] = [await balance(ctx, usdcVault), await balance(ctx, dest)];

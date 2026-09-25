@@ -304,10 +304,13 @@ function ExecuteConnected({ view, circle, account, onChanged }: { view: CircleVi
     const i = p.h;
     const q = await executionProvider.quote({ mint: i.asset.mint, decimals: i.registry.decimals, amountInRaw: p.spend, price: i.price!.price });
     const venue = await executionProvider.venue({ executor: signer, circle, mint: i.asset.mint, tokenProgram: i.asset.tokenProgram, amountInRaw: p.spend, minOutRaw: q.outRaw });
+    // The vault receives the venue's output net of any Token-2022 transfer fee.
+    const fee = await withheldFee(i.asset.mint, q.outRaw);
+    const minOut = q.outRaw - (fee?.fee ?? 0n);
     return flows.execute({
       executor: signer, circle, mandate: view.mandateAddress, usdcMint: view.usdcMint, epochIndex: view.circle.currentEpoch - 1n,
       asset: { mint: i.asset.mint, tokenProgram: i.asset.tokenProgram }, priceAccount: i.price!.account,
-      nonce: BigInt(Date.now()) * 100n + BigInt(i.asset.index), maxIn: p.spend, minOut: q.outRaw,
+      nonce: BigInt(Date.now()) * 100n + BigInt(i.asset.index), maxIn: p.spend, minOut,
       expiresAt: BigInt(Math.floor(Date.now() / 1000) + 300), venue,
     });
   };
