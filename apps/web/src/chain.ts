@@ -80,6 +80,10 @@ export async function sendGroups(signer: TransactionSendingSigner, groups: Instr
   const sigs: string[] = [];
   for (const [i, g] of groups.entries()) {
     onStep?.(i + 1, groups.length);
+    // The wallet simulates each step on ITS OWN RPC node, which can lag ours
+    // by a few slots; without a pause it simulates step N+1 against state from
+    // before step N and shows a false "failed to simulate" warning.
+    if (i > 0) await new Promise((r) => setTimeout(r, 4_000));
     sigs.push(await send(signer, g));
   }
   return sigs;

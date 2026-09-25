@@ -266,7 +266,8 @@ function planExecution(view: CircleView, nav: bigint | null): Plan[] {
     const held = h.price ? ((h.vaultRaw - h.asset.reservedForRedemptionRaw) * h.price.price) / 10n ** BigInt(h.registry.decimals) : 0n;
     let spend = target > held ? ((target - held) * 99n) / 100n : 0n;
     if (spend > left) spend = left;
-    if (!h.price || spend < 10_000n) spend = 0n; // under 0.01 TUSDC is not worth a transaction
+    // Skip dust: a top-up under 1% of the asset's target is already "at target".
+    if (!h.price || spend < 10_000n || spend * 100n < target) spend = 0n;
     left -= spend;
     return { h, spend, target, held };
   });
