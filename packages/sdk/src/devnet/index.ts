@@ -34,6 +34,7 @@ export {
   getRequestTusdcInstructionAsync,
   getSetSpreadInstruction,
   getSetSpreadInstructionAsync,
+  getSetTusdcMetadataInstruction,
 } from "./generated/instructions/index";
 export * from "./instruments";
 export * from "./venue";

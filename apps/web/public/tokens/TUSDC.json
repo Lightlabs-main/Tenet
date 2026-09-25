@@ -1,0 +1,7 @@
+{
+  "name": "Tenet Devnet USDC",
+  "symbol": "TUSDC",
+  "description": "Tenet Devnet USDC — test cash for the Tenet Devnet demo. NO MONETARY VALUE. Not a stablecoin; cannot be redeemed.",
+  "image": "https://tenetstocks.website/tokens/TUSDC.png",
+  "external_url": "https://tenetstocks.website/app"
+}

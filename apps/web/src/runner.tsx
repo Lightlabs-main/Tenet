@@ -23,6 +23,9 @@ export function explain(e: unknown): string {
   const anchor = /Error Message: ([^\n]+?)\.?(\n|$)/.exec(msg);
   if (anchor) return anchor[1]!;
   if (/User rejected|rejected the request/i.test(msg)) return "You rejected the request in your wallet.";
+  if (/debit an account|no record of a prior credit|insufficient (funds|lamports)|InsufficientFundsForRent/i.test(msg)) {
+    return "Your wallet needs a little free Devnet SOL for network fees (≈0.1 SOL is plenty). Get it at faucet.solana.com, then try again.";
+  }
   if (/Unexpected error|simulation|revert/i.test(msg)) return "The wallet could not simulate this step. Cancel any prompt marked unsafe; do not submit a transaction that your wallet says will revert.";
   return msg.length > 400 ? msg.slice(0, 400) + "…" : msg;
 }

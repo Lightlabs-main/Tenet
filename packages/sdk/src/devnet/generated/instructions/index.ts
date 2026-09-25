@@ -12,4 +12,5 @@ export * from './createMarket';
 export * from './initialize';
 export * from './requestTusdc';
 export * from './setSpread';
+export * from './setTusdcMetadata';
 export * from './updateFeed';

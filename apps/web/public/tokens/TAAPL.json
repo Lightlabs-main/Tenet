@@ -1,0 +1,7 @@
+{
+  "name": "AAPL Devnet Test",
+  "symbol": "TAAPL",
+  "description": "DEVNET TEST INSTRUMENT standing in for Apple in the Tenet Devnet demo. NOT A REAL STOCK OR SECURITY. No monetary value.",
+  "image": "https://tenetstocks.website/tokens/TAAPL.png",
+  "external_url": "https://tenetstocks.website/app"
+}

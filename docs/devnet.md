@@ -50,6 +50,16 @@ A single price adapter (`programs/tenet/src/price.rs`) turns either source into
 Pyth's `Price` struct, and the NAV snapshot, price-impact floor and
 target-weight check all run the same code on both.
 
+### Known limitation
+
+A funding window whose valuation snapshot times out (~150 slots, ~60 s,
+between opening and finalizing) can only be cancelled; contributors are
+refunded, holdings, execution and exits are unaffected, but the deployed
+program cannot open further windows for that Circle. The app keeps a
+NAV-priced settlement to 4 wallet approvals (2 for a first window) and can
+resume a stalled valuation, so this is unlikely; the fix needs a Circle
+state change and is planned post-hackathon.
+
 ### What the program enforces during Execute
 
 `begin_execution → venue buy → end_execution` in one transaction:
@@ -93,7 +103,22 @@ pnpm devnet:price TNVDA 110 --underlying 112   # move a test price
 pnpm devnet:price TSPACEX 40 --mark 50         # market vs mark −20%
 pnpm devnet:reset     # prices, spreads and inventory back to the catalog
 pnpm devnet:e2e       # the whole product with 4 fresh wallets, verified from chain
+pnpm devnet:status    # read-only health check (no keypair needed)
+pnpm devnet:metadata  # wallet name + logo for the instruments and TUSDC (idempotent)
 ```
+
+**Upkeep on the operator host** (`scripts/devnet-cron.sh`, installed in cron):
+`status` daily at 06:00 UTC and `refresh` (republish every price unchanged, so
+feeds never pass the program's 30-day freshness limit) Mondays at 06:30 UTC,
+logged to `/var/log/tenet-devnet.log`.
+
+**Wallet metadata.** Every instrument and TUSDC carries Metaplex Token
+Metadata (Fungible) pointing at `https://tenetstocks.website/tokens/<SYMBOL>.json`,
+so wallets show e.g. "SpaceX Pre-IPO Devnet Test" with a DEVNET TEST logo.
+TUSDC's mint authority is the faucet PDA, so its metadata is created by
+`tenet-devnet::set_tusdc_metadata` (operator only; the faucet PDA signs and is
+the update authority — no keypair controls TUSDC). Tested against the real
+Metaplex program: `TENET_MPL_SO=<dump> cargo test -p tenet-program-tests --test devnet_metadata`.
 
 Every script checks the RPC's **genesis hash** and refuses anything but
 Devnet. `devnet:setup` records all addresses in

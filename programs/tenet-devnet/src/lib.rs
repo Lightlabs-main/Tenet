@@ -54,6 +54,9 @@ pub const PRICE_EXPONENT: i32 = -6;
 pub const MAX_SPREAD_BPS: u16 = 1_000;
 pub const MAX_SYMBOL_LEN: usize = 16;
 pub const BPS: u128 = 10_000;
+/// Metaplex Token Metadata (same address on every cluster).
+pub const TOKEN_METADATA_PROGRAM_ID: Pubkey = pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+const INSTRUCTIONS_SYSVAR_ID: Pubkey = pubkey!("Sysvar1nstructions1111111111111111111111111");
 
 #[program]
 pub mod tenet_devnet {
@@ -151,6 +154,58 @@ pub mod tenet_devnet {
         m.spread_bps = spread_bps;
         m.bump = ctx.bumps.market;
         emit!(MarketCreated { mint: m.mint, spread_bps });
+        Ok(())
+    }
+
+    /// Give TUSDC a wallet-visible name, symbol and logo (Metaplex Token
+    /// Metadata, fungible). Operator only. The faucet PDA — TUSDC's mint
+    /// authority — signs, and becomes the metadata's update authority, so no
+    /// keypair ever controls TUSDC.
+    pub fn set_tusdc_metadata(ctx: Context<SetTusdcMetadata>, name: String, symbol: String, uri: String) -> Result<()> {
+        require!(name.len() <= 32 && symbol.len() <= 10 && uri.len() <= 200, DevnetError::InvalidSymbol);
+        let borsh_str = |s: &str| {
+            let mut v = (s.len() as u32).to_le_bytes().to_vec();
+            v.extend_from_slice(s.as_bytes());
+            v
+        };
+        // Token Metadata `Create` (42) / `V1` (0): AssetData { name, symbol, uri,
+        // seller_fee_bps 0, creators None, primary_sale_happened false,
+        // is_mutable true, token_standard Fungible (2), collection None, uses
+        // None, collection_details None, rule_set None }, decimals None,
+        // print_supply None.
+        let mut data = vec![42u8, 0];
+        data.extend(borsh_str(&name));
+        data.extend(borsh_str(&symbol));
+        data.extend(borsh_str(&uri));
+        data.extend_from_slice(&[0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0]);
+
+        let a = &ctx.accounts;
+        let ix = anchor_lang::solana_program::instruction::Instruction {
+            program_id: TOKEN_METADATA_PROGRAM_ID,
+            accounts: vec![
+                AccountMeta::new(a.metadata.key(), false),
+                AccountMeta::new_readonly(TOKEN_METADATA_PROGRAM_ID, false), // no master edition
+                AccountMeta::new(a.tusdc_mint.key(), false),
+                AccountMeta::new_readonly(a.faucet.key(), true), // mint authority
+                AccountMeta::new(a.operator.key(), true), // payer
+                AccountMeta::new_readonly(a.faucet.key(), true), // update authority
+                AccountMeta::new_readonly(a.system_program.key(), false),
+                AccountMeta::new_readonly(a.sysvar_instructions.key(), false),
+                AccountMeta::new_readonly(a.token_program.key(), false),
+            ],
+            data,
+        };
+        let bump = [a.faucet.bump];
+        let seeds: &[&[u8]] = &[FAUCET_SEED, &bump];
+        anchor_lang::solana_program::program::invoke_signed(
+            &ix,
+            &[
+                a.metadata.to_account_info(), a.token_metadata_program.to_account_info(), a.tusdc_mint.to_account_info(),
+                a.faucet.to_account_info(), a.operator.to_account_info(), a.system_program.to_account_info(),
+                a.sysvar_instructions.to_account_info(), a.token_program.to_account_info(),
+            ],
+            &[seeds],
+        )?;
         Ok(())
     }
 
@@ -495,6 +550,38 @@ pub struct CreateMarket<'info> {
     pub token_program: Interface<'info, TokenInterface>,
     #[account(address = anchor_spl::token::ID @ DevnetError::WrongTokenProgram)]
     pub usdc_token_program: Interface<'info, TokenInterface>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetTusdcMetadata<'info> {
+    #[account(mut)]
+    pub operator: Signer<'info>,
+
+    #[account(seeds = [ADMIN_SEED], bump = admin.bump, has_one = operator @ DevnetError::NotOperator)]
+    pub admin: Account<'info, Admin>,
+
+    #[account(seeds = [FAUCET_SEED], bump = faucet.bump)]
+    pub faucet: Account<'info, Faucet>,
+
+    #[account(mut, address = admin.tusdc_mint @ DevnetError::WrongMint)]
+    pub tusdc_mint: InterfaceAccount<'info, Mint>,
+
+    /// CHECK: the Token Metadata PDA for TUSDC; derived and created by the
+    /// Token Metadata program itself, which rejects any other address.
+    #[account(mut)]
+    pub metadata: UncheckedAccount<'info>,
+
+    /// CHECK: address-checked.
+    #[account(address = TOKEN_METADATA_PROGRAM_ID)]
+    pub token_metadata_program: UncheckedAccount<'info>,
+
+    /// CHECK: address-checked.
+    #[account(address = INSTRUCTIONS_SYSVAR_ID)]
+    pub sysvar_instructions: UncheckedAccount<'info>,
+
+    #[account(address = anchor_spl::token::ID @ DevnetError::WrongTokenProgram)]
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
 
