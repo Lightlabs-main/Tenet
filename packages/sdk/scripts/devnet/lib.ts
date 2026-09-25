@@ -34,8 +34,23 @@ function isLocalRehearsal(): boolean {
   return process.env.TENET_LOCAL_VALIDATOR === "1" && (host === "127.0.0.1" || host === "localhost");
 }
 
+/** Every `rpc.x(...).send()` retried through public-RPC rate limits. */
+function withRetries<T extends object>(rpc: T): T {
+  return new Proxy(rpc, {
+    get(target, prop, recv) {
+      const f = Reflect.get(target, prop, recv);
+      if (typeof f !== "function") return f;
+      return (...args: unknown[]) => {
+        const req = f.apply(target, args) as { send: (o?: unknown) => Promise<unknown> };
+        return { ...req, send: (o?: unknown) => retry(() => req.send(o)) };
+      };
+    },
+  });
+}
+
 export async function connect() {
-  const rpc = createSolanaRpc(RPC_URL);
+  const base = createSolanaRpc(RPC_URL);
+  const rpc: typeof base = withRetries(base);
   const rpcSubscriptions = createSolanaRpcSubscriptions(WS_URL);
   if (isLocalRehearsal()) {
     const hash = await rpc.getGenesisHash().send();
@@ -72,6 +87,19 @@ function logsOf(e: unknown): string[] {
   return walk(e);
 }
 
+/** Retry a public-RPC call through rate limits (429) and transient network errors. */
+export async function retry<T>(f: () => Promise<T>, tries = 8): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await f();
+    } catch (e) {
+      const m = String((e as Error)?.message ?? e);
+      if (i >= tries || !/429|Too Many|fetch failed|ECONNRESET|ETIMEDOUT|socket/i.test(m)) throw e;
+      await sleep(1500 * (i + 1));
+    }
+  }
+}
+
 export async function send(ctx: Ctx, feePayer: TransactionSigner, ixs: Instruction[], label: string): Promise<string> {
   const { value: blockhash } = await ctx.rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
   const msg = pipe(
@@ -83,7 +111,18 @@ export async function send(ctx: Ctx, feePayer: TransactionSigner, ixs: Instructi
   const tx = await signTransactionMessageWithSigners(msg);
   const sig = getSignatureFromTransaction(tx);
   try {
-    await ctx.sendAndConfirm(tx as Parameters<Ctx["sendAndConfirm"]>[0], { commitment: "confirmed" });
+    // Send, then poll the signature: the public Devnet WebSocket is not
+    // reliable enough to depend on for confirmations.
+    const wire = getBase64EncodedWireTransaction(tx);
+    await ctx.rpc.sendTransaction(wire, { encoding: "base64", preflightCommitment: "confirmed" }).send();
+    for (let i = 0; ; i++) {
+      const { value } = await ctx.rpc.getSignatureStatuses([sig]).send();
+      const st = value[0];
+      if (st?.err) throw new Error(`transaction failed: ${JSON.stringify(st.err, (_, v) => (typeof v === "bigint" ? v.toString() : v))}`);
+      if (st?.confirmationStatus === "confirmed" || st?.confirmationStatus === "finalized") break;
+      if (i > 90) throw new Error(`not confirmed after 90s: ${sig}`);
+      await sleep(1500);
+    }
   } catch (e) {
     const logs = logsOf(e);
     const size = getBase64EncodedWireTransaction(tx).length;

@@ -10,6 +10,26 @@ test assets that have **no monetary value**:
 | Jupiter                   | **Market** — fixed-price inventory swaps with a 0.30% spread      |
 | Tokenized stocks / PreStocks | **DEVNET TEST INSTRUMENTS** — not real stocks or securities    |
 
+## Live on Devnet (2026-09-25)
+
+Both programs are deployed (upgrade authority `3XdzitTSYqhXpBbZjSNKNfkftudVA9BPrwXmV9XhXeLi`) and set up.
+
+| | Address |
+|---|---|
+| tenet | [`7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf`](https://explorer.solana.com/address/7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf?cluster=devnet) |
+| tenet-devnet | [`6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm`](https://explorer.solana.com/address/6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm?cluster=devnet) |
+| TUSDC mint | [`3AYtnYGVUEmvBHBAqcsvMEgDNGdL28jwe5b4zkM1CnAb`](https://explorer.solana.com/address/3AYtnYGVUEmvBHBAqcsvMEgDNGdL28jwe5b4zkM1CnAb?cluster=devnet) |
+| Tenet Config | [`F9jmYmguYm1HuE4eUdJKCruowwQQ2MPMBz8WGUsBePRo`](https://explorer.solana.com/address/F9jmYmguYm1HuE4eUdJKCruowwQQ2MPMBz8WGUsBePRo?cluster=devnet) |
+
+| Instrument | Mint | Feed | Market |
+|---|---|---|---|
+| TNVDA | [`D1XJbkoGyaWdvMiBxJ8mvrsbxDpNvLn4W8x2oEhGk5wt`](https://explorer.solana.com/address/D1XJbkoGyaWdvMiBxJ8mvrsbxDpNvLn4W8x2oEhGk5wt?cluster=devnet) | [`B6CabnZi…`](https://explorer.solana.com/address/B6CabnZiBMrGchECgPcx1tsXHGTgMRofvdYg9KYUUXhE?cluster=devnet) | [`CBEuAPyc…`](https://explorer.solana.com/address/CBEuAPycDvhr6UMWh9ZDZgTYWLoWSx2Vjm3oNNXKCy1y?cluster=devnet) |
+| TAAPL | [`64WYJLaZoA5qwNz4AHtLzP6fxScNaMSBEEkazgcNM5MY`](https://explorer.solana.com/address/64WYJLaZoA5qwNz4AHtLzP6fxScNaMSBEEkazgcNM5MY?cluster=devnet) | [`CBejhsw8…`](https://explorer.solana.com/address/CBejhsw8NQXLhjiRfnNgPsuGYjrnDzaVyFwFbok1XTTp?cluster=devnet) | [`GeTgjWZ7…`](https://explorer.solana.com/address/GeTgjWZ7tBCjpRTPHAPdXErotTVGLj9T12n6MguZX5Je?cluster=devnet) |
+| TSPY | [`35spk64m3Z3pRvFLRZBmFUCuZ2RNSXTyxXHaU2fWChVn`](https://explorer.solana.com/address/35spk64m3Z3pRvFLRZBmFUCuZ2RNSXTyxXHaU2fWChVn?cluster=devnet) | [`ANWhRLQE…`](https://explorer.solana.com/address/ANWhRLQEji7NHoudQ6SmU1FErUjfUVBjKocZFHWJtU4a?cluster=devnet) | [`FHyqCPUT…`](https://explorer.solana.com/address/FHyqCPUTF1d9Vd369va14rANq3VVRsoyC1jqSDrQ7sZZ?cluster=devnet) |
+| TSPACEX | [`5sCmGcmxvfhESzg67B8whRxCZP3ngQP32Q1LfvZ38uf5`](https://explorer.solana.com/address/5sCmGcmxvfhESzg67B8whRxCZP3ngQP32Q1LfvZ38uf5?cluster=devnet) | [`81Rxxdnv…`](https://explorer.solana.com/address/81Rxxdnv3j2SVovszeKMfG8SxjfVYJPJNqiZj5brBCAV?cluster=devnet) | [`EUA6Urw6…`](https://explorer.solana.com/address/EUA6Urw6TEcYBanxxLgePDqFY4KGwV8hZwG9dcHNbBoZ?cluster=devnet) |
+| TOPENAI | [`2w4f95nfvmmMawNZC3hqvsk9hsKNLP1A7ZWaZXmtT3FJ`](https://explorer.solana.com/address/2w4f95nfvmmMawNZC3hqvsk9hsKNLP1A7ZWaZXmtT3FJ?cluster=devnet) | [`5iTKVdPh…`](https://explorer.solana.com/address/5iTKVdPhJUAzMspYALwNrAdP7GnuQyVjBn36sE8EqRDC?cluster=devnet) | [`C5C5EQ8t…`](https://explorer.solana.com/address/C5C5EQ8twDHwLN12ZFbNnvEqMQ3NNvwU3kfdcsWJnohz?cluster=devnet) |
+| TANTHROPIC | [`FnqgdZK9rn7JkfuXNpxJQzm4oMs1T9iWxjKDYSA7Kg9N`](https://explorer.solana.com/address/FnqgdZK9rn7JkfuXNpxJQzm4oMs1T9iWxjKDYSA7Kg9N?cluster=devnet) | [`CH4KyJ3V…`](https://explorer.solana.com/address/CH4KyJ3V45RYnVQfFF6Xk6VJkWuQzzNgyZzwzQRyNVfV?cluster=devnet) | [`3ewBvLwt…`](https://explorer.solana.com/address/3ewBvLwtvejvfx9JR2GAKCxxhzWbkwyB2jwkZ1GKqLKq?cluster=devnet) |
+
 ## Two programs
 
 | Program | Address | Role |

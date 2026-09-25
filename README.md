@@ -9,7 +9,7 @@ Collectively owned portfolios of tokenized stocks, governed by an on-chain inves
 > **Status: complete Devnet build — POOL → EXECUTE → VALUE → EXIT → FORK.**
 > The whole loop runs against real on-chain state with valueless test assets: TUSDC from an
 > on-chain faucet, six DEVNET TEST INSTRUMENTS, a devnet price feed and a devnet market standing in
-> for Pyth and Jupiter. Nothing is deployed on mainnet; there are no production users or assets.
+> for Pyth and Jupiter. **Live on Devnet** (addresses in docs/devnet.md). Nothing is deployed on mainnet; there are no production users or assets.
 > Start here: **[docs/devnet.md](docs/devnet.md)** (setup, architecture, demo script).
 
 ---

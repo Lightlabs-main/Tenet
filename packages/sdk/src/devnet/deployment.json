@@ -1,1 +1,60 @@
-{}
+{
+  "cluster": "devnet",
+  "tenetProgram": "7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf",
+  "devnetProgram": "6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm",
+  "operator": "3XdzitTSYqhXpBbZjSNKNfkftudVA9BPrwXmV9XhXeLi",
+  "tusdcMint": "3AYtnYGVUEmvBHBAqcsvMEgDNGdL28jwe5b4zkM1CnAb",
+  "config": "F9jmYmguYm1HuE4eUdJKCruowwQQ2MPMBz8WGUsBePRo",
+  "instruments": [
+    {
+      "symbol": "TNVDA",
+      "mint": "D1XJbkoGyaWdvMiBxJ8mvrsbxDpNvLn4W8x2oEhGk5wt",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "decimals": 6,
+      "feed": "B6CabnZiBMrGchECgPcx1tsXHGTgMRofvdYg9KYUUXhE",
+      "market": "CBEuAPycDvhr6UMWh9ZDZgTYWLoWSx2Vjm3oNNXKCy1y"
+    },
+    {
+      "symbol": "TAAPL",
+      "mint": "64WYJLaZoA5qwNz4AHtLzP6fxScNaMSBEEkazgcNM5MY",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "decimals": 6,
+      "feed": "CBejhsw8NQXLhjiRfnNgPsuGYjrnDzaVyFwFbok1XTTp",
+      "market": "GeTgjWZ7tBCjpRTPHAPdXErotTVGLj9T12n6MguZX5Je"
+    },
+    {
+      "symbol": "TSPY",
+      "mint": "35spk64m3Z3pRvFLRZBmFUCuZ2RNSXTyxXHaU2fWChVn",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "decimals": 9,
+      "feed": "ANWhRLQEji7NHoudQ6SmU1FErUjfUVBjKocZFHWJtU4a",
+      "market": "FHyqCPUTF1d9Vd369va14rANq3VVRsoyC1jqSDrQ7sZZ"
+    },
+    {
+      "symbol": "TSPACEX",
+      "mint": "5sCmGcmxvfhESzg67B8whRxCZP3ngQP32Q1LfvZ38uf5",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "decimals": 6,
+      "feed": "81Rxxdnv3j2SVovszeKMfG8SxjfVYJPJNqiZj5brBCAV",
+      "market": "EUA6Urw6TEcYBanxxLgePDqFY4KGwV8hZwG9dcHNbBoZ"
+    },
+    {
+      "symbol": "TOPENAI",
+      "mint": "2w4f95nfvmmMawNZC3hqvsk9hsKNLP1A7ZWaZXmtT3FJ",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "decimals": 6,
+      "feed": "5iTKVdPhJUAzMspYALwNrAdP7GnuQyVjBn36sE8EqRDC",
+      "market": "C5C5EQ8twDHwLN12ZFbNnvEqMQ3NNvwU3kfdcsWJnohz"
+    },
+    {
+      "symbol": "TANTHROPIC",
+      "mint": "FnqgdZK9rn7JkfuXNpxJQzm4oMs1T9iWxjKDYSA7Kg9N",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "decimals": 6,
+      "feed": "CH4KyJ3V45RYnVQfFF6Xk6VJkWuQzzNgyZzwzQRyNVfV",
+      "market": "3ewBvLwtvejvfx9JR2GAKCxxhzWbkwyB2jwkZ1GKqLKq"
+    }
+  ],
+  "reference": null,
+  "updatedAt": "2026-09-25T18:41:31.513Z"
+}
