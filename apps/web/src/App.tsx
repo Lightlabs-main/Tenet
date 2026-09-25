@@ -4,6 +4,7 @@ import type { Address } from "@solana/kit";
 import { CASH_TICKER, CLUSTER, DEPLOYMENT, TOKEN_PROGRAM, USDC_DECIMALS } from "./config.ts";
 import { ataAddress, b58ToAddress, isTenetProgramDeployed, loadCircle, loadDirectory, tokenBalance, type CircleView, type DirectoryEntry } from "./chain.ts";
 import { Dashboard, FirstCircleSetup, type CirclePanel } from "./dashboard.tsx";
+import { PreStocksMarketSurface } from "./prestocks.tsx";
 import { AddressLink, Badge, formatBps, Spinner, ToastProvider } from "./ui.tsx";
 import { formatRaw } from "./money.ts";
 import { TENET_PROGRAM_ADDRESS } from "@tenet/sdk";
@@ -474,7 +475,7 @@ function LandingSurface({ view, circleLoadStatus, onExplore, onCircle, onMandate
 
       <section className="market-feature" id="market-data">
         <div><span className="eyebrow">Market intelligence</span><h2>Price is not always value.</h2><p>Public tokenized equities need a verified token price and, where available, an underlying-equity comparison. PreStocks need a clear separation between executable market price and issuer reference mark.</p><div className="market-tags"><span>Underlying vs token</span><span>Market vs reference mark</span><span>Supply & liquidity</span><span>Corporate actions</span></div></div>
-        <div className="market-data-column"><div className="market-readout"><div><span>Underlying ↔ token · market ↔ mark</span><strong>Live in the app</strong><small>On Devnet, computed from on-chain test price feeds and labelled DEVNET TEST DATA.</small></div></div></div>
+        <div className="market-data-column"><div className="market-readout"><div><span>Underlying ↔ token · market ↔ mark</span><strong>Live in the app</strong><small>Devnet Circles compute both on-chain from test feeds; below is the real PreStocks market, live.</small></div></div><PreStocksMarketSurface holdings={allowedAssets} /></div>
       </section>
 
       <section className="landing-contribution" id="contributions">

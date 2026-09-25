@@ -22,6 +22,7 @@ import {
   type ActivityItem, type CircleView, type DirectoryEntry, type ExitView, type Holding,
 } from "./chain.ts";
 import { executionProvider, priceProvider } from "./adapters.ts";
+import { PreStocksMarketSurface } from "./prestocks.tsx";
 import { formatRaw, formatShares, parseAmount } from "./money.ts";
 import { ActionButton, trim, usdc, useNow, useRunner, type Run, type RunGroups } from "./runner.tsx";
 import { AddressLink, Badge, Meter, Stepper, explorerTx, formatBps, formatSignedBps, ratioBps } from "./ui.tsx";
@@ -351,7 +352,7 @@ function ExecuteConnected({ view, circle, account, onChanged }: { view: CircleVi
 function ValueSurface({ view }: { view: CircleView }) {
   const pv = useMemo(() => portfolioOf(view), [view]);
   const now = BigInt(Math.floor(Date.now() / 1000));
-  return (
+  return (<>
     <section className="card value-card" id="value">
       <div className="card-head">
         <div><span className="eyebrow">Value · {priceProvider.name}</span><h2>Circle NAV {pv.navRaw === null ? "unavailable" : `${usdc(pv.navRaw)} ${CASH_TICKER}`}</h2>
@@ -387,7 +388,15 @@ function ValueSurface({ view }: { view: CircleView }) {
       )}
       <p className="honest value-note"><span>ⓘ</span><span>Price moves can push an asset above its target; the program then refuses further buys of it. Exits are in kind and never need a price.</span></p>
     </section>
-  );
+    <section className="card value-card" id="prestocks-live">
+      <div className="card-head">
+        <div><span className="eyebrow">Live market · PreStocks · Solana mainnet</span><h2>The real pre-IPO market this is built for</h2>
+          <p className="card-intro">Live data from the PreStocks API: every tokenized pre-IPO stock, its market price, the issuer's reference mark and the premium or discount between them — the same market-vs-mark view the Devnet Circle shows above. Real data; not this Circle's holdings.</p></div>
+        <Badge tone="good">LIVE · REAL DATA</Badge>
+      </div>
+      <PreStocksMarketSurface holdings={view.holdings} />
+    </section>
+  </>);
 }
 
 // ================================================================ rules
