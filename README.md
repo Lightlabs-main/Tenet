@@ -6,11 +6,39 @@ Collectively owned portfolios of tokenized stocks, governed by an on-chain inves
 
 ---
 
-> **Status: complete Devnet build — POOL → EXECUTE → VALUE → EXIT → FORK.**
-> The whole loop runs against real on-chain state with valueless test assets: TUSDC from an
-> on-chain faucet, six DEVNET TEST INSTRUMENTS, a devnet price feed and a devnet market standing in
-> for Pyth and Jupiter. **Live on Devnet** (addresses in docs/devnet.md). Nothing is deployed on mainnet; there are no production users or assets.
-> Start here: **[docs/devnet.md](docs/devnet.md)** (setup, architecture, demo script).
+## Try it
+
+**Live app (Solana Devnet): https://38.49.209.149/app** — connect a wallet set to Devnet, click **Get 1,000 TUSDC**, create a Circle, and follow the guided checklist.
+
+> Devnet only. TUSDC and the test instruments (TNVDA, TAAPL, TSPY, TSPACEX, TOPENAI, TANTHROPIC) have **no monetary value**; prices are a devnet pricing simulation standing in for Pyth / PreStocks, and a devnet market stands in for Jupiter. Nothing is deployed on mainnet.
+
+### What works — verified on Devnet with real transactions
+
+| Step | What happens on-chain |
+|---|---|
+| **POOL** | Faucet TUSDC → contribute into a separate epoch escrow (cancel = full refund) → window closes → everyone gets shares at the same rate |
+| **EXECUTE** | One atomic tx per asset: `begin_execution → market buy → end_execution`. The program checks real vault deltas, price impact, supply consumption and the Mandate target weight — or reverts everything |
+| **VALUE** | NAV from vaults × prices, computed on-chain for new members; weight vs target, **market vs mark** (PreStocks-style), **token vs underlying** (Pyth-style), cap compliance |
+| **EXIT** | 25 / 50 / 100% **in kind** — your slice of every asset to your wallet. No vote, no price, no dilution of anyone who stays |
+| **FORK** | Copy the Mandate, **change a rule** (e.g. pre-IPO cap 30% → 15%), new independent Circle held to the new rule; `forked_from` lineage on-chain |
+
+The full loop ran end to end on Devnet with four wallets (`pnpm devnet:e2e`). Example Circles you can open in the app: parent [`3GY5s6…`](https://explorer.solana.com/address/3GY5s6ruwxqRWBq1dcE8TgMssPH6KwANme5qqBnwrLvR?cluster=devnet), fork [`8Pkrh…`](https://explorer.solana.com/address/8PkrhD22ZoiyrxfvoQzKQ63u2QGApxshuAd3A36E6qwG?cluster=devnet).
+
+### Deployed
+
+| | Address |
+|---|---|
+| Tenet program | [`7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf`](https://explorer.solana.com/address/7pLYmJXsTJW7vWuT9BwYqNCWUDXp8SR1JKmKYNofAECf?cluster=devnet) |
+| tenet-devnet (faucet, feeds, market) | [`6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm`](https://explorer.solana.com/address/6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm?cluster=devnet) |
+| TUSDC mint | [`3AYtnYGVUEmvBHBAqcsvMEgDNGdL28jwe5b4zkM1CnAb`](https://explorer.solana.com/address/3AYtnYGVUEmvBHBAqcsvMEgDNGdL28jwe5b4zkM1CnAb?cluster=devnet) |
+
+Details, all instrument addresses, operator commands and a demo script: **[docs/devnet.md](docs/devnet.md)**.
+
+### Built with
+
+- **PreStocks** — pre-IPO economic exposure is a first-class asset class: a hard pre-IPO cap in every Mandate, market price vs issuer reference mark kept separate, registry verified against real PreStocks mints ([docs/verification.md](docs/verification.md) V-001, V-005).
+- **Pyth** — the program's single price adapter reads Pyth `PriceUpdateV2` on mainnet (freshness, confidence ≤ 1%, feed binding) and drives NAV, the price-impact floor and Mandate weight checks; the mainnet Config refuses any other price source ([programs/tenet/src/price.rs](programs/tenet/src/price.rs)).
+- **Solana / Anchor / Token-2022** — transfer fees, ScaledUiAmount and 6/9-decimal mints handled with raw integer accounting.
 
 ---
 
