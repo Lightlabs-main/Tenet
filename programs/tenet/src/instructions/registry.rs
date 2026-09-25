@@ -91,6 +91,9 @@ pub fn upsert_handler(ctx: Context<UpsertRegistryEntry>, p: RegistryParams) -> R
         AssetClass::PublicTokenizedEquity | AssetClass::PreIpo => {
             token_program == anchor_spl::token_2022::ID
         }
+        // Only initialize_devnet_test_market can create this class, and it
+        // pins the known Devnet test-USDC mint and test-equity PDA.
+        AssetClass::DevnetTestEquity => false,
     };
     require!(consistent, TenetError::AssetClassMismatch);
 

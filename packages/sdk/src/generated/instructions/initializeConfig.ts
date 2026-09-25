@@ -15,7 +15,7 @@ export const INITIALIZE_CONFIG_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Arra
 
 export function getInitializeConfigDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(INITIALIZE_CONFIG_DISCRIMINATOR); }
 
-export type InitializeConfigInstruction<TProgram extends string = typeof TENET_PROGRAM_ADDRESS, TAccountUpgradeAuthority extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountProgram extends string | AccountMeta<string> = "FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v", TAccountProgramData extends string | AccountMeta<string> = string, TAccountUsdcMint extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+export type InitializeConfigInstruction<TProgram extends string = typeof TENET_PROGRAM_ADDRESS, TAccountUpgradeAuthority extends string | AccountMeta<string> = string, TAccountConfig extends string | AccountMeta<string> = string, TAccountProgram extends string | AccountMeta<string> = "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh", TAccountProgramData extends string | AccountMeta<string> = string, TAccountUsdcMint extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountUpgradeAuthority extends string ? WritableSignerAccount<TAccountUpgradeAuthority> & AccountSignerMeta<TAccountUpgradeAuthority> : TAccountUpgradeAuthority, TAccountConfig extends string ? WritableAccount<TAccountConfig> : TAccountConfig, TAccountProgram extends string ? ReadonlyAccount<TAccountProgram> : TAccountProgram, TAccountProgramData extends string ? ReadonlyAccount<TAccountProgramData> : TAccountProgramData, TAccountUsdcMint extends string ? ReadonlyAccount<TAccountUsdcMint> : TAccountUsdcMint, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>;
 
 export type InitializeConfigInstructionData = { discriminator: ReadonlyUint8Array; registryAuthority: Address;  };
@@ -70,7 +70,7 @@ if (!accounts.config.value) {
 accounts.config.value = await findConfigPda({ programAddress });
 }
 if (!accounts.program.value) {
-accounts.program.value = 'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v' as Address<'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v'>;
+accounts.program.value = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'>;
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
@@ -112,7 +112,7 @@ const args = { ...input,  };
 
 // Resolve default values.
 if (!accounts.program.value) {
-accounts.program.value = 'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v' as Address<'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v'>;
+accounts.program.value = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'>;
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;

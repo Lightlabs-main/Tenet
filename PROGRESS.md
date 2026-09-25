@@ -1,6 +1,6 @@
 # Tenet — Progress
 
-Last updated: 2026-09-23
+Last updated: 2026-09-25
 
 ## Secure-context HTTP error (2026-09-23)
 
@@ -13,6 +13,15 @@ Last updated: 2026-09-23
   and verified.
 
 ---
+
+## Devnet test-instrument implementation — 2026-09-25
+
+- Added a distinct fixed-inventory TST-EQ Token-2022 instrument for Devnet testing only. It is not a stock, private-market exposure, security, price, or redemption promise.
+- Added instructions to initialize the test market, create an isolated test Circle/Epoch 0, and allocate settled active test-USDC into the Circle's verified asset vault. The live Jupiter/public-equity route remains disabled.
+- Added a portfolio UI section and exact-binary preflight. Wallet actions stay disabled until the deployed Devnet program hash matches this tested build; the existing deployed binary does not match.
+- The test-USDC mint is 8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt; live Devnet metadata shows 6 decimals, 110 USDC supply, mint authority 9pCJ96uVkHb6wiSvbSpTNL99A3jsieQ9R8w6A9s2o6aE, and no freeze authority. No matching authority key was found in the inspected VPS deployment-key locations. No faucet or token mint was simulated.
+- Verification: 59 program/LiteSVM tests, 51 package tests (domain, SDK, proxy), web typecheck/build and money-lint pass. This does not prove live wallet execution for the new feature.
+- Remaining: user upgrade-authority signature for the new Devnet binary and access to legitimate project test-USDC. No live transaction, mint, program upgrade, or real-money operation was made.
 
 ## TENET SPEC UPDATE
 
@@ -792,3 +801,14 @@ What remains unchanged: No deployment, signature, or transaction was made. The a
 - Correction after expanded VPS scan: the FJt9... program keypair already exists at `/opt/tenet/.keys/tenet-keypair.json` and `/opt/tenet/target/deploy/tenet-keypair.json`. The separate build checkout's `target/deploy/tenet-keypair.json` derives 7pLY..., so it must not be used for this program identity. The earlier search missed the live `/opt/tenet` directory.
 - The FJt9... copies were initially mode 0666 and 0644; both are now 0600 (root-owned). The separate 7pLY... build key was also changed from 0644 to 0600. No private contents were printed; the matching FJt9 key is outside the Git checkout.
 - Remaining deployment requirement: identify/configure a distinct funded deployment payer and authorized upgrade authority, confirm which verified source/build directory is authoritative, and run the release gates. The configured mainnet program lookup was null at finalized slot 450019646. No signing, transaction, or deployment was performed; mainnet transactions remain disabled.
+
+## DEVNET BUILD RESUMED — 2026-09-24
+
+- User selected Devnet because Mainnet deployment rent is unaffordable. SSH access to the VPS is working; development and deployment are being done in `/opt/tenet-build-45188cc`.
+- Set the active Devnet build to a fresh program identity `7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh`. The older Devnet `FJt9...` deployment and its two existing test Circles were not modified. This is Devnet-only; no claim of Mainnet deployment or asset migration.
+- Built an 819,472-byte size-optimized SBF artifact, SHA-256 `4affe732ce6bbbeff99bd93e92879a8d31032cc936d61f09e65a57223f1e983f`; Devnet rent-exempt minimum observed as 4.163568 SOL.
+- Full offline Rust/LiteSVM suite passed 81/81 against the optimized artifact. Package tests passed 64/64; web typecheck, money-lint, production build, and `git diff --check` passed after the Devnet E2E runner override; E2E syntax check also passed.
+- Web source and SDK target the deployed Devnet program; the UI uses test USDC `8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt`, defaults to the empty Circle `6UB4NCMKLZbMAJ2uS9ynmQ8m8TsaCjFDnURQfmpE5rK2`, and enables wallet-signed Devnet contribution, exit and Fork flows. Stock purchases remain disabled.
+- Live Devnet E2E passed Epoch-0 contribution escrow, finalization, share settlement, partial redemption and claim checks using valueless test assets. No user wallet signature was requested by Codex.
+- The production web bundle is now served at `https://38.49.209.149/app`; browser verification confirms the deployed Circle loads, test-assets warning appears, and the header exposes Connect wallet.
+- Mainnet, Jupiter stock execution, equity-feed validation and automatic contribution authorization remain gated; this is not real-money functionality or overall Tenet completion.

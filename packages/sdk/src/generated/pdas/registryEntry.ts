@@ -9,10 +9,10 @@
 import { getAddressEncoder, getBytesEncoder, getProgramDerivedAddress, type Address, type ProgramDerivedAddress } from '@solana/kit';
 
 export type RegistryEntrySeeds = {
-mint: Address;
+testMint: Address;
 };
 
 export async function findRegistryEntryPda(seeds: RegistryEntrySeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = 'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v' as Address<'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v'> } = config;
-  return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([114, 101, 103, 105, 115, 116, 114, 121])), getAddressEncoder().encode(seeds.mint)]});
+  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
+  return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([114, 101, 103, 105, 115, 116, 114, 121])), getAddressEncoder().encode(seeds.testMint)]});
 }

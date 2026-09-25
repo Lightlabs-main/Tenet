@@ -7,6 +7,7 @@ import { Dashboard, PreStocksMarketSurface, type CirclePanel } from "./dashboard
 import { AddressLink, Badge, formatBps, Spinner, ToastProvider } from "./ui.tsx";
 import { formatRaw } from "./money.ts";
 import { TENET_PROGRAM_ADDRESS } from "@tenet/sdk";
+import { WalletButton } from "./wallet.tsx";
 
 export function App() {
   return (
@@ -42,7 +43,7 @@ function AppRouter() {
 }
 
 function PublicLanding({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: ThemeChoice) => void }) {
-  // No mainnet Circle exists yet. Never carry the former devnet demo into this page.
+  // No Devnet Circle exists yet. Never carry the former devnet demo into this page.
   const view: CircleView | null = null;
   const circleLoadStatus = "failed" as const;
 
@@ -65,7 +66,7 @@ function PublicLanding({ theme, setTheme }: { theme: ThemeChoice; setTheme: (the
               <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
             </select>
           </label>
-          <a className="btn primary public-enter" href="/app#top">Open mainnet workspace <span aria-hidden>→</span></a>
+          <a className="btn primary public-enter" href="/app#top">Open Devnet workspace <span aria-hidden>→</span></a>
         </div>
       </header>
       <main className="public-main">
@@ -106,7 +107,7 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
     } catch (e) {
       setProgramStatus("unavailable");
       const message = e instanceof Error ? e.message : "Unknown RPC error";
-      setProgramError(message.match(/HTTP error \((\d{3})\)/)?.[0] ?? "Network request failed (RPC/CORS). Check the configured mainnet endpoint.");
+      setProgramError(message.match(/HTTP error \((\d{3})\)/)?.[0] ?? "Network request failed (RPC/CORS). Check the configured Devnet endpoint.");
     }
   }, []);
 
@@ -172,10 +173,10 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
           <div className="brand-mark">T</div>
           <div className="brand-copy">
             <span className="brand-name">Tenet</span>
-            <span className="brand-tag">Group portfolio · Solana mainnet</span>
+            <span className="brand-tag">Group portfolio · Solana Devnet</span>
           </div>
         </a>
-        <span className="pill"><span className="dot" />Solana Mainnet · read-only</span>
+        <span className="pill"><span className="dot" />Solana Devnet · test network</span>
         <div className="nav-spacer" />
         <label className="theme-control">
           <span className="sr-only">Theme</span>
@@ -193,6 +194,7 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
             {addressError ? <span className="circle-switch-error" role="alert">{addressError}</span> : null}
           </form>
         </details> : <span className="pill">Transactions disabled</span>}
+        {programStatus === "deployed" ? <WalletButton /> : null}
       </nav>
 
       <div className="workspace-layout">
@@ -200,27 +202,27 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
           <div className="sidebar-intro"><span className="eyebrow">TENET / APP</span><strong>Invest together.</strong><span>One Circle. Shared rules. Your own exit.</span></div>
           {programStatus === "deployed" ? <nav className="sidebar-nav" aria-label="Circle sections">
             {([ ["overview", "Overview", "◈"], ["explore", "Explore", "⌕"], ["portfolio", "Holdings", "▦"], ["prices", "Prices & value", "◒"], ["mandate", "Mandate", "≡"] ] as const).map(([target, label, icon]) => <a key={target} className={surface === target ? "active" : ""} href={`#${target === "overview" ? "top" : target === "mandate" ? "mandate-detail" : target}`} onClick={(event) => { event.preventDefault(); navigate(target); }}><span className="nav-icon" aria-hidden="true">{icon}</span>{label}</a>)}
-          </nav> : <p className="mainnet-sidebar-note">Circle navigation appears when the Tenet program is deployed.</p>}
+          </nav> : <p className="Devnet-sidebar-note">Circle navigation appears when the Tenet program is deployed.</p>}
           <div className="sidebar-bottom">
             <div className="sidebar-circle-label">OPEN CIRCLE</div>
             <span className="sidebar-address">{circle ? `${String(circle).slice(0, 6)}…${String(circle).slice(-5)}` : programStatus === "missing" ? "Program not deployed" : "No Circle selected"}</span>
-            <span className="sidebar-status"><span className="status-dot" />Solana Mainnet · read-only</span>
+            <span className="sidebar-status"><span className="status-dot" />Solana Devnet · test assets</span>
             <a className="sidebar-public" href="/">← Public site</a>
           </div>
         </aside>
 
         <main className="page" id="top">
           {programStatus !== "deployed" ? <>
-          <section className="card empty load-error mainnet-gate" aria-live="polite">
-            <span className="eyebrow">Solana Mainnet · read-only</span>
-            <h1>{programStatus === "checking" ? "Checking Tenet on mainnet…" : programStatus === "missing" ? "Tenet is not deployed on mainnet yet." : "Couldn’t verify Tenet on mainnet."}</h1>
+          <section className="card empty load-error Devnet-gate" aria-live="polite">
+            <span className="eyebrow">Solana Devnet · read-only</span>
+            <h1>{programStatus === "checking" ? "Checking Tenet on Devnet…" : programStatus === "missing" ? "Tenet is not deployed on Devnet yet." : "Couldn’t verify Tenet on Devnet."}</h1>
             <p>{programStatus === "checking"
               ? "Reading the configured Tenet program account at finalized commitment. No wallet or transaction is involved."
               : programStatus === "missing"
                 ? "The configured Tenet program address has no executable program account on this network. No devnet Circle, test USDC, or test balances are being shown here."
-                : "The mainnet RPC could not confirm whether Tenet is deployed. The app stays read-only and does not substitute devnet data."}</p>
-            <div className="mainnet-gate-meta"><span>Configured program</span><AddressLink address={TENET_PROGRAM_ADDRESS} /></div>
-            <p className="muted">This build is connected to Solana Mainnet, but all wallet transactions remain disabled until the program is deployed and the release checks are complete.</p>
+                : "The Devnet RPC could not confirm whether Tenet is deployed. The app stays read-only and does not substitute devnet data."}</p>
+            <div className="Devnet-gate-meta"><span>Configured program</span><AddressLink address={TENET_PROGRAM_ADDRESS} /></div>
+            <p className="muted">This build is connected to Solana Devnet, but all wallet transactions remain disabled until the program is deployed and the release checks are complete.</p>
             <button className="btn ghost" type="button" disabled={programStatus === "checking"} onClick={() => { void checkProgram(); }}>{programStatus === "checking" ? "Checking…" : "Check again"}</button>
             {programError ? <p className="error-text" role="status">RPC read failed: {programError}</p> : null}
           </section>
@@ -229,8 +231,8 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
           <div className="notice">
             <span className="notice-icon">!</span>
             <div className="notice-copy">
-              <strong>Solana Mainnet · read-only</strong>
-              <span>Real network data only. Contributions, exits, forks and trades are disabled in this build.</span>
+              <strong>Solana Devnet · test assets only</strong>
+              <span>Contributions, exits and Forks use valueless test tokens. Stock purchases are not enabled.</span>
             </div>
           </div>
 
@@ -242,14 +244,14 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
             <div className="card empty load-error">
               <span className="eyebrow">Circle not loaded</span>
               <h2>We couldn’t open this Circle</h2>
-              <p>Tenet couldn’t read this Circle from Solana Mainnet. Check that the address belongs to a Circle on the selected network, then try again. No transaction was sent and nothing was changed.</p>
+              <p>Tenet couldn’t read this Circle from Solana Devnet. Check that the address belongs to a Circle on the selected network, then try again. No transaction was sent and nothing was changed.</p>
               <button className="btn primary" type="button" disabled={loading} onClick={() => { void reload(); }}>{loading ? "Trying again…" : "Try again"}</button>
               <details><summary>Technical error details</summary><pre>{error}</pre></details>
             </div>
           ) : view && circle ? (
             <Dashboard panel={surface === "mandate" ? "overview" : surface} navigate={navigate} view={view} circle={circle} account={account} me={me} usdcBalance={usdcBalance} onChanged={reload} onOpenCircle={openResolvedCircle} />
           ) : (
-            <div className="card empty">{loading ? <><Spinner /> <p>Reading the Circle from Solana Mainnet…</p></> : <p>Enter a Circle address above.</p>}</div>
+            <div className="card empty">{loading ? <><Spinner /> <p>Reading the Circle from Solana Devnet…</p></> : <p>Enter a Circle address above.</p>}</div>
           )}
           </>}
         </main>
@@ -299,20 +301,20 @@ function ExploreSurface({ view, error, loading, onRetry, onOpen }: { view: Circl
 
       <div className="explore-toolbar">
         <div><span className="eyebrow">Circle preview</span><h2>What this Circle has recorded</h2></div>
-        <span className="muted">{CLUSTER === "devnet" ? "One verified devnet Circle" : "Solana Mainnet"}</span>
+        <span className="muted">{CLUSTER === "devnet" ? "One verified devnet Circle" : "Solana Devnet"}</span>
       </div>
 
       <div className="explore-grid">
         {view ? (
           <article className="card explore-card">
-            <div className="explore-card-top"><Badge tone={CLUSTER === "devnet" ? "warn" : "info"}>{CLUSTER === "devnet" ? "Devnet test Circle" : "Mainnet Circle"}</Badge><span>Shared portfolio</span></div>
+            <div className="explore-card-top"><Badge tone={CLUSTER === "devnet" ? "warn" : "info"}>{CLUSTER === "devnet" ? "Devnet test Circle" : "Devnet Circle"}</Badge><span>Shared portfolio</span></div>
             <h2>{displayCircleName(view.mandate.name)}</h2>
             <p>This is what the Circle currently has recorded on Solana. Test tokens have no real-world value; an asset allowed by its rules is not automatically held.</p>
             <div className="explore-meta"><span>{view.holdings.filter((h) => h.vaultRaw > 0n).length} tokens held</span><span>{view.holdings.length} assets allowed by rules</span><span>{view.circle.memberCount.toString()} members</span></div>
             <details className="execution-details"><summary>Show technical Circle name</summary><span>{view.mandate.name}</span></details>
             <button className="btn primary" type="button" onClick={onOpen}>See what it holds</button>
           </article>
-        ) : error ? <article className="card explore-load-error"><span className="eyebrow">Network read failed</span><h2>The Circle could not be loaded</h2><p>Check that this address belongs to a Circle on Solana Mainnet. No devnet data is substituted.</p><button className="btn primary" type="button" disabled={loading} onClick={onRetry}>{loading ? "Trying again…" : "Try again"}</button><details className="execution-details"><summary>Technical details</summary><pre>{error}</pre></details></article> : <article className="card explore-load-error"><span className="eyebrow">No Circle selected</span><h2>Open a Circle address</h2><p>Only Circles deployed under the configured Tenet mainnet program can be read here.</p></article>}
+        ) : error ? <article className="card explore-load-error"><span className="eyebrow">Network read failed</span><h2>The Circle could not be loaded</h2><p>Check that this address belongs to a Circle on Solana Devnet. No devnet data is substituted.</p><button className="btn primary" type="button" disabled={loading} onClick={onRetry}>{loading ? "Trying again…" : "Try again"}</button><details className="execution-details"><summary>Technical details</summary><pre>{error}</pre></details></article> : <article className="card explore-load-error"><span className="eyebrow">No Circle selected</span><h2>Open a Circle address</h2><p>Only Circles deployed under the configured Tenet Devnet program can be read here.</p></article>}
       </div>
       <p className="explore-footnote">A full Circle directory is not connected yet. This is the only verified Circle in the preview; performance history is unavailable.</p>
     </div>
@@ -351,7 +353,7 @@ function LandingSurface({ view, circleLoadStatus, onExplore, onCircle, onMandate
             <a className="btn ghost" href="#model">See how Tenet works <span aria-hidden>↓</span></a>
           </div>
           <div className="landing-principles"><span><i>◎</i> People pool together</span><span><i>≡</i> Rules govern capital</span><span><i>⑂</i> Rules can be forked</span></div>
-          <span className="landing-note">{CLUSTER === "devnet" ? "Devnet preview · one test Circle · no real-world value" : "Solana Mainnet · read-only · no sample Circle or test balances"}</span>
+          <span className="landing-note">{CLUSTER === "devnet" ? "Devnet preview · test assets have no real-world value" : "Solana Devnet · read-only · no sample Circle or test balances"}</span>
         </div>
         <div className="landing-visual" aria-label="People pooling into a Circle governed by a Mandate">
           <div className="flow-glow" aria-hidden="true" />
@@ -471,7 +473,7 @@ function LandingSurface({ view, circleLoadStatus, onExplore, onCircle, onMandate
       </section>
 
       <section className="landing-final-cta">
-        <span className="eyebrow">PEOPLE · CAPITAL · RULES</span><h2>Build a Circle around what you believe.</h2><p>Start with shared rules. Let members decide whether to contribute.</p><div><button className="btn primary" type="button" onClick={onExplore}>Explore Circles <span aria-hidden>→</span></button><button className="btn ghost" type="button" onClick={onCircle}>Open mainnet workspace</button></div></section>
+        <span className="eyebrow">PEOPLE · CAPITAL · RULES</span><h2>Build a Circle around what you believe.</h2><p>Start with shared rules. Let members decide whether to contribute.</p><div><button className="btn primary" type="button" onClick={onExplore}>Explore Circles <span aria-hidden>→</span></button><button className="btn ghost" type="button" onClick={onCircle}>Open Devnet workspace</button></div></section>
 
       <footer className="landing-footer"><span className="brand-mark">T</span><span>Tenet</span><p>Don’t copy someone’s trades. Fork their investment constitution.</p><button className="text-action" type="button" onClick={onCircle}>Open the Circle workspace <span aria-hidden>→</span></button></footer>
     </div>

@@ -15,7 +15,7 @@
  * Every argument is a raw 32-byte public key. Integers are little-endian u64.
  */
 
-export const PROGRAM_ID = "FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v";
+export const PROGRAM_ID = "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh";
 
 export type Key = Uint8Array; // 32 bytes
 
@@ -42,6 +42,8 @@ export const SEED = {
   execAuth: utf8("exec_auth"),
   amendment: utf8("amendment"),
   amendmentVote: utf8("amendment_vote"),
+  devnetTestMarket: utf8("devnet_test_market"),
+  devnetTestMint: utf8("devnet_test_equity_mint"),
 } as const;
 
 const U64_MAX = (1n << 64n) - 1n;
@@ -87,4 +89,6 @@ export const seeds = {
     [SEED.amendment, key(mandate), u64le(proposalId)],
   amendmentVote: (proposal: Key, voter: Key) =>
     [SEED.amendmentVote, key(proposal), key(voter)],
+  devnetTestMarket: () => [SEED.devnetTestMarket],
+  devnetTestMint: () => [SEED.devnetTestMint],
 } satisfies Record<string, (...a: never[]) => Uint8Array[]>;

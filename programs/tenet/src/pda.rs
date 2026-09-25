@@ -112,3 +112,12 @@ pub fn amendment(mandate: &Pubkey, proposal_id: u64) -> (Pubkey, u8) {
 pub fn amendment_vote(proposal: &Pubkey, voter: &Pubkey) -> (Pubkey, u8) {
     find(&[AMENDMENT_VOTE_SEED, proposal.as_ref(), voter.as_ref()])
 }
+
+/// Singleton inventory and reserve for the explicitly valueless Devnet test market.
+pub fn devnet_test_market() -> (Pubkey, u8) {
+    find(&[DEVNET_TEST_MARKET_SEED])
+}
+
+pub fn devnet_test_mint() -> (Pubkey, u8) {
+    find(&[DEVNET_TEST_MINT_SEED])
+}

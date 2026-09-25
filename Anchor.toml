@@ -7,8 +7,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-tenet = "FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v"
+tenet = "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh"
 
+[programs.devnet]
+tenet = "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh"
 
 [provider]
 cluster = "localnet"

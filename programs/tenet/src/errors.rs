@@ -217,4 +217,12 @@ pub enum TenetError {
     AmendmentSnapshotChanged,
     #[msg("This amendment proposal has already executed")]
     AmendmentAlreadyExecuted,
+    #[msg("This instruction is available only for the configured Devnet test-USDC mint")]
+    DevnetTestMarketOnly,
+    #[msg("The Circle must have exactly one permitted and configured test-equity asset")]
+    TestEquityOnlyMandate,
+    #[msg("The Devnet test-equity inventory is insufficient")]
+    TestInventoryInsufficient,
+    #[msg("Test-market purchase amount must be greater than zero")]
+    InvalidTestPurchase,
 }

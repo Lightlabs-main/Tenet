@@ -1,5 +1,5 @@
 {
-  "address": "FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v",
+  "address": "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh",
   "metadata": {
     "name": "tenet",
     "version": "0.1.0",
@@ -572,6 +572,328 @@
         {
           "name": "expires_at",
           "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "buy_devnet_test_equity",
+      "discriminator": [
+        159,
+        225,
+        143,
+        41,
+        59,
+        91,
+        242,
+        17
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle.mandate",
+                "account": "Circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate.mandate_seed",
+                "account": "Mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "member",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  109,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "buyer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "test_market",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  118,
+                  110,
+                  101,
+                  116,
+                  95,
+                  116,
+                  101,
+                  115,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate_asset",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt"
+        },
+        {
+          "name": "test_mint"
+        },
+        {
+          "name": "active_usdc_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle_asset",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "test_equity_vault",
+          "writable": true
+        },
+        {
+          "name": "inventory_vault",
+          "writable": true
+        },
+        {
+          "name": "usdc_reserve_vault",
+          "writable": true
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_2022_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_usdc_raw",
+          "type": "u64"
         }
       ]
     },
@@ -1674,6 +1996,398 @@
       "args": []
     },
     {
+      "name": "create_devnet_test_circle",
+      "discriminator": [
+        245,
+        83,
+        201,
+        215,
+        31,
+        189,
+        227,
+        65
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "test_market",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  118,
+                  110,
+                  101,
+                  116,
+                  95,
+                  116,
+                  101,
+                  115,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "test_mint"
+        },
+        {
+          "name": "registry_entry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt"
+        },
+        {
+          "name": "mandate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "mandate_seed"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mandate_asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  110,
+                  100,
+                  97,
+                  116,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mandate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "active_usdc_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "name": "circle_asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  105,
+                  114,
+                  99,
+                  108,
+                  101,
+                  95,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "test_equity_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch_zero",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch_zero_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "circle"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "token_2022_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "mandate_seed",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "create_mandate",
       "discriminator": [
         230,
@@ -2572,7 +3286,7 @@
         },
         {
           "name": "program",
-          "address": "FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v"
+          "address": "7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh"
         },
         {
           "name": "program_data"
@@ -2596,6 +3310,274 @@
           "type": "pubkey"
         }
       ]
+    },
+    {
+      "name": "initialize_devnet_test_market",
+      "discriminator": [
+        24,
+        4,
+        30,
+        181,
+        28,
+        17,
+        92,
+        209
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "test_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  118,
+                  110,
+                  101,
+                  116,
+                  95,
+                  116,
+                  101,
+                  115,
+                  116,
+                  95,
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "test_mint",
+          "docs": [
+            "The market PDA is the only mint authority; there is no freeze authority."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  118,
+                  110,
+                  101,
+                  116,
+                  95,
+                  116,
+                  101,
+                  115,
+                  116,
+                  95,
+                  101,
+                  113,
+                  117,
+                  105,
+                  116,
+                  121,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "inventory_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "test_market"
+              },
+              {
+                "kind": "account",
+                "path": "token_2022_program"
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "usdc_mint",
+          "address": "8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt"
+        },
+        {
+          "name": "usdc_reserve_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "test_market"
+              },
+              {
+                "kind": "account",
+                "path": "usdc_token_program"
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "registry_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "test_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_2022_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "usdc_token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     },
     {
       "name": "initiate_redemption",
@@ -4308,6 +5290,19 @@
       ]
     },
     {
+      "name": "DevnetTestMarket",
+      "discriminator": [
+        123,
+        41,
+        163,
+        92,
+        104,
+        81,
+        235,
+        204
+      ]
+    },
+    {
       "name": "Epoch",
       "discriminator": [
         93,
@@ -4409,6 +5404,47 @@
         187,
         217,
         208
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "DevnetTestCircleCreated",
+      "discriminator": [
+        22,
+        48,
+        205,
+        239,
+        40,
+        160,
+        32,
+        237
+      ]
+    },
+    {
+      "name": "DevnetTestEquityPurchased",
+      "discriminator": [
+        238,
+        246,
+        126,
+        237,
+        24,
+        99,
+        31,
+        30
+      ]
+    },
+    {
+      "name": "DevnetTestMarketInitialized",
+      "discriminator": [
+        128,
+        74,
+        8,
+        139,
+        111,
+        177,
+        173,
+        123
       ]
     }
   ],
@@ -4862,6 +5898,26 @@
       "code": 6089,
       "name": "AmendmentAlreadyExecuted",
       "msg": "This amendment proposal has already executed"
+    },
+    {
+      "code": 6090,
+      "name": "DevnetTestMarketOnly",
+      "msg": "This instruction is available only for the configured Devnet test-USDC mint"
+    },
+    {
+      "code": 6091,
+      "name": "TestEquityOnlyMandate",
+      "msg": "The Circle must have exactly one permitted and configured test-equity asset"
+    },
+    {
+      "code": 6092,
+      "name": "TestInventoryInsufficient",
+      "msg": "The Devnet test-equity inventory is insufficient"
+    },
+    {
+      "code": 6093,
+      "name": "InvalidTestPurchase",
+      "msg": "Test-market purchase amount must be greater than zero"
     }
   ],
   "types": [
@@ -5024,6 +6080,9 @@
           },
           {
             "name": "PreIpo"
+          },
+          {
+            "name": "DevnetTestEquity"
           }
         ]
       }
@@ -5434,6 +6493,115 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DevnetTestCircleCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "mandate",
+            "type": "pubkey"
+          },
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "test_mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DevnetTestEquityPurchased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "circle",
+            "type": "pubkey"
+          },
+          {
+            "name": "member",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_raw",
+            "type": "u64"
+          },
+          {
+            "name": "test_equity_raw",
+            "type": "u64"
+          },
+          {
+            "name": "remaining_inventory_raw",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DevnetTestMarket",
+      "docs": [
+        "Fixed-inventory, valueless Devnet instrument. Its PDA is the mint authority",
+        "and the only inventory authority. There is deliberately no withdraw/admin",
+        "instruction: test-USDC spent here cannot be mistaken for Circle cash."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "inventory_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_reserve_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "inventory_raw",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DevnetTestMarketInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "inventory_raw",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
           }
         ]
       }

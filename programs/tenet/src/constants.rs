@@ -28,6 +28,15 @@ pub const REDEMPTION_ASSET_SEED: &[u8] = b"redemption_asset";
 pub const EXEC_AUTH_SEED: &[u8] = b"exec_auth";
 pub const AMENDMENT_SEED: &[u8] = b"amendment";
 pub const AMENDMENT_VOTE_SEED: &[u8] = b"amendment_vote";
+pub const DEVNET_TEST_MARKET_SEED: &[u8] = b"devnet_test_market";
+pub const DEVNET_TEST_MINT_SEED: &[u8] = b"devnet_test_equity_mint";
+
+/// Guard for the explicitly valueless Devnet-only test market. This is the
+/// project's test USDC mint, not canonical or redeemable USDC.
+pub const DEVNET_TEST_USDC_MINT: Pubkey = pubkey!("8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt");
+pub const DEVNET_TEST_EQUITY_DECIMALS: u8 = 6;
+/// Fixed inventory: one million test units, minted once into a protocol PDA.
+pub const DEVNET_TEST_EQUITY_INVENTORY_RAW: u64 = 1_000_000_000_000;
 
 /// Jupiter's current aggregator program, verified in V-020. The execution
 /// window accepts only this program between `begin_execution` and

@@ -28,10 +28,10 @@ export function WalletButton() {
             <Disconnect wallet={wallet} onDone={() => { setAccount(undefined); setOpen(false); }} />
           ) : wallets.length === 0 ? (
             <div className="wallet-empty">
-              No wallet with <strong>Solana mainnet</strong> support was detected. Install{" "}
+              No wallet with <strong>Solana Devnet</strong> support was detected. Install{" "}
               <a href="https://phantom.com" target="_blank" rel="noreferrer">Phantom</a>,{" "}
               <a href="https://solflare.com" target="_blank" rel="noreferrer">Solflare</a> or{" "}
-              <a href="https://backpack.app" target="_blank" rel="noreferrer">Backpack</a>, then switch it to Solana Mainnet.
+              <a href="https://backpack.app" target="_blank" rel="noreferrer">Backpack</a>, then switch it to Solana Devnet.
             </div>
           ) : (
             wallets.map((w) => (

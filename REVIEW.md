@@ -440,3 +440,30 @@ Worked in this order as code lands (mirrors `docs/threat-model.md`, highest valu
 - Correction after expanded VPS scan: `/opt/tenet/.keys/tenet-keypair.json` and `/opt/tenet/target/deploy/tenet-keypair.json` derive the configured FJt9... identity. The separate `/opt/tenet-build-45188cc/target/deploy/tenet-keypair.json` derives 7pLY...; using it would be a different program identity. Earlier scan conclusions were incomplete.
 - The two FJt9... key copies were mode 0666 and 0644; both are now 0600 and root-owned. The separate 7pLY... build key was also secured from 0644 to 0600. No secret was output. The distinct funded deployer/upgrade authority is still not identified. No signing, transaction, deployment, or program-ID migration occurred.
 - This is a factual status update, not adversarial sign-off. Keep mainnet transactions disabled pending source/build-directory confirmation, deploy authority, target equity-feed verification, and Jupiter vault/CPI review.
+
+## Devnet restart and optimized candidate — 2026-09-24
+
+- Active Devnet source/client ID is `7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh`; legacy `FJt9...` Devnet program and its Circles remain untouched. New ID is not deployed yet.
+- Size-optimized SBF candidate: 819,472 bytes, SHA-256 `4affe732ce6bbbeff99bd93e92879a8d31032cc936d61f09e65a57223f1e983f`; 4.163568 Devnet SOL rent-exempt minimum.
+- Offline Rust/LiteSVM suite passed 81/81 against the optimized candidate; no deployment, transaction, or signer interaction occurred. This is not a security approval for mainnet or execution CPI.
+- Devnet UI config currently points directly to public Devnet RPC; wallet transactions remain explicitly disabled. Current mainnet-read-only bundle is still live and has not been promoted/replaced.
+- Deployment is blocked only on Devnet test funding: VPS payer balance is 0 and RPC airdrop was rate-limited. User was asked to transfer 5 test SOL from their Devnet wallet to the public VPS payer address; no Mainnet SOL is requested.
+
+## DEVNET DEPLOYMENT AND LIVE TEST REVIEW — 2026-09-24
+
+- Deployed Devnet program `7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh` finalized at slot `503613496`; on-chain deployed binary length and hash match the candidate. Upgrade authority is the user wallet; the VPS payer retains only the metadata registry authority and no Circle custody authority.
+- Live E2E covered the Epoch-0 POOL path, escrow isolation, finalization, settlement and a partial in-kind EXIT claim using valueless Devnet test assets. It did not involve Mainnet or real securities.
+- The empty default Circle is `6UB4NCMKLZbMAJ2uS9ynmQ8m8TsaCjFDnURQfmpE5rK2`. The dashboard loads it and labels the environment as Devnet test assets; the existing connect-wallet control is now exposed in the header.
+- Retest evidence: Rust/LiteSVM 81/81; package, RPC proxy and SDK 64/64; web TypeScript, money-lint and production build passed.
+- Review boundary: this evidence is not independent security sign-off. Fork has offline adversarial coverage but not a live Devnet browser-wallet run. Jupiter stock purchase, target Pyth feeds, auto-contribution and Mainnet remain disabled/gated.
+
+
+## Devnet test-instrument review — 2026-09-25
+
+- Added an isolated TST-EQ fixed-inventory test path; it is not public-equity execution and must never be described as shares or economic exposure in a real company.
+- Emulator tests cover fixed-inventory initialization, Circle/Epoch-0 setup, exact input/output vault deltas, account-substitution rejection, and pending-USDC escrow isolation. tests/program passes 59 tests. Package tests pass 51, RPC proxy tests 7, SDK tests 6; web typecheck, production build and money-lint pass.
+- Built candidate: 1,149,176 bytes, SHA-256 bac5398fc6e020b5c39692555ddb2d68a789cf6fc5367de8ef7f9d5fbc5d2ce2. Finalized Devnet deployment still has 819,472 bytes and SHA-256 4affe732ce6bbbeff99bd93e92879a8d31032cc936d61f09e65a57223f1e983f; therefore these new instructions are not deployed. Program ID remains 7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh and upgrade authority is user wallet F5WouUdTmk6n4SaSTZLrE9PCUrArnWdGYwykqPH2jBiK.
+- The portfolio UI is published to /opt/tenet-preview/dist; its wallet actions verify the exact artifact hash and remain disabled until upgrade is confirmed. No unsafe simulation prompt should be generated against the older program.
+- Test-USDC live metadata is verified at 6 decimals, supply 110, mint authority 9pCJ96uVkHb6wiSvbSpTNL99A3jsieQ9R8w6A9s2o6aE, and no freeze authority. The authority key was not found in the inspected keypair locations, so there is no verified faucet path. The feature must not invent funding.
+- Rent estimate for a buffer equal to the new binary is 5.83846432 Devnet SOL; the upgrade-authority wallet showed 4.985368466 Devnet SOL at observation time. This is test SOL, not a USD cost, and still does not provide the authority signature or test-USDC.
+- This section is implementation evidence, not adversarial security approval or live E2E. No Devnet transaction, program upgrade, token mint, Mainnet operation, or user-wallet signature was submitted.

@@ -41,26 +41,37 @@ import {
 
 // ---------------------------------------------------------------- devnet only
 
-const RPC_URL = "https://api.devnet.solana.com";
-const WS_URL = "wss://api.devnet.solana.com";
-if (!RPC_URL.includes("devnet")) throw new Error("REFUSING: not devnet");
+const RPC_URL = process.env.TENET_DEVNET_RPC_URL ?? "https://api.devnet.solana.com";
+const WS_URL = process.env.TENET_DEVNET_WS_URL ?? "wss://api.devnet.solana.com";
+const rpcUrl = new URL(RPC_URL);
+const wsUrl = new URL(WS_URL);
+if (
+  rpcUrl.protocol !== "https:" || !rpcUrl.hostname.toLowerCase().includes("devnet") ||
+  wsUrl.protocol !== "wss:" || !wsUrl.hostname.toLowerCase().includes("devnet")
+) throw new Error("REFUSING: RPC and WebSocket endpoints must be Devnet endpoints");
 
 const TOKEN = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const TOKEN_2022 = address("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 const USDC = 1_000_000n; // 1 test-USDC in raw units
 
 const env = Object.fromEntries(
-  readFileSync(new URL("../../../.keys/devnet.env", import.meta.url), "utf8")
+  readFileSync(process.env.TENET_DEVNET_ENV ?? new URL("../../../.keys/devnet.env", import.meta.url), "utf8")
     .trim().split("\n").map((l: string) => l.split("=") as [string, string]),
 );
-const TEST_USDC = address(env.TEST_USDC);
-const TEST_EQUITY = address(env.TEST_EQUITY);
-const USDC_ATA = address(env.USDC_ATA);
-const EQUITY_ATA = address(env.EQUITY_ATA);
+const TEST_USDC = address(process.env.TENET_TEST_USDC ?? env.TEST_USDC);
+const TEST_EQUITY = address(process.env.TENET_TEST_EQUITY ?? env.TEST_EQUITY);
+const USDC_ATA = address(process.env.TENET_USDC_ATA ?? env.USDC_ATA);
+const EQUITY_ATA = address(process.env.TENET_EQUITY_ATA ?? env.EQUITY_ATA);
 
 const rpc = createSolanaRpc(RPC_URL);
 const rpcSubscriptions = createSolanaRpcSubscriptions(WS_URL);
 const sendAndConfirm = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
+const EXPECTED_DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
+const observedGenesisHash = await rpc.getGenesisHash().send();
+if (observedGenesisHash !== EXPECTED_DEVNET_GENESIS_HASH) {
+  throw new Error("REFUSING: RPC returned non-Devnet genesis hash " + observedGenesisHash);
+}
+console.log("✓ verified Solana Devnet genesis hash");
 
 // ---------------------------------------------------------------- helpers
 
@@ -75,6 +86,8 @@ async function pda(seedList: Uint8Array[]): Promise<Address> {
 
 async function send(label: string, payer: KeyPairSigner, ixs: Instruction[]): Promise<void> {
   for (let attempt = 1; ; attempt++) {
+    let submissionStarted = false;
+    let submissionSignature: string | undefined;
     try {
       const { value: blockhash } = await rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
       const msg = pipe(
@@ -85,21 +98,29 @@ async function send(label: string, payer: KeyPairSigner, ixs: Instruction[]): Pr
       );
       const tx = await signTransactionMessageWithSigners(msg);
       assertIsTransactionWithBlockhashLifetime(tx);
+      submissionSignature = getSignatureFromTransaction(tx);
+      submissionStarted = true;
+      console.log("  … " + label + ": submitting " + submissionSignature);
       await sendAndConfirm(tx, { commitment: "confirmed" });
-      console.log(`  ✓ ${label.padEnd(28)} ${getSignatureFromTransaction(tx)}`);
+      console.log(`  ✓ ${label.padEnd(28)} ${submissionSignature}`);
+      await new Promise((r) => setTimeout(r, 1500));
       return;
     } catch (e) {
-      // Retry only transport hiccups; a program error is a real failure.
+      // A post-submit transport error is ambiguous: never blindly duplicate it.
       const msg = String((e as Error)?.message ?? e);
       const programError = /custom program error|InstructionError|Program .* failed/i.test(msg);
-      if (programError || attempt >= 3) {
+      if (programError || submissionStarted || attempt >= 4) {
+        if (submissionStarted) {
+          console.error("  ! Check signature before retrying: " + (submissionSignature ?? "unknown"));
+        }
         console.error(`  ✗ ${label}: ${msg}`);
         const logs = (e as { context?: { logs?: string[] } })?.context?.logs;
         if (logs) console.error(logs.slice(-8).join("\n"));
         throw e;
       }
-      console.log(`  … ${label}: retrying after transport error (${attempt})`);
-      await new Promise((r) => setTimeout(r, 2000));
+      const retryDelayMs = /429|Too Many Requests/i.test(msg) ? 15_000 * attempt : 2_000 * attempt;
+      console.log("  … " + label + ": retrying before submit in " + retryDelayMs / 1000 + "s");
+      await new Promise((r) => setTimeout(r, retryDelayMs));
     }
   }
 }
@@ -117,7 +138,7 @@ function check(cond: boolean, what: string): void {
 // ---------------------------------------------------------------- run
 
 const keyBytes = new Uint8Array(JSON.parse(readFileSync(
-  "\\\\wsl.localhost\\Debian\\root\\.config\\solana\\tenet-devnet.json", "utf8")));
+  process.env.TENET_DEVNET_KEYPAIR ?? "\\\\wsl.localhost\\Debian\\root\\.config\\solana\\tenet-devnet.json", "utf8")));
 const wallet = await createKeyPairSignerFromBytes(keyBytes);
 console.log(`devnet e2e — wallet ${wallet.address}, program ${TENET_PROGRAM_ADDRESS}`);
 console.log(`test USDC ${TEST_USDC} (devnet test mint, NOT Circle USDC)`);

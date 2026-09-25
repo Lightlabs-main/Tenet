@@ -8,7 +8,7 @@
 
 import { combineCodec, getEnumDecoder, getEnumEncoder, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder } from '@solana/kit';
 
-export enum AssetClass { Usdc, PublicTokenizedEquity, PreIpo }
+export enum AssetClass { Usdc, PublicTokenizedEquity, PreIpo, DevnetTestEquity }
 
 export type AssetClassArgs = AssetClass;
 

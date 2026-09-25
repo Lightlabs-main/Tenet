@@ -14,7 +14,7 @@ import * as sdk from "../src/index.ts";
 import {
   findActiveUsdcVaultPda, findCircleAssetPda, findCirclePda, findConfigPda,
   findEpochEscrowPda, findEpochPda, findMandatePda, findMemberPda, findReceiptPda,
-  findRegistryEntryPda, findVaultAuthorityPda, findVaultPda,
+  findRegistryEntryPda, findTestMarketPda, findTestMintPda, findVaultAuthorityPda, findVaultPda,
   getCircleSize, TENET_PROGRAM_ADDRESS,
   TENET_ERROR__NOT_UPGRADE_AUTHORITY, TENET_ERROR__REDEMPTION_PENDING,
   TENET_ERROR__ASSET_NOT_IN_SNAPSHOT,
@@ -37,8 +37,10 @@ test("generated PDA helpers reproduce every Rust-verified derivation they cover"
   // the same address and bump — a mismatch would address the wrong account.
   const helpers: Record<string, (a: string[]) => Promise<readonly [Address, number]>> = {
     config: () => findConfigPda(),
+    devnet_test_market: () => findTestMarketPda(),
+    devnet_test_mint: () => findTestMintPda(),
     mandate: (a) => findMandatePda({ mandateSeed: addr(a[0]) }),
-    registry: (a) => findRegistryEntryPda({ mint: addr(a[0]) }),
+    registry: (a) => findRegistryEntryPda({ testMint: addr(a[0]) }),
     circle: (a) => findCirclePda({ mandate: addr(a[0]) }),
     circle_asset: (a) => findCircleAssetPda({ circle: addr(a[0]), mint: addr(a[1]) }),
     vault_authority: (a) => findVaultAuthorityPda({ circle: addr(a[0]) }),
@@ -47,7 +49,7 @@ test("generated PDA helpers reproduce every Rust-verified derivation they cover"
     epoch: (a) => findEpochPda({ circle: addr(a[0]), index: BigInt(a[1]) }),
     epoch_escrow: (a) => findEpochEscrowPda({ circle: addr(a[0]), index: BigInt(a[1]) }),
     receipt: (a) => findReceiptPda({ epoch: addr(a[0]), contributor: addr(a[1]) }),
-    member: (a) => findMemberPda({ circle: addr(a[0]), memberOwner: addr(a[1]) }),
+    member: (a) => findMemberPda({ circle: addr(a[0]), buyer: addr(a[1]) }),
   };
   let checked = 0;
   for (const v of vectors.vectors) {
@@ -58,8 +60,9 @@ test("generated PDA helpers reproduce every Rust-verified derivation they cover"
     assert.equal(bump, v.bump, `${v.fn} bump`);
     checked++;
   }
-  // 12 generated helpers: config has 1 vector, the other 11 have 6 each.
-  assert.equal(checked, 1 + 11 * 6, "every generated helper was exercised");
+  // Config, Devnet test market and test mint have one fixed-seed vector each;
+  // the other 11 generated helpers have six vectors each.
+  assert.equal(checked, 3 + 11 * 6, "every generated helper was exercised");
 });
 
 test("generated error codes match what the on-chain tests observed", () => {

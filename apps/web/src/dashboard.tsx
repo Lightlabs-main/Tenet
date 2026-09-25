@@ -5,13 +5,13 @@
  * market values appear only when the required verified observations are fresh;
  * the page says so rather than inventing any.
  */
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useWalletAccountTransactionSendingSigner } from "@solana/react";
 import type { UiWalletAccount } from "@wallet-standard/react";
 import { AccountRole, generateKeyPairSigner } from "@solana/kit";
 import type { Address, Instruction, TransactionSendingSigner } from "@solana/kit";
 import {
-  AssetClass, AssetStatus, EpochState, MandateState, contribute, initiateRedemption, openEpoch,
+  AssetClass, AssetStatus, EpochState, MandateState, buyDevnetTestEquity, contribute, initiateRedemption, openEpoch,
   findActiveUsdcVaultPda, findCircleAssetPda, findEpochEscrowPda, findEpochPda, findMemberPda,
   findNavSnapshotPda, findReceiptPda, findVaultAuthorityPda, findVaultPda,
   getCancelContributionInstruction, getClaimRedemptionAssetInstructionAsync,
@@ -21,17 +21,17 @@ import {
   getReserveRedemptionUsdcInstructionAsync, getSettleContributionInstruction,
   getFinalizeMandateInstruction, getForkMandateAssetInstruction, getForkMandateInstruction,
   getAddCircleAssetInstructionAsync, getCreateCircleInstructionAsync,
-  findCirclePda, fetchMaybeCircle, fetchMaybeCircleAsset,
+  findCirclePda, findConfigPda, findMandateAssetPda, findMandatePda, findTestEquityVaultPda, findTestMarketPda, findTestMintPda, fetchMaybeCircle, fetchMaybeCircleAsset, fetchMaybeDevnetTestMarket,
   findNewAssetPda, findNewMandatePda, findRegistryEntryPda,
-  fetchMaybeMandate, fetchMaybeMandateAsset,
+  fetchMaybeMandate, fetchMaybeMandateAsset, getCreateDevnetTestCircleInstructionAsync, getInitializeDevnetTestMarketInstructionAsync, type DevnetTestMarket,
 } from "@tenet/sdk";
 import { entitlementForRedemption, sharesForContribution } from "../../../packages/domain/src/accounting.ts";
 import { dec } from "../../../packages/domain/src/display.ts";
 import { prestocksMarketMark } from "../../../packages/domain/src/valuation.ts";
-import { CHAIN, CLUSTER, TOKEN_PROGRAM, TRANSACTIONS_ENABLED, USDC_DECIMALS } from "./config.ts";
+import { CHAIN, CLUSTER, TOKEN_PROGRAM, TRANSACTIONS_ENABLED, USDC_DECIMALS, USDC_MINT } from "./config.ts";
 import {
-  ataAddress, b58ToAddress, createAtaIdempotent, redemptionAssetPda, redemptionPda, rpc, send, withheldFee,
-  type CircleView, type ExitView, type Holding,
+  ataAddress, b58ToAddress, createAtaIdempotent, redemptionAssetPda, redemptionPda, rpc, send, tokenBalance, withheldFee,
+  isDevnetTestMarketBuildDeployed, type CircleView, type ExitView, type Holding,
 } from "./chain.ts";
 import { formatRaw, formatShares, parseAmount } from "./money.ts";
 import { AddressLink, Badge, Meter, Spinner, Stepper, formatBps, ratioBps, useToast } from "./ui.tsx";
@@ -67,11 +67,11 @@ export function Dashboard({ panel, navigate, view, circle, account, me, usdcBala
       {panel === "overview" ? <>
         <Overview view={view} circle={circle} me={me} navigate={navigate} />
       </> : null}
-      {panel === "portfolio" ? <><div className="screen-heading"><span className="eyebrow">Circle portfolio</span><h1>Portfolio</h1><p>These balances come from its on-chain vaults. Permitted assets are shown separately.</p></div><Holdings view={view} /><details className="deep-disclosure"><summary>Why are there no stocks?</summary><CircleReadout view={view} /></details><ExecutionCard /></> : null}
+      {panel === "portfolio" ? <><div className="screen-heading"><span className="eyebrow">Circle portfolio</span><h1>Portfolio</h1><p>These balances come from its on-chain vaults. Permitted assets are shown separately.</p></div><Holdings view={view} /><details className="deep-disclosure"><summary>Why are there no stocks?</summary><CircleReadout view={view} /></details><ExecutionCard view={view} circle={circle} account={account} me={me} onChanged={onChanged} onOpenCircle={onOpenCircle} /></> : null}
       {panel === "prices" ? <><div className="screen-heading"><span className="eyebrow">Verified observations</span><h1>Prices &amp; value</h1><p>We only display a market value when its source is current and verified.</p></div><ValueSurface view={view} /></> : null}
       {panel === "contribute" || panel === "exit" || panel === "fork" ? <>
         <div className="screen-heading"><span className="eyebrow">{panel === "contribute" ? "Pool" : panel === "exit" ? "Exit" : "Fork"}</span><h1>{panel === "contribute" ? "Add money together." : panel === "exit" ? "Leave on your terms." : "Make the rules your own."}</h1><p>{panel === "contribute" ? "Contributions enter a separate USDC funding window. Everyone in that window settles together." : panel === "exit" ? "Your proportional in-kind claim does not require a price feed or vote." : "A new Mandate and Circle keep their own assets and members."}</p></div>
-        {action ? <Actions panel={panel} account={account} view={view} circle={circle} me={me} usdcBalance={usdcBalance} onChanged={onChanged} onOpenCircle={onOpenCircle} /> : <div className="card action-locked"><span className="eyebrow">Solana Mainnet · read-only</span><h2>Transactions are disabled in this build</h2><p>You can inspect verified on-chain Circle data, but Tenet will not request a contribution, exit, Fork, or trade signature until the mainnet program and release checks are complete.</p><div className="action-locked-buttons"><button className="btn ghost" type="button" onClick={() => navigate("overview")}>Back to overview</button></div></div>}
+        {action ? <Actions panel={panel} account={account} view={view} circle={circle} me={me} usdcBalance={usdcBalance} onChanged={onChanged} onOpenCircle={onOpenCircle} /> : !TRANSACTIONS_ENABLED ? <div className="card action-locked"><span className="eyebrow">Solana Devnet · test assets</span><h2>Transactions are disabled in this build</h2><p>This Devnet preview is read-only. No wallet transaction will be requested.</p><div className="action-locked-buttons"><button className="btn ghost" type="button" onClick={() => navigate("overview")}>Back to overview</button></div></div> : <div className="card action-locked"><span className="eyebrow">Solana Devnet · test assets</span><h2>Connect your wallet to continue</h2><p>Connect a Solana wallet set to Devnet. Transactions use only test tokens with no real-world value.</p><div className="action-locked-buttons"><button className="btn ghost" type="button" onClick={() => navigate("overview")}>Back to overview</button></div></div>}
       </> : null}
     </div>
   );
@@ -91,7 +91,7 @@ function Overview({ view, circle, me, navigate }: { view: CircleView; circle: Ad
       <article className="overview-metric"><span>Your position</span><strong>{member && member.shares > 0n ? formatBps(ratioBps(member.shares, view.circle.totalShares)) : me ? "No active position" : "Connect wallet"}</strong><p>{member && member.shares > 0n ? `${trim(formatShares(member.shares))} settled shares` : "Pending contributions are separate from active holdings."}</p></article>
       <article className="overview-metric"><span>Mandate</span><strong>{view.mandate.state === MandateState.Active ? "Active rules" : "Rules pending"}</strong><p>{view.holdings.length} permitted asset{view.holdings.length === 1 ? "" : "s"}. Read the limits before contributing.</p><button type="button" onClick={() => navigate("mandate")}>View rules →</button></article>
     </div>
-    <section className="overview-portfolio card"><div className="card-head"><div><span className="eyebrow">Portfolio</span><h2>What is actually in the Circle</h2></div><button className="text-action" type="button" onClick={() => navigate("portfolio")}>Open portfolio →</button></div><div className="overview-holding"><span className="asset-icon usdc">$</span><div><strong>USDC</strong><small>On-chain active vault</small></div><strong>{trim(usdc(view.activeUsdcRaw))}</strong></div>{held.map((h) => <div className="overview-holding" key={h.address}><span className="asset-icon">{h.registry.symbol.slice(0, 4)}</span><div><strong>{h.registry.displayName}</strong><small>{h.registry.symbol} · mainnet vault balance</small></div><strong>{trim(formatRaw(h.vaultRaw, h.registry.decimals))}</strong></div>)}{held.length === 0 ? <div className="overview-empty">No stock tokens are held. {view.holdings.length ? `${view.holdings.map((h) => h.registry.symbol).join(", ")} is allowed by the Mandate, but has not been bought.` : "No assets are configured yet."}</div> : null}</section>
+    <section className="overview-portfolio card"><div className="card-head"><div><span className="eyebrow">Portfolio</span><h2>What is actually in the Circle</h2></div><button className="text-action" type="button" onClick={() => navigate("portfolio")}>Open portfolio →</button></div><div className="overview-holding"><span className="asset-icon usdc">$</span><div><strong>USDC</strong><small>On-chain active vault</small></div><strong>{trim(usdc(view.activeUsdcRaw))}</strong></div>{held.map((h) => <div className="overview-holding" key={h.address}><span className="asset-icon">{h.registry.symbol.slice(0, 4)}</span><div><strong>{h.registry.displayName}</strong><small>{h.registry.symbol} · Devnet vault balance</small></div><strong>{trim(formatRaw(h.vaultRaw, h.registry.decimals))}</strong></div>)}{held.length === 0 ? <div className="overview-empty">No stock tokens are held. {view.holdings.length ? `${view.holdings.map((h) => h.registry.symbol).join(", ")} is allowed by the Mandate, but has not been bought.` : "No assets are configured yet."}</div> : null}</section>
     <section className="overview-next"><div><span className="eyebrow">How Tenet works</span><h2>People pool capital. Rules govern it.</h2><p>Contributions enter an Epoch. The Mandate controls purchases. Members can claim their proportional assets or fork the rules into a separate Circle.</p></div><button className="btn ghost" type="button" onClick={() => navigate("mandate")}>Read this Mandate</button><details><summary>On-chain Circle address</summary><AddressLink address={circle} /></details></section>
     <details className="deep-disclosure"><summary>Detailed Mandate limit checks</summary><Rules view={view} /></details>
   </>;
@@ -154,7 +154,7 @@ function Holdings({ view }: { view: CircleView }) {
                 <div className="asset-icon usdc">$</div>
                 <div>
                 <div className="asset-name">USDC</div>
-                  <div className="asset-sub">cash in Circle · mainnet vault</div>
+                  <div className="asset-sub">cash in Circle · Devnet vault</div>
                 </div>
               </div>
             </td>
@@ -511,27 +511,175 @@ function ActionButton({ label, busy, onClick, kind = "primary", block = true, di
   );
 }
 
-function ExecutionCard() {
-  return (
+function ExecutionCard({ view, circle, account, me, onChanged, onOpenCircle }: {
+  view: CircleView; circle: Address; account: UiWalletAccount | undefined; me: Address | null;
+  onChanged: () => Promise<void>; onOpenCircle: (circle: Address) => void;
+}) {
+  return <>
     <section className="card" id="execute">
       <div className="card-head">
-        <div><span className="eyebrow">Stock purchases</span><h2>Not enabled</h2><p className="card-intro">Mainnet execution stays disabled until the asset, price, route, and destination-vault checks pass.</p></div>
+        <div><span className="eyebrow">Public tokenized equities</span><h2>Trading is not enabled</h2><p className="card-intro">Live public-equity execution remains off until verified pricing, routing, and vault checks are deployed.</p></div>
         <Badge tone="neutral">Not enabled</Badge>
       </div>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Tenet will allow a purchase only after the stock token, live price data, trading route, and destination vault are verified. This read-only build cannot make a purchase.
-      </p>
-      <details className="execution-details">
-        <summary>What still needs to be verified?</summary>
-        <ul>
-          <li>A supported stock token and its transfer rules</li>
-          <li>Current price data and limits from the Circle’s investment rules</li>
-          <li>A swap whose output is confirmed in the Circle’s own vault</li>
-        </ul>
-      </details>
-      <ActionButton busy={null} disabled label="Stock purchases unavailable" onClick={() => {}} kind="ghost" />
+      <p className="muted" style={{ marginTop: 0 }}>The test instrument below is a separate Devnet simulation. It is not a stock, has no market price, and does not represent shareholder rights or economic exposure.</p>
+      <details className="execution-details"><summary>What must be verified for real public-equity execution?</summary><ul>
+        <li>A supported tokenized-equity mint and its transfer rules</li>
+        <li>Fresh price observations and limits from the Circle Mandate</li>
+        <li>A constrained swap whose output is confirmed in the Circle's own vault</li>
+      </ul></details>
     </section>
-  );
+    <DevnetTestInstrument view={view} circle={circle} account={account} me={me} onChanged={onChanged} onOpenCircle={onOpenCircle} />
+  </>;
+}
+
+function DevnetTestInstrument({ view, circle, account, me, onChanged, onOpenCircle }: {
+  view: CircleView; circle: Address; account: UiWalletAccount | undefined; me: Address | null;
+  onChanged: () => Promise<void>; onOpenCircle: (circle: Address) => void;
+}) {
+  const [market, setMarket] = useState<DevnetTestMarket | null>(null);
+  const [inventoryRaw, setInventoryRaw] = useState<bigint | null>(null);
+  const [status, setStatus] = useState<"checking" | "ready" | "missing" | "upgrade" | "error">("checking");
+  const [programReady, setProgramReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const holding = view.holdings.find((h) => h.registry.assetClass === AssetClass.DevnetTestEquity);
+  const refresh = useCallback(async () => {
+    try {
+      const currentBuild = await isDevnetTestMarketBuildDeployed();
+      setProgramReady(currentBuild === true);
+      if (currentBuild === null) {
+        setMarket(null); setInventoryRaw(null); setStatus("error");
+        setError("Devnet RPC could not verify the deployed program build. Wallet actions remain disabled.");
+        return;
+      }
+      if (!currentBuild) {
+        setMarket(null); setInventoryRaw(null); setStatus("upgrade"); setError(null); return;
+      }
+      const [address] = await findTestMarketPda();
+      const result = await fetchMaybeDevnetTestMarket(rpc, address);
+      if (!result.exists) { setMarket(null); setInventoryRaw(null); setStatus("missing"); setError(null); return; }
+      setMarket(result.data);
+      setInventoryRaw(await tokenBalance(result.data.inventoryVault));
+      setStatus("ready"); setError(null);
+    } catch (e) { setStatus("error"); setError((e as Error).message); }
+  }, []);
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  return <section className="card" id="devnet-test-instrument">
+    <div className="card-head">
+      <div><span className="eyebrow">Devnet-only | no real-world value</span><h2>Test instrument</h2><p className="card-intro">Create a separate practice Circle and move fixed-inventory TST-EQ units through real on-chain vaults.</p></div>
+      <Badge tone={status === "ready" ? "info" : "neutral"}>{status === "ready" ? "Market initialized" : status === "missing" ? "Setup needed" : status === "upgrade" ? "Program update needed" : status === "error" ? "Read unavailable" : "Checking"}</Badge>
+    </div>
+    <div className="overview-metrics">
+      <article className="overview-metric"><span>Instrument</span><strong>TST-EQ</strong><p>Token-2022 test units; not a stock or stock exposure.</p></article>
+      <article className="overview-metric"><span>Test conversion</span><strong>1 : 1</strong><p>One test unit per USDC unit at six decimals. Not a price or valuation.</p></article>
+      <article className="overview-metric"><span>Live inventory</span><strong>{inventoryRaw === null ? "Unavailable" : trim(formatRaw(inventoryRaw, 6)) + " TST-EQ"}</strong><p>Read from the Devnet inventory vault.</p></article>
+    </div>
+    {market ? <p className="muted">Test mint: <AddressLink address={market.mint} />. Units have no market price, redemption promise, or real-world value.</p> : null}
+    {status === "upgrade" ? <div className="test-market-upgrade-note"><strong>Waiting for the Devnet program update.</strong><p>The tested test-market instructions are not in the deployed program yet. The on-chain upgrade authority is the wallet <code>F5WouUdTmk6n4SaSTZLrE9PCUrArnWdGYwykqPH2jBiK</code>. This page verifies the exact program build before enabling wallet actions, so it will not send a transaction to the older code.</p></div> : null}
+    {error ? <p className="inline-error">Could not read the test-market account: {error}</p> : null}
+    {holding ? <DevnetTestMarketWalletActions view={view} circle={circle} me={me} account={account} market={market} inventoryRaw={inventoryRaw} programReady={programReady} onChanged={onChanged} onRefresh={refresh} /> :
+      <div>
+        <p className="muted">This creates a separate Circle and does not change your current rules or holdings. Fund its Epoch 0 with this project's Devnet test-USDC before allocating units.</p>
+        {TRANSACTIONS_ENABLED && account && me && programReady
+          ? <DevnetTestCircleCreator account={account} onOpenCircle={onOpenCircle} onRefresh={refresh} />
+          : status !== "upgrade" ? <p className="muted">Connect a Devnet wallet with SOL for network fees to set up the test market and Circle.</p> : null}
+      </div>}
+  </section>;
+}
+
+function DevnetTestCircleCreator({ account, onOpenCircle, onRefresh }: {
+  account: UiWalletAccount; onOpenCircle: (circle: Address) => void; onRefresh: () => Promise<void>;
+}) {
+  const signer = useWalletAccountTransactionSendingSigner(account, CHAIN);
+  const { busy, runMany } = useRunner(signer, async () => {});
+  const create = async () => {
+    let nextCircle: Address | null = null;
+    const ok = await runMany("Create Devnet test Circle", async () => {
+      const [testMint] = await findTestMintPda();
+      const [marketAddress] = await findTestMarketPda();
+      const currentMarket = await fetchMaybeDevnetTestMarket(rpc, marketAddress);
+      const steps: RunStep[] = [];
+      if (!currentMarket.exists) steps.push({
+        label: "Initialize fixed test inventory",
+        instructions: [await getInitializeDevnetTestMarketInstructionAsync({ payer: signer, usdcMint: USDC_MINT })],
+      });
+      const mandateSeed = (await generateKeyPairSigner()).address;
+      const [mandate] = await findMandatePda({ mandateSeed });
+      const [circleAddress] = await findCirclePda({ mandate });
+      nextCircle = circleAddress;
+      if ((await fetchMaybeCircle(rpc, circleAddress)).exists) throw new Error("Generated Circle already exists; retry setup.");
+      steps.push({
+        label: "Create separate test Circle and Epoch 0",
+        instructions: [await getCreateDevnetTestCircleInstructionAsync({ creator: signer, testMint, mandateSeed })],
+      });
+      return { steps, verify: async () => {
+        const [freshMarketAddress] = await findTestMarketPda();
+        const [freshMarket, freshCircle] = await Promise.all([
+          fetchMaybeDevnetTestMarket(rpc, freshMarketAddress), fetchMaybeCircle(rpc, circleAddress),
+        ]);
+        if (!freshMarket.exists || !freshCircle.exists || freshCircle.data.mandate !== mandate) {
+          throw new Error("Test market or new Circle could not be verified on Devnet.");
+        }
+      }};
+    });
+    if (ok && nextCircle) { await onRefresh(); onOpenCircle(nextCircle); }
+  };
+  return <div>
+    <ActionButton busy={busy} label="Create separate Devnet test Circle" onClick={() => { void create(); }} />
+    <p className="muted">You still need test-USDC from its issuer to fund Epoch 0. This app does not invent balances or pretend a faucet exists.</p>
+  </div>;
+}
+
+function DevnetTestMarketWalletActions({ view, circle, me, account, market, inventoryRaw, programReady, onChanged, onRefresh }: {
+  view: CircleView; circle: Address; me: Address | null; account: UiWalletAccount | undefined;
+  market: DevnetTestMarket | null; inventoryRaw: bigint | null; programReady: boolean; onChanged: () => Promise<void>; onRefresh: () => Promise<void>;
+}) {
+  if (!programReady) return <p className="muted">Test-unit allocation stays disabled until the exact Devnet program update is confirmed.</p>;
+  if (!account || !me || !TRANSACTIONS_ENABLED) return <p className="muted">Connect the wallet holding this Circle's settled Member shares to allocate test units.</p>;
+  return <DevnetTestMarketConnected view={view} circle={circle} me={me} account={account} market={market} inventoryRaw={inventoryRaw} onChanged={onChanged} onRefresh={onRefresh} />;
+}
+
+function DevnetTestMarketConnected({ view, circle, me, account, market, inventoryRaw, onChanged, onRefresh }: {
+  view: CircleView; circle: Address; me: Address; account: UiWalletAccount; market: DevnetTestMarket | null;
+  inventoryRaw: bigint | null; onChanged: () => Promise<void>; onRefresh: () => Promise<void>;
+}) {
+  const signer = useWalletAccountTransactionSendingSigner(account, CHAIN);
+  const { busy, run } = useRunner(signer, async () => { await onChanged(); await onRefresh(); });
+  const [amount, setAmount] = useState("1");
+  const holding = view.holdings.find((h) => h.registry.assetClass === AssetClass.DevnetTestEquity);
+  const activeCash = view.activeUsdcRaw > view.circle.usdcReservedRaw ? view.activeUsdcRaw - view.circle.usdcReservedRaw : 0n;
+  const shares = view.member?.shares ?? 0n;
+  let raw = 0n; let parseError: string | null = null;
+  try { raw = parseAmount(amount || "0", USDC_DECIMALS); } catch (e) { parseError = (e as Error).message; }
+  const canAllocate = Boolean(market && holding && view.usdcMint === USDC_MINT && shares > 0n && raw > 0n && raw <= activeCash && inventoryRaw !== null && raw <= inventoryRaw);
+  const allocate = () => run("Allocate Devnet test units", async () => {
+    if (!market || !holding || !canAllocate) throw new Error("Need a settled Member position, active test-USDC, and available test inventory.");
+    const [config] = await findConfigPda();
+    const [testMarket] = await findTestMarketPda();
+    const [mandateAsset] = await findMandateAssetPda({ mandate: view.circle.mandate, testMint: market.mint });
+    const [registryEntry] = await findRegistryEntryPda({ testMint: market.mint });
+    const [activeUsdcVault] = await findActiveUsdcVaultPda({ circle });
+    const [member] = await findMemberPda({ circle, buyer: me });
+    const [testEquityVault] = await findTestEquityVaultPda({ circle, testMint: market.mint });
+    const [vaultAuthority] = await findVaultAuthorityPda({ circle });
+    return [await buyDevnetTestEquity({
+      buyer: signer, circle, mandate: view.circle.mandate, member, config, testMarket, mandateAsset, registryEntry,
+      usdcMint: view.usdcMint, testMint: market.mint, activeUsdcVault, circleAsset: holding.address,
+      testEquityVault, inventoryVault: market.inventoryVault, usdcReserveVault: market.usdcReserveVault,
+      vaultAuthority, amountUsdcRaw: raw,
+    })];
+  });
+  return <div className="test-market-allocation">
+    <div className="overview-metric"><span>Active test-USDC cash</span><strong>{trim(usdc(activeCash))} USDC</strong><p>Pending Epoch escrow is excluded. Only settled Circle cash can be allocated.</p></div>
+    <label className="field"><span>Test-USDC amount</span><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={!!parseError} /><small>One TST-EQ unit is delivered for each USDC unit at six decimals.</small></label>
+    {parseError ? <p className="inline-error">{parseError}</p> : null}
+    {!market ? <p className="muted">Test market is not initialized yet.</p> : null}
+    {shares === 0n ? <p className="muted">Settle a contribution first; pending contributions cannot claim active assets.</p> : null}
+    {activeCash === 0n ? <p className="muted">This Circle has no active test-USDC. Add test-USDC through Epoch 0, then settle it.</p> : null}
+    {market && inventoryRaw === 0n ? <p className="muted">The fixed test inventory is exhausted.</p> : null}
+    <ActionButton busy={busy} disabled={!canAllocate} label="Allocate test units to this Circle" onClick={() => { void allocate(); }} />
+    <p className="muted">TST-EQ is valueless test inventory, not a stock. Exit returns the Circle's proportional test-token balance, not guaranteed USDC.</p>
+  </div>;
 }
 
 // ================================================================ epoch
@@ -738,7 +886,7 @@ function EpochCard({ view, circle, me, signer, usdcBalance, run, busy }: {
               onClick={() => run("Claim Circle shares", async () => {
                 const p = await pdas();
                 const [receiptAddr] = await findReceiptPda({ epoch: p.epochAddr, contributor: me });
-                const [member] = await findMemberPda({ circle, memberOwner: me });
+                const [member] = await findMemberPda({ circle, buyer: me });
                 return [getSettleContributionInstruction({ payer: signer, circle, epoch: p.epochAddr, receipt: receiptAddr, owner: me, member })];
               })} />
           ) : null}
@@ -849,7 +997,7 @@ function ForkCard({ view, signer, runMany, busy, onOpenCircle }: {
             throw new Error("The source Circle’s asset rules could not be verified. No new Circle was created.");
           }
           const [newAsset] = await findNewAssetPda({ newMandate: child, mint: asset.mint });
-          const [registryEntry] = await findRegistryEntryPda({ mint: asset.mint });
+          const [registryEntry] = await findRegistryEntryPda({ testMint: asset.mint });
           copied.push({ newAsset, registryEntry, mint: asset.mint, tokenProgram: asset.tokenProgram, targetWeightBps: parentRule.data.targetWeightBps, index: parentRule.data.index });
           const existingAsset = await fetchMaybeMandateAsset(rpc, newAsset);
           if (!existingAsset.exists) {
@@ -1012,7 +1160,7 @@ function ExitCard({ view, circle, me, signer, run, busy }: {
             </div>
             <ExitPreview view={view} shares={shares} />
             <ActionButton busy={busy} disabled={shares === 0n} label="Confirm share and start exit" onClick={() => run("Start Circle exit", async () => {
-              const [memberAddr] = await findMemberPda({ circle, memberOwner: me });
+              const [memberAddr] = await findMemberPda({ circle, buyer: me });
               const redemption = await redemptionPda(circle, me, member!.nextRedemptionSeq);
               return [await initiateRedemption({ memberOwner: signer, circle, member: memberAddr, redemption, shares })];
             })} />

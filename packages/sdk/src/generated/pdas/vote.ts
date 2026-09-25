@@ -14,6 +14,6 @@ voter: Address;
 };
 
 export async function findVotePda(seeds: VoteSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = 'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v' as Address<'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v'> } = config;
+  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([97, 109, 101, 110, 100, 109, 101, 110, 116, 95, 118, 111, 116, 101])), getAddressEncoder().encode(seeds.proposal), getAddressEncoder().encode(seeds.voter)]});
 }

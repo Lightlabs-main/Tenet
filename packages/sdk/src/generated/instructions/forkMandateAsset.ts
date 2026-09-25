@@ -8,7 +8,7 @@
 
 import { combineCodec, fixDecoderSize, fixEncoderSize, getBytesDecoder, getBytesEncoder, getStructDecoder, getStructEncoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type FixedSizeCodec, type FixedSizeDecoder, type FixedSizeEncoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type ReadonlyAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { getAccountMetaFactory, getAddressFromResolvedInstructionAccount, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
-import { findNewAssetPda, findParentAssetPda, findRegistryEntryPda } from '../pdas';
+import { findForkMandateAssetRegistryEntryPda, findNewAssetPda, findParentAssetPda } from '../pdas';
 import { TENET_PROGRAM_ADDRESS } from '../programs';
 
 export const FORK_MANDATE_ASSET_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([133, 4, 157, 72, 136, 131, 188, 46]);
@@ -65,7 +65,7 @@ if (!accounts.newAsset.value) {
 accounts.newAsset.value = await findNewAssetPda({ newMandate: getAddressFromResolvedInstructionAccount("newMandate", accounts.newMandate.value), mint: getAddressFromResolvedInstructionAccount("mint", accounts.mint.value) }, { programAddress });
 }
 if (!accounts.registryEntry.value) {
-accounts.registryEntry.value = await findRegistryEntryPda({ mint: getAddressFromResolvedInstructionAccount("mint", accounts.mint.value) }, { programAddress });
+accounts.registryEntry.value = await findForkMandateAssetRegistryEntryPda({ mint: getAddressFromResolvedInstructionAccount("mint", accounts.mint.value) }, { programAddress });
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;

@@ -14,6 +14,6 @@ mint: Address;
 };
 
 export async function findParentAssetPda(seeds: ParentAssetSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = 'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v' as Address<'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v'> } = config;
+  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([109, 97, 110, 100, 97, 116, 101, 95, 97, 115, 115, 101, 116])), getAddressEncoder().encode(seeds.parentMandate), getAddressEncoder().encode(seeds.mint)]});
 }

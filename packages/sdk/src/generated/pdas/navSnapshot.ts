@@ -13,6 +13,6 @@ epoch: Address;
 };
 
 export async function findNavSnapshotPda(seeds: NavSnapshotSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = 'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v' as Address<'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v'> } = config;
+  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([110, 97, 118, 95, 115, 110, 97, 112, 115, 104, 111, 116])), getAddressEncoder().encode(seeds.epoch)]});
 }

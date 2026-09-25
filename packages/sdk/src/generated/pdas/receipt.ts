@@ -14,6 +14,6 @@ contributor: Address;
 };
 
 export async function findReceiptPda(seeds: ReceiptSeeds, config: { programAddress?: Address | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress = 'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v' as Address<'FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v'> } = config;
+  const { programAddress = '7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh' as Address<'7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh'> } = config;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([114, 101, 99, 101, 105, 112, 116])), getAddressEncoder().encode(seeds.epoch), getAddressEncoder().encode(seeds.contributor)]});
 }

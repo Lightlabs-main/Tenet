@@ -1184,3 +1184,45 @@ To run the verifier with credentials stored outside the checkout, set `TENET_ENV
 | Slot where relevant | None |
 | Conclusion | The expected program-ID keypair was already on the VPS; the prior report that it was absent was wrong. Keep the separate build checkout's mismatching target key out of deployment. A funded deploy payer/upgrade authority and authoritative source/build path still need confirmation. No transaction was signed or sent. |
 | Code depending on it | Anchor program identity, release build/deploy procedure, frontend/IDL address consistency. |
+
+## Fresh Devnet candidate build — 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-24 17:53:39 UTC |
+| Network | Solana Devnet; no chain write |
+| Source | `/opt/tenet-build-45188cc`; public RPC `https://api.devnet.solana.com`; Anchor-generated IDL and optimized SBF artifact |
+| Request/account | Read current slot, inspect executable account `7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh`, and query rent for 819472 bytes |
+| Observed result | Current slot `503582908`; new program address returned AccountNotFound; VPS payer balance `0 SOL`; optimized artifact SHA-256 `4affe732ce6bbbeff99bd93e92879a8d31032cc936d61f09e65a57223f1e983f`; rent minimum `4.163568 SOL`. Offline LiteSVM tests passed 81/81. |
+| Slot where relevant | `503582908` |
+| Conclusion | Devnet source/client/build identity agrees, but the program is not deployed. Wallet transactions remain disabled and the current mainnet-read-only bundle remains live. No Devnet or Mainnet signature/transaction was submitted. User test funding is required before deployment and a full Devnet E2E. |
+| Code depending on it | `Anchor.toml`, `programs/tenet/src/lib.rs`, `packages/sdk/idl/tenet.json`, generated SDK, `apps/web/src/config.ts`, SBF deployment/E2E path. |
+
+## Deployed Devnet POOL/EXIT preview — 2026-09-24
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-24T21:49:09Z for deployed UI verification; on-chain E2E completed earlier on 2026-09-24 |
+| Network | Solana Devnet; HTTPS preview served by the VPS |
+| Source | `solana program show` against `https://api.devnet.solana.com`; `packages/sdk/scripts/devnet-e2e.ts`; `pnpm test`, `pnpm typecheck`, `pnpm check:money`, production Vite build; browser at `https://38.49.209.149/app#top` |
+| Request/account | Tenet program `7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh`; programdata `5KD9kTgCoEv8diYSGddnDcupGBepR3FVEM1BVxLMwJ4V`; clean Circle `6UB4NCMKLZbMAJ2uS9ynmQ8m8TsaCjFDnURQfmpE5rK2`; test USDC mint `8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt` |
+| Observed result | Program executable and finalized; data length 819472; binary SHA-256 `4affe732ce6bbbeff99bd93e92879a8d31032cc936d61f09e65a57223f1e983f`; upgrade authority `F5WouUdTmk6n4SaSTZLrE9PCUrArnWdGYwykqPH2jBiK`. E2E contribution was escrowed separately from active Circle funds, finalized and settled; partial redemption claims returned test USDC and processed the zero-balance test asset. Rust/LiteSVM 81/81; packages/proxy/SDK 64/64; web typecheck, money-lint and build passed. Browser confirmed the default Circle and valueless test-assets notice load from chain. |
+| Slot where relevant | Deployment slot `503613496`; later read-only executable/authority check returned the same deployed program. |
+| Conclusion | Devnet POOL and staged EXIT flows are usable with test assets. The app exposes wallet-signed contribution/exit/Fork controls only on Devnet; Jupiter stock purchases remain unavailable. The Codex browser detected no injected wallet, so no user wallet signature was requested. No Mainnet write occurred. This is not Mainnet readiness or overall security approval. |
+| Code depending on it | `apps/web/src/config.ts`, `apps/web/src/App.tsx`, `apps/web/src/wallet.tsx`, `apps/web/src/dashboard.tsx`, `apps/web/src/chain.ts`, `packages/sdk/scripts/devnet-e2e.ts`, program/SDK generated IDL, and `/opt/tenet-preview/dist`. |
+
+
+## Devnet fixed test-market build and funding gate — 2026-09-25
+
+| field | observation |
+|---|---|
+| Timestamp | 2026-09-25T02:50:11Z for live mint metadata; program binary comparison and wallet balance/rent read completed before static bundle promotion |
+| Network | Solana Devnet; chain observations below were read-only. Program behavior was exercised only in LiteSVM. |
+| Source | Public Devnet RPC and Solana CLI; repository candidate /opt/tenet-build-45188cc/target/deploy/tenet.so; live SPA root /opt/tenet-preview/dist |
+| Request/account | Program 7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh; ProgramData 5KD9kTgCoEv8diYSGddnDcupGBepR3FVEM1BVxLMwJ4V; test-USDC mint 8XcK83nbTAtdvfHCFWLCAEHigHDBAGuEachzQss9oCkt; upgrade authority F5WouUdTmk6n4SaSTZLrE9PCUrArnWdGYwykqPH2jBiK |
+| Observed result | Test-USDC: classic SPL Token, 6 decimals, raw supply 110000000 (110 tokens), mint authority 9pCJ96uVkHb6wiSvbSpTNL99A3jsieQ9R8w6A9s2o6aE, no freeze authority. Candidate SBF: 1,149,176 bytes, SHA-256 bac5398fc6e020b5c39692555ddb2d68a789cf6fc5367de8ef7f9d5fbc5d2ce2. Deployed SBF dump: 819,472 bytes, SHA-256 4affe732ce6bbbeff99bd93e92879a8d31032cc936d61f09e65a57223f1e983f, last deployed slot 503613496. Devnet rent minimum for 1,149,176 bytes: 5.83846432 SOL; upgrade-authority wallet balance at read: 4.985368466 SOL. |
+| Slot where relevant | Deployed program slot 503613496; live mint metadata was read at the latest finalized slot of the CLI request. No transaction slot exists for the local LiteSVM tests. |
+| Conclusion | The Devnet test-market program and UI are built, but the exact candidate is not deployed. Browser actions are hash-gated and remain disabled. Test Circle creation still needs the user-authorized program upgrade; Epoch-0 funding needs actual tokens from the test-USDC authority. No matching mint-authority key was found in inspected VPS keypair directories; no faucet, token mint, upgrade, airdrop, or user-wallet transaction was sent. Devnet SOL has no mainnet monetary value. |
+| Code depending on it | programs/tenet/src/instructions/test_market.rs, generated IDL/SDK, apps/web/src/dashboard.tsx, apps/web/src/chain.ts (exact SBF-hash preflight), apps/web/src/config.ts, and /opt/tenet-preview/dist. |
+
+LiteSVM validation for this increment: 59 program tests passed, including the new market initialization, account-substitution, vault-delta, and pending-Epoch isolation tests. Package tests passed 51/51, RPC proxy 7/7, SDK client 6/6; TypeScript, production web build, and money-lint passed. These are not live Devnet wallet transactions or external token-faucet verification.

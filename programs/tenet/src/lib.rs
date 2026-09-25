@@ -57,7 +57,7 @@ pub use state::*;
 // target/deploy/ for builds, since target/ is deleted to reclaim disk) and is
 // the program's upgrade identity — see R-14 on burning or disclosing it before
 // any production claim.
-declare_id!("FJt9WntCGo6suyjH4cndwgKjQ8rDSau1JxLA91UFB49v");
+declare_id!("7YWVfv6sDGZkyENbhvHLCiVZMDcJnGgFDZ4cso8BLsbh");
 
 #[program]
 pub mod tenet {
@@ -187,6 +187,20 @@ pub mod tenet {
 
     pub fn end_execution(ctx: Context<EndExecution>) -> Result<()> {
         instructions::execution::end_handler(ctx)
+    }
+
+    // ---- explicitly valueless Devnet test market -------------------------
+
+    pub fn initialize_devnet_test_market(ctx: Context<InitializeDevnetTestMarket>) -> Result<()> {
+        instructions::test_market::initialize_test_market_handler(ctx)
+    }
+
+    pub fn create_devnet_test_circle(ctx: Context<CreateDevnetTestCircle>, mandate_seed: Pubkey) -> Result<()> {
+        instructions::test_market::create_test_circle_handler(ctx, mandate_seed)
+    }
+
+    pub fn buy_devnet_test_equity(ctx: Context<BuyDevnetTestEquity>, amount_usdc_raw: u64) -> Result<()> {
+        instructions::test_market::buy_test_equity_handler(ctx, amount_usdc_raw)
     }
 
     // ---- redemption (moves value) -------------------------------------------

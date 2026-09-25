@@ -36,6 +36,37 @@ export async function isTenetProgramDeployed(): Promise<boolean> {
   return value?.executable === true;
 }
 
+const DEVNET_TEST_MARKET_BINARY_SHA256 = "bac5398fc6e020b5c39692555ddb2d68a789cf6fc5367de8ef7f9d5fbc5d2ce2";
+let testMarketBuildCheck: { at: number; current: boolean | null } | null = null;
+
+/** Enable test-market wallet actions only when the exact tested program build is live. */
+export async function isDevnetTestMarketBuildDeployed(): Promise<boolean | null> {
+  if (testMarketBuildCheck && Date.now() - testMarketBuildCheck.at < 30_000) return testMarketBuildCheck.current;
+  try {
+    const { value: program } = await rpc.getAccountInfo(TENET_PROGRAM_ADDRESS, { encoding: "base64", commitment: "finalized" }).send();
+    if (!program?.executable || !Array.isArray(program.data)) throw new Error("Program account is unavailable");
+    const programState = getBase64Encoder().encode(program.data[0]);
+    if (programState.length < 36 || new DataView(programState.buffer, programState.byteOffset, 4).getUint32(0, true) !== 2) {
+      throw new Error("Program loader state is invalid");
+    }
+    const programDataAddress = address(getBase58Decoder().decode(programState.slice(4, 36)));
+    const { value: programData } = await rpc.getAccountInfo(programDataAddress, { encoding: "base64", commitment: "finalized" }).send();
+    if (!programData || !Array.isArray(programData.data)) throw new Error("ProgramData account is unavailable");
+    const bytes = getBase64Encoder().encode(programData.data[0]);
+    if (bytes.length < 45 || new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0, true) !== 3) {
+      throw new Error("ProgramData loader state is invalid");
+    }
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes.slice(45));
+    const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const current = hash === DEVNET_TEST_MARKET_BINARY_SHA256;
+    testMarketBuildCheck = { at: Date.now(), current };
+    return current;
+  } catch {
+    testMarketBuildCheck = { at: Date.now(), current: null };
+    return null;
+  }
+}
+
 const addrBytes = (a: Address) => new Uint8Array(getAddressEncoder().encode(a));
 
 /** PDAs Codama did not generate, from the SDK's Rust-verified seeds. */
@@ -55,7 +86,7 @@ export const redemptionAssetPda = (redemption: Address, mint: Address) =>
  * signature. Throws with the program's logs attached when it fails.
  */
 export async function send(signer: TransactionSendingSigner, ixs: Instruction[]): Promise<string> {
-  if (!TRANSACTIONS_ENABLED) throw new Error("Tenet is in mainnet read-only mode; transactions are disabled.");
+  if (!TRANSACTIONS_ENABLED) throw new Error("Devnet wallet transactions are disabled in this build.");
   const { value: blockhash } = await rpc.getLatestBlockhash({ commitment: "confirmed" }).send();
   const msg = pipe(
     createTransactionMessage({ version: 0 }),
@@ -189,7 +220,7 @@ export async function loadCircle(circleAddr: Address, wallet: Address | null): P
   let receipt: ContributionReceipt | null = null;
   const exits: ExitView[] = [];
   if (wallet) {
-    const [memberAddr] = await findMemberPda({ circle: circleAddr, memberOwner: wallet });
+    const [memberAddr] = await findMemberPda({ circle: circleAddr, buyer: wallet });
     const m = await fetchMaybeMember(rpc, memberAddr);
     member = m.exists ? m.data : null;
     if (epoch) {
@@ -213,7 +244,7 @@ export async function loadCircle(circleAddr: Address, wallet: Address | null): P
   const [activeUsdcVault] = await findActiveUsdcVaultPda({ circle: circleAddr });
   const [holdings, activeUsdcRaw] = await Promise.all([
     Promise.all(assets.map(async ({ address, asset }) => {
-      const [registryAddr] = await findRegistryEntryPda({ mint: asset.mint });
+      const [registryAddr] = await findRegistryEntryPda({ testMint: asset.mint });
       const [registry, mandateAsset, vaultRaw] = await Promise.all([
         fetchAssetRegistryEntry(rpc, registryAddr),
         fetchMandateAsset(rpc, asset.mandateAsset),

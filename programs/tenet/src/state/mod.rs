@@ -61,6 +61,8 @@ pub enum AssetClass {
     Usdc,
     PublicTokenizedEquity,
     PreIpo,
+    /// A valueless test instrument on Devnet. Never a stock or NAV source.
+    DevnetTestEquity,
 }
 
 // ---------------------------------------------------------------- config
@@ -79,6 +81,19 @@ pub struct Config {
     pub registry_authority: Pubkey,
     /// The only mint Circles accept as USDC (V-014).
     pub usdc_mint: Pubkey,
+    pub bump: u8,
+}
+
+/// Fixed-inventory, valueless Devnet instrument. Its PDA is the mint authority
+/// and the only inventory authority. There is deliberately no withdraw/admin
+/// instruction: test-USDC spent here cannot be mistaken for Circle cash.
+#[account]
+#[derive(InitSpace)]
+pub struct DevnetTestMarket {
+    pub mint: Pubkey,
+    pub inventory_vault: Pubkey,
+    pub usdc_reserve_vault: Pubkey,
+    pub inventory_raw: u64,
     pub bump: u8,
 }
 
@@ -474,6 +489,7 @@ mod tests {
         // from an instruction, and Phase 1 has no instructions that take these.
         let sizes: &[(&str, &[u8], usize)] = &[
             ("Config", Config::DISCRIMINATOR, Config::INIT_SPACE),
+            ("DevnetTestMarket", DevnetTestMarket::DISCRIMINATOR, DevnetTestMarket::INIT_SPACE),
             ("AssetRegistryEntry", AssetRegistryEntry::DISCRIMINATOR, AssetRegistryEntry::INIT_SPACE),
             ("Mandate", Mandate::DISCRIMINATOR, Mandate::INIT_SPACE),
             ("MandateAsset", MandateAsset::DISCRIMINATOR, MandateAsset::INIT_SPACE),

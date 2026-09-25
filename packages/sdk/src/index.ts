@@ -14,6 +14,7 @@
  */
 import {
   getContributeInstructionAsync,
+  getBuyDevnetTestEquityInstructionAsync,
   getCreateMandateInstructionAsync,
   getExecuteAmendmentInstructionAsync,
   getInitiateRedemptionInstructionAsync,
@@ -21,6 +22,7 @@ import {
   getProposeAmendmentInstructionAsync,
   getVoteAmendmentInstructionAsync,
   type ContributeAsyncInput,
+  type BuyDevnetTestEquityAsyncInput,
   type CreateMandateAsyncInput,
   type InitiateRedemptionAsyncInput,
   type ProposeAmendmentAsyncInput,
@@ -58,6 +60,7 @@ export {
   getCancelEpochInstruction,
   getCreateCircleInstruction,
   getCreateCircleInstructionAsync,
+  getCreateDevnetTestCircleInstructionAsync,
   getFinalizeEpochInstruction,
   getFinalizeEpochInstructionAsync,
   getFinalizeMandateInstruction,
@@ -66,6 +69,7 @@ export {
   getForkMandateAssetInstructionAsync,
   getInitializeConfigInstruction,
   getInitializeConfigInstructionAsync,
+  getInitializeDevnetTestMarketInstructionAsync,
   getOpenNavSnapshotInstruction,
   getOpenNavSnapshotInstructionAsync,
   getExecuteAmendmentInstruction,
@@ -86,6 +90,8 @@ export {
 
 export type {
   ContributeAsyncInput,
+  CreateDevnetTestCircleAsyncInput,
+  InitializeDevnetTestMarketAsyncInput,
   CreateMandateAsyncInput,
   InitiateRedemptionAsyncInput,
   OpenEpochAsyncInput,
@@ -121,6 +127,11 @@ type WithBigint<T, K extends keyof T> = Omit<T, K> & { [P in K]: bigint };
 /** Contribute raw USDC into the current epoch's escrow. */
 export function contribute(input: WithBigint<ContributeAsyncInput, "amount">) {
   return getContributeInstructionAsync({ ...input, amount: u64(input.amount, "amount") });
+}
+
+/** Buy fixed-inventory, valueless Devnet test units from active Circle USDC. */
+export function buyDevnetTestEquity(input: WithBigint<BuyDevnetTestEquityAsyncInput, "amountUsdcRaw">) {
+  return getBuyDevnetTestEquityInstructionAsync({ ...input, amountUsdcRaw: u64(input.amountUsdcRaw, "amountUsdcRaw") });
 }
 
 /** Begin an exit of `shares` raw shares. */
