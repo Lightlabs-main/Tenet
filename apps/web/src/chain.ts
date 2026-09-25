@@ -4,15 +4,15 @@
  * the Circle directory with fork lineage, and recent activity.
  */
 import {
-  address, appendTransactionMessageInstructions, createTransactionMessage,
+  address, appendTransactionMessageInstructions, createTransactionMessage, fetchEncodedAccounts,
   getBase58Decoder, getBase58Encoder, getBase64Encoder, pipe, setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash, signAndSendTransactionMessageWithSigners,
   type Address, type Instruction, type TransactionSendingSigner,
 } from "@solana/kit";
 import {
   CIRCLE_ASSET_DISCRIMINATOR, CIRCLE_DISCRIMINATOR, CONTRIBUTION_RECEIPT_DISCRIMINATOR, MANDATE_DISCRIMINATOR,
-  TENET_PROGRAM_ADDRESS, createAtaIdempotentIx, fetchAssetRegistryEntry, fetchCircle, fetchConfig, fetchMandate,
-  fetchMandateAsset, fetchMaybeContributionReceipt, fetchMaybeEpoch, fetchMaybeMember, fetchMaybeNavSnapshot,
+  TENET_PROGRAM_ADDRESS, createAtaIdempotentIx, decodeAssetRegistryEntry, decodeCircleAsset, decodeMandateAsset, fetchCircle, fetchConfig,
+  fetchMandate, fetchMaybeContributionReceipt, tokenAmount, fetchMaybeEpoch, fetchMaybeMember, fetchMaybeNavSnapshot,
   fetchMaybeRedemption, fetchMaybeRedemptionAsset, findAta, getCircleAssetDecoder, getCircleDecoder,
   getContributionReceiptDecoder, getMandateDecoder, mintSupply, pda,
   type AssetRegistryEntry, type Circle, type CircleAsset, type ContributionReceipt, type Epoch, type Mandate,
@@ -22,7 +22,7 @@ import { assertDevnet } from "@tenet/sdk/devnet";
 import {
   activeTransferFee, transferFeeAmount, type TransferFeeConfig,
 } from "../../../packages/domain/src/display.ts";
-import { TRANSACTIONS_ENABLED } from "./config.ts";
+import { INSTRUMENTS, TRANSACTIONS_ENABLED } from "./config.ts";
 import { priceProvider, type PriceObservation } from "./adapters.ts";
 import { rpc } from "./rpc.ts";
 
@@ -104,10 +104,6 @@ export async function tokenBalance(account: Address): Promise<bigint | null> {
   }
 }
 
-async function mintSupplyOf(mint: Address): Promise<bigint> {
-  const { value } = await rpc.getAccountInfo(mint, { encoding: "base64" }).send();
-  return value ? mintSupply(getBase64Encoder().encode(value.data[0]) as Uint8Array).supply : 0n;
-}
 
 // ---------------------------------------------------------------- circle state
 
@@ -155,14 +151,22 @@ export async function loadCircle(circleAddr: Address, wallet: Address | null): P
   const mandate = (await fetchMandate(rpc, circle.mandate)).data;
   const usdcMint = (await fetchConfig(rpc, (await pda.config())[0])).data.usdcMint;
 
-  // Every CircleAsset of this circle: discriminator + circle field (offset 8).
-  const raw = await rpc.getProgramAccounts(TENET_PROGRAM_ADDRESS, {
-    encoding: "base64",
-    filters: [memcmp(0n, b58.decode(CIRCLE_ASSET_DISCRIMINATOR)), memcmp(8n, circleAddr)],
-  }).send();
-  const assets = raw
-    .map((r) => ({ address: r.pubkey, asset: getCircleAssetDecoder().decode(b64.encode(r.account.data[0])) }))
-    .sort((a, b) => a.asset.index - b.asset.index);
+  // This Circle's assets. With a known instrument list, derive the
+  // CircleAsset PDAs and read them in one batch; getProgramAccounts is the
+  // most heavily rate-limited call on the public RPC.
+  let assets: { address: Address; asset: CircleAsset }[];
+  if (INSTRUMENTS.length) {
+    const addrs = await Promise.all(INSTRUMENTS.map(async (i) => (await pda.circleAsset(circleAddr, address(i.mint)))[0]));
+    const found = await fetchEncodedAccounts(rpc, addrs);
+    assets = found.flatMap((a, i) => (a.exists ? [{ address: addrs[i]!, asset: decodeCircleAsset(a).data }] : []));
+  } else {
+    const raw = await rpc.getProgramAccounts(TENET_PROGRAM_ADDRESS, {
+      encoding: "base64",
+      filters: [memcmp(0n, b58.decode(CIRCLE_ASSET_DISCRIMINATOR)), memcmp(8n, circleAddr)],
+    }).send();
+    assets = raw.map((r) => ({ address: r.pubkey, asset: getCircleAssetDecoder().decode(b64.encode(r.account.data[0])) }));
+  }
+  assets.sort((a, b) => a.asset.index - b.asset.index);
 
   const [epochAddr] = await pda.epoch(circleAddr, circle.currentEpoch);
   const e = await fetchMaybeEpoch(rpc, epochAddr);
@@ -204,24 +208,27 @@ export async function loadCircle(circleAddr: Address, wallet: Address | null): P
       exits.push({ seq, address: rAddr, redemption: r.data, claims });
     }
   }
+  // Everything per asset — registry, mandate target, vault, mint, price —
+  // in ONE getMultipleAccounts request (the public RPC rate-limits bursts).
   const [activeUsdcVault] = await pda.usdcVault(circleAddr);
-  const [holdings, activeUsdcRaw] = await Promise.all([
-    Promise.all(assets.map(async ({ address, asset }) => {
-      const [registryAddr] = await pda.registry(asset.mint);
-      const [registry, mandateAsset, vaultRaw, mintSupplyRaw, price] = await Promise.all([
-        fetchAssetRegistryEntry(rpc, registryAddr),
-        fetchMandateAsset(rpc, asset.mandateAsset),
-        tokenBalance(asset.vault),
-        mintSupplyOf(asset.mint),
-        priceProvider.get(asset.mint).catch(() => null),
-      ]);
-      return {
-        address, asset, registry: registry.data, targetWeightBps: mandateAsset.data.targetWeightBps,
-        vaultRaw: vaultRaw ?? 0n, mintSupplyRaw, price,
-      };
-    })),
-    tokenBalance(activeUsdcVault).then((b) => b ?? 0n),
-  ]);
+  const perAsset = await Promise.all(assets.map(async ({ asset }) => [
+    (await pda.registry(asset.mint))[0], asset.mandateAsset, asset.vault, asset.mint, await priceProvider.accountFor(asset.mint),
+  ] as const));
+  const batch = await fetchEncodedAccounts(rpc, [activeUsdcVault, ...perAsset.flat()]);
+  const data = (i: number) => { const a = batch[i]!; return a.exists ? (a.data as Uint8Array) : null; };
+  const activeUsdcRaw = data(0) ? tokenAmount(data(0)!) : 0n;
+  const holdings: Holding[] = assets.map(({ address, asset }, k) => {
+    const o = 1 + k * 5;
+    const registry = decodeAssetRegistryEntry(batch[o]!);
+    const mandateAsset = decodeMandateAsset(batch[o + 1]!);
+    if (!registry.exists || !mandateAsset.exists) throw new Error(`asset ${asset.mint} is missing its registry or Mandate entry`);
+    return {
+      address, asset, registry: registry.data, targetWeightBps: mandateAsset.data.targetWeightBps,
+      vaultRaw: data(o + 2) ? tokenAmount(data(o + 2)!) : 0n,
+      mintSupplyRaw: data(o + 3) ? mintSupply(data(o + 3)!).supply : 0n,
+      price: priceProvider.decode(perAsset[k]![4], batch[o + 4]!),
+    };
+  });
 
   return {
     circle, mandate, mandateAddress: circle.mandate, usdcMint, assets, holdings, activeUsdcRaw, epoch, navSnapshot,
@@ -238,8 +245,17 @@ export interface DirectoryEntry {
   mandate: Mandate;
 }
 
-/** Every Circle on this Tenet deployment, with its Mandate. */
-export async function loadDirectory(): Promise<DirectoryEntry[]> {
+let directoryCache: { at: number; value: Promise<DirectoryEntry[]> } | null = null;
+
+/** Every Circle on this Tenet deployment, with its Mandate (cached 30 s). */
+export function loadDirectory(fresh = false): Promise<DirectoryEntry[]> {
+  if (!fresh && directoryCache && Date.now() - directoryCache.at < 30_000) return directoryCache.value;
+  const value = scanDirectory().catch((e) => { directoryCache = null; throw e; });
+  directoryCache = { at: Date.now(), value };
+  return value;
+}
+
+async function scanDirectory(): Promise<DirectoryEntry[]> {
   const [circles, mandates] = await Promise.all([
     rpc.getProgramAccounts(TENET_PROGRAM_ADDRESS, { encoding: "base64", filters: [memcmp(0n, b58.decode(CIRCLE_DISCRIMINATOR))] }).send(),
     rpc.getProgramAccounts(TENET_PROGRAM_ADDRESS, { encoding: "base64", filters: [memcmp(0n, b58.decode(MANDATE_DISCRIMINATOR))] }).send(),
@@ -294,24 +310,29 @@ export async function loadActivity(circle: Address, limit = 25): Promise<Activit
  * tested against real SPACEX data (V-004): the newer fee applies only once its
  * epoch has arrived.
  */
+const feeConfigs = new Map<string, Promise<TransferFeeConfig | null>>();
+let epochCache: { at: number; epoch: bigint } | null = null;
+
 export async function withheldFee(mint: Address, amount: bigint): Promise<{ fee: bigint; bps: bigint } | null> {
-  const [{ value }, epochInfo] = await Promise.all([
-    rpc.getAccountInfo(mint, { encoding: "jsonParsed" }).send(),
-    rpc.getEpochInfo().send(),
-  ]);
-  const parsed = (value?.data as { parsed?: { info?: { extensions?: { extension: string; state: Record<string, never> }[] } } })
-    ?.parsed?.info;
-  const ext = parsed?.extensions?.find((x) => x.extension === "transferFeeConfig");
-  if (!ext) return null;
-  const tier = (t: Record<string, unknown>) => ({
-    epoch: BigInt(t.epoch as bigint), maximumFee: BigInt(t.maximumFee as bigint),
-    transferFeeBasisPoints: BigInt(t.transferFeeBasisPoints as bigint),
-  });
-  const cfg: TransferFeeConfig = {
-    olderTransferFee: tier(ext.state.olderTransferFee),
-    newerTransferFee: tier(ext.state.newerTransferFee),
-  };
-  const active = activeTransferFee(cfg, BigInt(epochInfo.epoch));
+  // The mint's fee schedule is fetched once per page; the epoch at most once a minute.
+  if (!feeConfigs.has(mint)) {
+    feeConfigs.set(mint, rpc.getAccountInfo(mint, { encoding: "jsonParsed" }).send().then(({ value }) => {
+      const parsed = (value?.data as { parsed?: { info?: { extensions?: { extension: string; state: Record<string, never> }[] } } })?.parsed?.info;
+      const ext = parsed?.extensions?.find((x) => x.extension === "transferFeeConfig");
+      if (!ext) return null;
+      const tier = (t: Record<string, unknown>) => ({
+        epoch: BigInt(t.epoch as bigint), maximumFee: BigInt(t.maximumFee as bigint),
+        transferFeeBasisPoints: BigInt(t.transferFeeBasisPoints as bigint),
+      });
+      return { olderTransferFee: tier(ext.state.olderTransferFee), newerTransferFee: tier(ext.state.newerTransferFee) };
+    }).catch((e) => { feeConfigs.delete(mint); throw e; }));
+  }
+  const cfg = await feeConfigs.get(mint)!;
+  if (!cfg) return null;
+  if (!epochCache || Date.now() - epochCache.at > 60_000) {
+    epochCache = { at: Date.now(), epoch: BigInt((await rpc.getEpochInfo().send()).epoch) };
+  }
+  const active = activeTransferFee(cfg, epochCache.epoch);
   if (!active) return null;
   return { fee: transferFeeAmount(amount, active), bps: active.basisPoints };
 }

@@ -171,7 +171,14 @@ function Overview({ view, circle, me, navigate }: { view: CircleView; circle: Ad
 
 function Lineage({ view, onOpenCircle }: { view: CircleView; onOpenCircle: (c: Address) => void }) {
   const [dir, setDir] = useState<DirectoryEntry[] | null>(null);
-  useEffect(() => { void loadDirectory().then(setDir).catch(() => setDir([])); }, [view.mandateAddress]);
+  useEffect(() => {
+    void (async () => {
+      let d = await loadDirectory();
+      // A just-forked Circle is newer than the cached directory: rescan once.
+      if (!d.some((x) => x.mandateAddress === view.mandateAddress)) d = await loadDirectory(true);
+      setDir(d);
+    })().catch(() => setDir([]));
+  }, [view.mandateAddress]);
   if (!dir) return null;
   const { ancestors, children } = lineage(dir, view.mandateAddress);
   if (!ancestors.length && !children.length) return null;
@@ -266,8 +273,9 @@ function planExecution(view: CircleView, nav: bigint | null): Plan[] {
     const held = h.price ? ((h.vaultRaw - h.asset.reservedForRedemptionRaw) * h.price.price) / 10n ** BigInt(h.registry.decimals) : 0n;
     let spend = target > held ? ((target - held) * 99n) / 100n : 0n;
     if (spend > left) spend = left;
-    // Skip dust: a top-up under 1% of the asset's target is already "at target".
-    if (!h.price || spend < 10_000n || spend * 100n < target) spend = 0n;
+    // Skip dust: within 3% of target (the 1% safety margin plus the venue
+    // spread leave ~1.3% unspent by design) counts as "at target".
+    if (!h.price || spend < 10_000n || spend * 100n < target * 3n) spend = 0n;
     left -= spend;
     return { h, spend, target, held };
   });
@@ -476,44 +484,48 @@ function EpochCard({ view, circle, signer, usdcBalance, runGroups, busy }: {
   let parsed: bigint | null = null;
   let parseError: string | null = null;
   try { parsed = parseAmount(amount || "0", USDC_DECIMALS); } catch (e) { parseError = (e as Error).message; }
-
-  const header = (
-    <div className="card-head">
-      <div><span className="eyebrow">Funding window {index.toString()}</span><h2>Contribute to this Circle</h2><p className="card-intro">Money waits in escrow — refundable — until the window closes. Then shares are set for everyone at once.</p></div>
-      <Badge tone="info">{epoch ? ["Open", "Closed", "Shares ready", "Executing", "Complete", "Cancelled"][epoch.data.state] : "No window open"}</Badge>
-    </div>
-  );
-
-  if (!epoch) {
-    return <section className="card">{header}
-      <p className="muted" style={{ margin: 0 }}>Open the next funding window. It stays open for {formatDuration(mandate.epochDuration)}.{c.totalShares > 0n ? " Because the Circle already holds assets, new shares will be priced at its on-chain NAV." : ""}</p>
-      <ActionButton busy={busy} label={`Open funding window ${index}`} onClick={() => { void runGroups(`Open funding window ${index}`, async () => [await flows.openEpoch({ ...base, mandate: c.mandate, usdcMint, index })]); }} />
-    </section>;
-  }
-
-  const e = epoch.data;
-  const open = e.state === EpochState.Open;
-  const remaining = e.closesAt - now;
-  const span = e.closesAt - e.openedAt;
-  const elapsedBps = span > 0n ? ratioBps(span - (remaining > 0n ? remaining : 0n), span) : 10_000n;
   const minOk = parsed !== null && parsed >= mandate.minContributionUsdc;
   const balOk = parsed !== null && usdcBalance !== null && parsed <= usdcBalance;
+
+  const e = epoch?.data ?? null;
+  const open = e?.state === EpochState.Open;
+  const remaining = e ? e.closesAt - now : 0n;
+  const canContribute = !e || (open && remaining > 0n);
+  const span = e ? e.closesAt - e.openedAt : 0n;
   const unsettled = view.receipts.filter((r) => !r.data.settled).map((r) => r.data.owner);
+
+  /** Close → set shares (at on-chain NAV once the Circle holds assets) → issue shares → complete. */
+  const finish = async () => {
+    const groups: Instruction[][] = [];
+    if (open) groups.push(await flows.closeContributions({ ...base, index }));
+    if (e && (e.state === EpochState.Open || e.state === EpochState.Closed)) {
+      if (c.totalShares === 0n) groups.push(await flows.finalizeEpochZero({ ...base, usdcMint, index }));
+      else groups.push(...await flows.finalizeRollingEpoch({ ...base, mandate: c.mandate, usdcMint, index, assets: rollingAssets(view) }));
+    }
+    const owners = e?.state === EpochState.Finalized ? unsettled : view.receipts.map((r) => r.data.owner);
+    if (owners.length) groups.push(...await flows.settle({ ...base, index, owners }));
+    groups.push(await flows.closeEpoch({ ...base, index }));
+    return groups;
+  };
+  const empty = e !== null && e.receiptCount === 0 && e.state !== EpochState.Finalized;
 
   return (
     <section className="card">
-      {header}
-      <Stepper steps={["Taking contributions", "Window closed", "Shares ready", "Complete"]} current={STEP_OF[e.state] ?? 0} />
+      <div className="card-head">
+        <div><span className="eyebrow">Funding window {index.toString()}</span><h2>Contribute to this Circle</h2>
+          <p className="card-intro">{e ? "Money waits in escrow — refundable — until the window closes. Then shares are set for everyone at once." : `The window opens with the first contribution and stays open ${formatDuration(mandate.epochDuration)} so others can join.`}</p></div>
+        <Badge tone="info">{e ? ["Open", "Closed", "Shares ready", "Executing", "Complete", "Cancelled"][e.state] : "Ready"}</Badge>
+      </div>
+      {e ? <Stepper steps={["Taking contributions", "Window closed", "Shares ready", "Complete"]} current={STEP_OF[e.state] ?? 0} /> : null}
+      {open ? <div className="countdown"><div className="countdown-top"><span>{remaining > 0n ? "Window closes in" : "Window has ended"}</span><strong className="num">{remaining > 0n ? `${remaining}s` : "—"}</strong></div><Meter bps={span > 0n ? ratioBps(span - (remaining > 0n ? remaining : 0n), span) : 10_000n} /></div> : null}
 
-      {open ? <div className="countdown"><div className="countdown-top"><span>{remaining > 0n ? "Window closes in" : "Window has ended"}</span><strong className="num">{remaining > 0n ? `${remaining}s` : "—"}</strong></div><Meter bps={elapsedBps} /></div> : null}
-
-      <div className="preview" style={{ marginTop: 0, marginBottom: 14 }}>
+      {e ? <div className="preview" style={{ marginTop: 0, marginBottom: 14 }}>
         <div className="preview-row"><span className="k">Waiting in escrow</span><span className="v">{usdc(e.pendingUsdcRaw)} {CASH_TICKER}</span></div>
         <div className="preview-row"><span className="k">Contributors</span><span className="v">{e.receiptCount}</span></div>
-        {receipt ? <div className="preview-row"><span className="k">Your contribution</span><span className="v">{usdc(receipt.amountUsdcRaw)} {CASH_TICKER} · contribution pending</span></div> : null}
-      </div>
+        {receipt ? <div className="preview-row"><span className="k">Your contribution</span><span className="v">{usdc(receipt.amountUsdcRaw)} {CASH_TICKER}{receipt.settled ? " · shares issued" : " · contribution pending"}</span></div> : null}
+      </div> : null}
 
-      {open && remaining > 0n ? <>
+      {canContribute ? <>
         <div className="field">
           <div className="field-label"><span>Amount</span><span>Balance: {usdcBalance === null ? "0" : usdc(usdcBalance)} TUSDC</span></div>
           <div className="input-wrap"><input inputMode="decimal" value={amount} onChange={(ev) => setAmount(ev.target.value)} aria-label="amount in TUSDC" /><span className="suffix">TUSDC</span></div>
@@ -521,32 +533,24 @@ function EpochCard({ view, circle, signer, usdcBalance, runGroups, busy }: {
         </div>
         {parseError ? <div className="error-text">{parseError}</div> : null}
         {parsed !== null && !minOk ? <div className="error-text">Minimum is {usdc(mandate.minContributionUsdc)} TUSDC.</div> : null}
-        {parsed !== null && usdcBalance !== null && !balOk ? <div className="error-text">More than your balance — use the faucet above.</div> : null}
-        <ActionButton busy={busy} disabled={!minOk || !balOk} label={`Contribute ${amount} TUSDC`} onClick={() => { void runGroups(`Contribute ${amount} TUSDC`, async () => [await flows.contribute({ contributor: signer, circle, mandate: c.mandate, usdcMint, index, amount: parseAmount(amount, USDC_DECIMALS) })]); }} />
-        {receipt && !receipt.settled ? <ActionButton kind="ghost" busy={busy} label="Cancel & refund my contribution" onClick={() => { void runGroups("Cancel contribution", async () => [await flows.cancelContribution({ contributor: signer, circle, usdcMint, index })]); }} /> : null}
+        {parsed !== null && usdcBalance !== null && !balOk ? <div className="error-text">More than your balance — use Get test USDC above.</div> : null}
+        <ActionButton busy={busy} disabled={!minOk || !balOk} label={`Contribute ${amount} TUSDC`} onClick={() => { void runGroups(`Contribute ${amount} TUSDC`, async () => [[
+          ...(e ? [] : await flows.openEpoch({ ...base, mandate: c.mandate, usdcMint, index })),
+          ...await flows.contribute({ contributor: signer, circle, mandate: c.mandate, usdcMint, index, amount: parseAmount(amount, USDC_DECIMALS) }),
+        ]]); }} />
+        {receipt && !receipt.settled && open ? <ActionButton kind="ghost" busy={busy} label="Cancel & refund my contribution" onClick={() => { void runGroups("Cancel contribution", async () => [await flows.cancelContribution({ contributor: signer, circle, usdcMint, index })]); }} /> : null}
       </> : null}
 
-      {open && remaining <= 0n ? <ActionButton busy={busy} label="Close window & set shares" onClick={() => { void runGroups("Close window & set shares", async () => {
-        const groups = [await flows.closeContributions({ ...base, index })];
-        if (c.totalShares === 0n) groups.push(await flows.finalizeEpochZero({ ...base, usdcMint }));
-        else groups.push(...await flows.finalizeRollingEpoch({ ...base, mandate: c.mandate, usdcMint, index, assets: rollingAssets(view) }));
-        return groups;
-      }); }} /> : null}
-
-      {e.state === EpochState.Closed ? (
-        c.pendingReservations > 0 ? <p className="muted">An exit is being prepared. Finish it on the Exit page, then set shares.</p> :
-        view.navSnapshot ? <p className="muted">A valuation snapshot is open. If it stalled, it can be cancelled after ~60s and contributions refunded.</p> :
-        <ActionButton busy={busy} label={c.totalShares === 0n ? "Set shares (first window: 1 share per micro-TUSDC)" : "Value the portfolio on-chain & set shares"} onClick={() => { void runGroups("Set shares", async () =>
-          c.totalShares === 0n ? [await flows.finalizeEpochZero({ ...base, usdcMint })] : flows.finalizeRollingEpoch({ ...base, mandate: c.mandate, usdcMint, index, assets: rollingAssets(view) })); }} />
+      {e && !canContribute && e.state !== EpochState.Cancelled ? (
+        c.pendingReservations > 0 ? <p className="muted">An exit is being prepared. Finish it on the Exit page, then come back.</p> :
+        view.navSnapshot && e.state === EpochState.Closed ? <p className="muted">A valuation snapshot is open. If it stalled, it can be cancelled after about a minute and contributions refunded.</p> :
+        <>
+          {e.state === EpochState.Finalized && receipt && !receipt.settled ? <p className="muted">You will receive {trim(formatShares(sharesForContribution(receipt.amountUsdcRaw, e.totalSharesBefore, e.navBefore)))} shares{e.totalSharesBefore > 0n ? ` at NAV ${usdc(e.navBefore)} ${CASH_TICKER}` : ""}.</p> : null}
+          {empty ? <p className="muted">Nobody contributed in this window. Restart it to take contributions again.</p> : null}
+          <ActionButton busy={busy} label={empty ? "Restart funding window" : c.totalShares === 0n ? "Close window & issue shares" : "Value the Circle on-chain & issue shares"} onClick={() => { void runGroups(empty ? "Restart funding window" : c.totalShares === 0n ? "Close window & issue shares" : "Value the Circle on-chain & issue shares", finish); }} />
+          {empty ? null : <p className="muted">One click runs every step: close the window, set the share price{c.totalShares > 0n ? " from the on-chain NAV" : ""}, issue shares to all {e.receiptCount} contributor{e.receiptCount === 1 ? "" : "s"}, and complete the window.</p>}
+        </>
       ) : null}
-
-      {e.state === EpochState.Finalized ? <>
-        {receipt && !receipt.settled ? <p className="muted">You will receive {trim(formatShares(sharesForContribution(receipt.amountUsdcRaw, e.totalSharesBefore, e.navBefore)))} shares{e.totalSharesBefore > 0n ? ` at NAV ${usdc(e.navBefore)} ${CASH_TICKER}` : ""}.</p> : null}
-        <ActionButton busy={busy} label={unsettled.length ? `Issue shares to ${unsettled.length} contributor${unsettled.length === 1 ? "" : "s"} & complete window` : "Complete window"} onClick={() => { void runGroups("Settle & complete window", async () => [
-          ...(unsettled.length ? await flows.settle({ ...base, index, owners: unsettled }) : []),
-          await flows.closeEpoch({ ...base, index }),
-        ]); }} />
-      </> : null}
     </section>
   );
 }
@@ -629,7 +633,7 @@ function FirstCircleConnected({ account, onOpenCircle }: { account: UiWalletAcco
   useEffect(() => { void refresh(); }, [refresh]);
   const { busy, run, runGroups } = useRunner(signer, refresh);
   const [draft, setDraft] = useState<RuleDraft>({
-    name: FRONTIER_TECHNOLOGY.name, preIpoPct: "30", perAssetPct: "30", minutes: "2",
+    name: FRONTIER_TECHNOLOGY.name, preIpoPct: "30", perAssetPct: "30", minutes: "3",
     targets: Object.fromEntries(INSTRUMENTS.map((i) => [i.symbol, String((FRONTIER_TECHNOLOGY.targets.find(([s]) => s === i.symbol)?.[1] ?? 0) / 100)])),
   });
   const problems = checkDraft(draft, (s) => preIpoSymbols.has(s));
@@ -638,7 +642,7 @@ function FirstCircleConnected({ account, onOpenCircle }: { account: UiWalletAcco
     const ok = await runGroups("Create Mandate & Circle", async () => {
       const chosen = INSTRUMENTS.filter((i) => Number(draft.targets[i.symbol] ?? 0) > 0);
       const out = await flows.createMandateAndCircle({
-        author: signer, mandateSeed: (await generateKeyPairSigner()).address, usdcMint: USDC_MINT!,
+        author: signer, mandateSeed: (await generateKeyPairSigner()).address, usdcMint: USDC_MINT!, openFirstEpoch: false,
         params: paramsFrom(draft, FRONTIER_TECHNOLOGY.description),
         assets: chosen.map((i) => ({ mint: i.mint as Address, tokenProgram: i.tokenProgram as Address, targetWeightBps: Math.round(Number(draft.targets[i.symbol]) * 100) })),
       });
@@ -679,7 +683,7 @@ function ForkCard({ view, signer, runGroups, busy, onOpenCircle }: {
     const ok = await runGroups("Fork Mandate & create Circle", async () => {
       const out = await flows.forkMandateAndCircle({
         forker: signer, parentMandate: view.mandateAddress, newMandateSeed: (await generateKeyPairSigner()).address,
-        params: paramsFrom(draft, `Fork of ${m.name}. DEVNET TEST.`), usdcMint: view.usdcMint,
+        params: paramsFrom(draft, `Fork of ${m.name}. DEVNET TEST.`), usdcMint: view.usdcMint, openFirstEpoch: false,
         // Fork copies assets in the parent's order, one by one.
         assets: view.holdings.map((h) => ({ mint: h.asset.mint, tokenProgram: h.asset.tokenProgram, targetWeightBps: Math.round(Number(draft.targets[h.registry.symbol] ?? 0) * 100) })),
       });

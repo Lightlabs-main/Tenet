@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSelectedWalletAccount } from "@solana/react";
 import type { Address } from "@solana/kit";
 import { CASH_TICKER, CLUSTER, DEPLOYMENT, TOKEN_PROGRAM, USDC_DECIMALS } from "./config.ts";
@@ -138,18 +138,32 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
     return () => { window.removeEventListener("hashchange", syncHash); window.removeEventListener("popstate", syncHash); };
   }, []);
 
+  // The Circle currently open. A reload that finishes after the user (or a
+  // Fork) switched Circles must not overwrite the page with the old one.
+  const openCircle = useRef(circle);
+  openCircle.current = circle;
   const reload = useCallback(async () => {
     if (!circle) return;
+    const target = circle;
     setLoading(true);
     try {
       setError(null);
-      const v = await loadCircle(circle, me);
+      // A just-created Circle can be missing on a lagging RPC node for a moment.
+      let v: CircleView | null = null;
+      for (let attempt = 0; ; attempt++) {
+        try { v = await loadCircle(target, me); break; } catch (e) {
+          if (attempt >= 3 || !/not found|does not exist|could not find/i.test(String((e as Error).message))) throw e;
+          await new Promise((r) => setTimeout(r, 2_000));
+        }
+      }
       const bal = me
         ? await ataAddress(me, v.usdcMint, TOKEN_PROGRAM).then(tokenBalance)
         : null;
+      if (openCircle.current !== target) return;
       setView(v);
       setUsdcBalance(bal);
     } catch (e) {
+      if (openCircle.current !== target) return;
       setView(null);
       setError((e as Error).message);
     } finally {

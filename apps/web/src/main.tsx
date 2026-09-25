@@ -20,6 +20,11 @@ const stateSync = {
 const filterWallets = (w: UiWallet) =>
   w.chains.includes(CHAIN) && w.features.includes("solana:signAndSendTransaction");
 
+// Development-only test wallet for automated UI runs; absent from production builds.
+if (import.meta.env.DEV && new URLSearchParams(location.search).has("testwallet")) {
+  void import("./devWallet.ts").then((m) => m.registerDevWallet());
+}
+
 const root = document.getElementById("root");
 if (!root) throw new Error("Tenet root element is missing.");
 root.dataset.mounted = "true";

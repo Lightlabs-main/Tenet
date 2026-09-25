@@ -90,6 +90,8 @@ export async function circleForMandate(input: {
   mandate: Address;
   assets: AssetRef[];
   usdcMint: Address;
+  /** Open Epoch 0 now (scripts). The UI leaves it to the first contribution. */
+  openFirstEpoch?: boolean;
 }): Promise<Groups> {
   const { creator, mandate, usdcMint } = input;
   const [circle] = await pda.circle(mandate);
@@ -107,6 +109,7 @@ export async function circleForMandate(input: {
       vault: (await pda.assetVault(circle, a.mint))[0], systemProgram: SYSTEM_PROGRAM,
     }));
   }
+  if (input.openFirstEpoch === false) return [[create], ...chunk(adds, 3)];
   const open = await openEpoch({ payer: creator, circle, mandate, usdcMint, index: 0n });
   return [[create], ...chunk(adds, 3), open];
 }
@@ -118,6 +121,7 @@ export async function createMandateAndCircle(input: {
   params: MandateParamsInput;
   assets: TargetedAsset[];
   usdcMint: Address;
+  openFirstEpoch?: boolean;
 }): Promise<{ mandate: Address; circle: Address; groups: Groups }> {
   const { author, mandateSeed, assets } = input;
   const [mandate] = await pda.mandate(mandateSeed);
@@ -132,7 +136,7 @@ export async function createMandateAndCircle(input: {
     }));
   }
   const finalize = await finalizeMandateIx(author, mandate, assets.map((a) => a.mint));
-  const circleGroups = await circleForMandate({ creator: author, mandate, assets, usdcMint: input.usdcMint });
+  const circleGroups = await circleForMandate({ creator: author, mandate, assets, usdcMint: input.usdcMint, openFirstEpoch: input.openFirstEpoch });
   return { mandate, circle: (await pda.circle(mandate))[0], groups: [draft, [finalize], ...circleGroups] };
 }
 
@@ -174,8 +178,12 @@ export async function closeContributions(input: { payer: TransactionSigner; circ
 }
 
 /** Epoch 0 finalization: no oracle, shares = micro-USDC. */
-export async function finalizeEpochZero(input: { payer: TransactionSigner; circle: Address; usdcMint: Address }): Promise<Instruction[]> {
-  return [await finalizeEpochIx({ ...input, index: 0n, withSnapshot: false })];
+/**
+ * Finalization while the Circle has no shares yet: no oracle, 1 share per
+ * micro-USDC. Usually window 0; a later index if earlier windows had nobody.
+ */
+export async function finalizeEpochZero(input: { payer: TransactionSigner; circle: Address; usdcMint: Address; index?: bigint }): Promise<Instruction[]> {
+  return [await finalizeEpochIx({ ...input, index: input.index ?? 0n, withSnapshot: false })];
 }
 
 async function finalizeEpochIx(input: { payer: TransactionSigner; circle: Address; usdcMint: Address; index: bigint; withSnapshot: boolean }): Promise<Instruction> {
@@ -361,6 +369,7 @@ export async function forkMandateAndCircle(input: {
   /** In the PARENT's asset order (fork copies asset i to index i). */
   assets: TargetedAsset[];
   usdcMint: Address;
+  openFirstEpoch?: boolean;
 }): Promise<{ mandate: Address; circle: Address; groups: Groups }> {
   const { forker, parentMandate, newMandateSeed } = input;
   const [newMandate] = await pda.mandate(newMandateSeed);
@@ -375,6 +384,6 @@ export async function forkMandateAndCircle(input: {
     }));
   }
   const finalize = await finalizeMandateIx(forker, newMandate, input.assets.map((a) => a.mint));
-  const circleGroups = await circleForMandate({ creator: forker, mandate: newMandate, assets: input.assets, usdcMint: input.usdcMint });
+  const circleGroups = await circleForMandate({ creator: forker, mandate: newMandate, assets: input.assets, usdcMint: input.usdcMint, openFirstEpoch: input.openFirstEpoch });
   return { mandate: newMandate, circle: (await pda.circle(newMandate))[0], groups: [fork, [finalize], ...circleGroups] };
 }

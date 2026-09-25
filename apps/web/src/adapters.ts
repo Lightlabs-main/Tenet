@@ -12,7 +12,8 @@
  * names the only venue and price program it will accept.
  */
 import type { Address, Instruction, TransactionSigner } from "@solana/kit";
-import { circleBuyIx, feedAddress, fetchMaybeMarket, fetchMaybePriceFeed, findMarketPda, quoteBuy } from "@tenet/sdk/devnet";
+import { fetchEncodedAccount, type MaybeEncodedAccount } from "@solana/kit";
+import { circleBuyIx, decodePriceFeed, feedAddress, fetchMaybeMarket, findMarketPda, quoteBuy } from "@tenet/sdk/devnet";
 import { CLUSTER } from "./config.ts";
 import { rpc } from "./rpc.ts";
 
@@ -35,6 +36,10 @@ export interface PriceProvider {
   readonly testData: boolean;
   readonly label: string;
   get(mint: Address): Promise<PriceObservation | null>;
+  /** The account the program reads this mint's price from (batched reads). */
+  accountFor(mint: Address): Promise<Address>;
+  /** Decode that account, fetched in a batch; null when missing. */
+  decode(account: Address, encoded: MaybeEncodedAccount): PriceObservation | null;
 }
 
 export interface VenueQuote {
@@ -60,9 +65,12 @@ export const devnetPriceProvider: PriceProvider = {
   label: "DEVNET TEST DATA · devnet pricing simulation",
   async get(mint) {
     const account = await feedAddress(mint);
-    const f = await fetchMaybePriceFeed(rpc, account);
-    if (!f.exists) return null;
-    const d = f.data;
+    return this.decode(account, await fetchEncodedAccount(rpc, account));
+  },
+  accountFor: (mint) => feedAddress(mint),
+  decode(account, encoded) {
+    if (!encoded.exists) return null;
+    const d = decodePriceFeed(encoded).data;
     return {
       price: d.price, conf: d.conf, publishTime: d.publishTime, account,
       mark: d.referenceMark > 0n ? d.referenceMark : null,
@@ -92,6 +100,7 @@ const notInThisBuild = (what: string) => () => {
 
 export const pythPriceProvider: PriceProvider = {
   name: "Pyth", testData: false, label: "Pyth", get: async () => null,
+  accountFor: notInThisBuild("Pyth price accounts"), decode: () => null,
 };
 
 export const jupiterExecutionProvider: ExecutionProvider = {

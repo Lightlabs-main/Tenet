@@ -27,8 +27,11 @@ export function explain(e: unknown): string {
   return msg.length > 400 ? msg.slice(0, 400) + "…" : msg;
 }
 
-export function useRunner(signer: TransactionSendingSigner, onChanged: () => Promise<void>) {
+export function useRunner(signer: TransactionSendingSigner, refresh: () => Promise<void>) {
   const toast = useToast();
+  // Public RPC nodes behind a load balancer can serve a read from a node a
+  // slot or two behind the one that confirmed; refresh again shortly after.
+  const onChanged = async () => { await refresh(); setTimeout(() => { void refresh(); }, 3_500); };
   const [busy, setBusy] = useState<string | null>(null);
   const run: Run = async (label, build) => {
     setBusy(label);
@@ -70,7 +73,7 @@ export function ActionButton({ label, busy, onClick, kind = "primary", block = t
 }) {
   return (
     <button className={`btn ${kind}${block ? " block" : ""}`} disabled={!!busy || disabled} onClick={onClick}>
-      {busy ? <Spinner /> : null}{label}
+      {busy ? <Spinner /> : null}{typeof label === "string" && busy?.startsWith(label) ? busy : label}
     </button>
   );
 }
