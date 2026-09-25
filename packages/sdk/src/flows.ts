@@ -231,7 +231,46 @@ export async function finalizeRollingEpoch(input: {
     payer, circle, epoch, navSnapshot, activeUsdcVault: (await pda.usdcVault(circle))[0], vaultAuthority, systemProgram: SYSTEM_PROGRAM,
   });
   const finalize = await finalizeEpochIx({ payer, circle, usdcMint: input.usdcMint, index, withSnapshot: true });
-  return [[...refresh, open], ...chunk(record, 3), [finalize]];
+  // As few transactions as fit (each is one wallet approval): the snapshot
+  // must be finalized within ~150 slots of opening.
+  const records = chunk(record, 3);
+  const last = records.pop() ?? [];
+  return [[...refresh, open], ...records, [...last, finalize]];
+}
+
+/**
+ * Resume a valuation snapshot that was opened but not finalized (e.g. the
+ * browser closed mid-way): record only the assets not yet recorded, then
+ * finalize. Fails with NavSnapshotExpired once ~150 slots have passed; then
+ * `cancel_epoch` is the recovery.
+ */
+export async function finishRollingValuation(input: {
+  payer: TransactionSigner;
+  circle: Address;
+  mandate: Address;
+  usdcMint: Address;
+  index: bigint;
+  recordedBitmap: number;
+  assets: (AssetRef & { priceAccount: Address; index: number })[];
+}): Promise<Groups> {
+  const { payer, circle, mandate, index } = input;
+  const [epoch] = await pda.epoch(circle, index);
+  const [navSnapshot] = await pda.navSnapshot(epoch);
+  const [vaultAuthority] = await pda.vaultAuthority(circle);
+  const [config] = await pda.config();
+  const record: Instruction[] = [];
+  for (const a of input.assets) {
+    if ((input.recordedBitmap >> a.index) & 1) continue;
+    record.push(getRecordAssetNavInstruction({
+      payer, circle, epoch, navSnapshot, circleAsset: (await pda.circleAsset(circle, a.mint))[0],
+      mandateAsset: (await pda.mandateAsset(mandate, a.mint))[0], registryEntry: (await pda.registry(a.mint))[0],
+      vault: (await pda.assetVault(circle, a.mint))[0], mint: a.mint, config, priceAccount: a.priceAccount, vaultAuthority,
+    }));
+  }
+  const finalize = await finalizeEpochIx({ payer, circle, usdcMint: input.usdcMint, index, withSnapshot: true });
+  const records = chunk(record, 3);
+  const last = records.pop() ?? [];
+  return [...records, [...last, finalize]];
 }
 
 /** Issue shares to each contributor of a finalized epoch (permissionless). */

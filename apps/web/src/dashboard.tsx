@@ -9,7 +9,7 @@ import { useWalletAccountTransactionSendingSigner } from "@solana/react";
 import type { UiWalletAccount } from "@wallet-standard/react";
 import { generateKeyPairSigner, type Address, type Instruction, type TransactionSendingSigner } from "@solana/kit";
 import {
-  AssetClass, EpochState, MandateState, MembershipPolicy, fetchMaybeEpoch, flows, pda,
+  AssetClass, EpochState, MandateState, MembershipPolicy, fetchMaybeEpoch, flows, getCancelEpochInstruction, pda,
   getClaimRedemptionAssetInstruction, getClaimRedemptionUsdcInstruction, getReserveRedemptionAssetInstruction,
   getReserveRedemptionUsdcInstruction, type MandateParamsInput,
 } from "@tenet/sdk";
@@ -106,7 +106,7 @@ function ConnectPrompt({ navigate }: { navigate: (p: CirclePanel) => void }) {
 
 // ================================================================ demo guide
 
-/** The whole product in eight steps, each ticked from real chain state. */
+/** The whole product in seven steps, each ticked from real chain state. */
 function DemoGuide({ view, me, usdcBalance, navigate }: {
   view: CircleView; me: Address | null; usdcBalance: bigint | null; navigate: (p: CirclePanel | "mandate") => void;
 }) {
@@ -494,19 +494,37 @@ function EpochCard({ view, circle, signer, usdcBalance, runGroups, busy }: {
   const span = e ? e.closesAt - e.openedAt : 0n;
   const unsettled = view.receipts.filter((r) => !r.data.settled).map((r) => r.data.owner);
 
-  /** Close → set shares (at on-chain NAV once the Circle holds assets) → issue shares → complete. */
+  /**
+   * Close → set shares (at on-chain NAV once the Circle holds assets) →
+   * issue shares → complete, in as few transactions (wallet approvals) as
+   * fit: a NAV snapshot must be finalized within ~150 slots (~60 s).
+   */
   const finish = async () => {
     const groups: Instruction[][] = [];
-    if (open) groups.push(await flows.closeContributions({ ...base, index }));
+    const close = open ? await flows.closeContributions({ ...base, index }) : [];
     if (e && (e.state === EpochState.Open || e.state === EpochState.Closed)) {
-      if (c.totalShares === 0n) groups.push(await flows.finalizeEpochZero({ ...base, usdcMint, index }));
-      else groups.push(...await flows.finalizeRollingEpoch({ ...base, mandate: c.mandate, usdcMint, index, assets: rollingAssets(view) }));
-    }
+      if (view.navSnapshot) {
+        groups.push(...await flows.finishRollingValuation({
+          ...base, mandate: c.mandate, usdcMint, index, recordedBitmap: view.navSnapshot.data.recordedBitmap,
+          assets: rollingAssets(view).map((a, i) => ({ ...a, index: view.holdings[i]!.asset.index })),
+        }));
+      } else {
+        const valuation = c.totalShares === 0n
+          ? [await flows.finalizeEpochZero({ ...base, usdcMint, index })]
+          : await flows.finalizeRollingEpoch({ ...base, mandate: c.mandate, usdcMint, index, assets: rollingAssets(view) });
+        groups.push([...close, ...valuation[0]!], ...valuation.slice(1));
+      }
+    } else if (close.length) groups.push(close);
     const owners = e?.state === EpochState.Finalized ? unsettled : view.receipts.map((r) => r.data.owner);
-    if (owners.length) groups.push(...await flows.settle({ ...base, index, owners }));
-    groups.push(await flows.closeEpoch({ ...base, index }));
+    const settle = owners.length ? await flows.settle({ ...base, index, owners }) : [];
+    const complete = await flows.closeEpoch({ ...base, index });
+    if (settle.length) settle[settle.length - 1]!.push(...complete); else settle.push(complete);
+    groups.push(...settle);
     return groups;
   };
+  const cancelStalled = async () => [[getCancelEpochInstruction({
+    payer: signer, circle, epoch: epoch!.address, navSnapshot: view.navSnapshot?.address,
+  })]];
   const empty = e !== null && e.receiptCount === 0 && e.state !== EpochState.Finalized;
 
   return (
@@ -543,7 +561,11 @@ function EpochCard({ view, circle, signer, usdcBalance, runGroups, busy }: {
 
       {e && !canContribute && e.state !== EpochState.Cancelled ? (
         c.pendingReservations > 0 ? <p className="muted">An exit is being prepared. Finish it on the Exit page, then come back.</p> :
-        view.navSnapshot && e.state === EpochState.Closed ? <p className="muted">A valuation snapshot is open. If it stalled, it can be cancelled after about a minute and contributions refunded.</p> :
+        view.navSnapshot && e.state === EpochState.Closed ? <>
+          <p className="muted">A valuation of the Circle was started but not finished ({view.navSnapshot.data.assetsRemaining} asset{view.navSnapshot.data.assetsRemaining === 1 ? "" : "s"} left). Finish it now; if it has timed out (about a minute), cancel it so contributors can take their money back.</p>
+          <ActionButton busy={busy} label="Finish valuation & issue shares" onClick={() => { void runGroups("Finish valuation & issue shares", finish); }} />
+          <ActionButton kind="ghost" busy={busy} label="Cancel timed-out valuation" onClick={() => { void runGroups("Cancel timed-out valuation", cancelStalled); }} />
+        </> :
         <>
           {e.state === EpochState.Finalized && receipt && !receipt.settled ? <p className="muted">You will receive {trim(formatShares(sharesForContribution(receipt.amountUsdcRaw, e.totalSharesBefore, e.navBefore)))} shares{e.totalSharesBefore > 0n ? ` at NAV ${usdc(e.navBefore)} ${CASH_TICKER}` : ""}.</p> : null}
           {empty ? <p className="muted">Nobody contributed in this window. Restart it to take contributions again.</p> : null}
@@ -551,6 +573,11 @@ function EpochCard({ view, circle, signer, usdcBalance, runGroups, busy }: {
           {empty ? null : <p className="muted">One click runs every step: close the window, set the share price{c.totalShares > 0n ? " from the on-chain NAV" : ""}, issue shares to all {e.receiptCount} contributor{e.receiptCount === 1 ? "" : "s"}, and complete the window.</p>}
         </>
       ) : null}
+
+      {e?.state === EpochState.Cancelled ? <>
+        <p className="muted">This funding window was cancelled because its valuation timed out. Every contributor can take their money back. Holdings, execution and exits are unaffected.</p>
+        {receipt && !receipt.settled ? <ActionButton busy={busy} label={`Refund my ${usdc(receipt.amountUsdcRaw)} TUSDC`} onClick={() => { void runGroups("Refund contribution", async () => [await flows.cancelContribution({ contributor: signer, circle, usdcMint, index })]); }} /> : null}
+      </> : null}
     </section>
   );
 }
@@ -567,7 +594,7 @@ function rollingAssets(view: CircleView) {
 interface RuleDraft { name: string; preIpoPct: string; perAssetPct: string; minutes: string; targets: Record<string, string> }
 
 function paramsFrom(d: RuleDraft, description: string): MandateParamsInput {
-  const bps = (s: string) => Math.round(Number(s) * 100);
+  const bps = (s: string) => toBps(s) ?? 0; // validated by checkDraft first
   return {
     name: d.name.trim(), description,
     maxWeightPerAssetBps: bps(d.perAssetPct), maxPreIpoWeightBps: bps(d.preIpoPct),
@@ -580,18 +607,44 @@ function paramsFrom(d: RuleDraft, description: string): MandateParamsInput {
 }
 
 /** Live validation mirroring finalize_mandate, so the button only enables when the chain will accept. */
+const utf8Len = (s: string) => new TextEncoder().encode(s).length;
+/** Trim to at most `max` UTF-8 bytes without splitting a character. */
+function trimBytes(s: string, max: number): string {
+  let out = "";
+  for (const ch of s) { if (utf8Len(out + ch) > max) break; out += ch; }
+  return out;
+}
+/** "12.5" -> 1250 bps; null unless 0–100 with at most two decimals (whole bps). */
+function toBps(s: string): number | null {
+  if (!/^\d{1,3}(\.\d{1,2})?$/.test(s.trim())) return null;
+  const bps = Math.round(Number(s) * 100);
+  return bps <= 10_000 ? bps : null;
+}
+
+/** Live validation mirroring create_mandate / finalize_mandate, so the button only enables when the chain will accept. */
 function checkDraft(d: RuleDraft, isPreIpo: (sym: string) => boolean): string[] {
   const problems: string[] = [];
-  const pct = (s: string) => Number(s);
-  const t = Object.entries(d.targets).map(([s, v]) => [s, pct(v)] as const).filter(([, v]) => v > 0);
-  if (!d.name.trim()) problems.push("Give the Mandate a name.");
-  if (!t.length) problems.push("Choose at least one asset.");
+  const name = d.name.trim();
+  if (!name) problems.push("Give the Mandate a name.");
+  else if (utf8Len(name) > 48) problems.push("Name is too long (48 bytes max).");
+  const pre = toBps(d.preIpoPct);
+  const per = toBps(d.perAssetPct);
+  if (pre === null) problems.push("Pre-IPO cap must be a percentage from 0 to 100.");
+  if (per === null) problems.push("Per-asset cap must be a percentage from 0 to 100.");
+  const minutes = Number(d.minutes);
+  if (!/^\d+(\.\d+)?$/.test(d.minutes.trim()) || minutes < 1 || minutes > 129_600) problems.push("Funding window must be between 1 minute and 90 days.");
+  const t: [string, number][] = [];
+  for (const [s, v] of Object.entries(d.targets)) {
+    const bps = toBps(v || "0");
+    if (bps === null) problems.push(`${s} target must be a percentage from 0 to 100.`);
+    else if (bps > 0) t.push([s, bps]);
+  }
+  if (!t.length) problems.push("Give at least one asset a target above 0%.");
   const sum = t.reduce((a, [, v]) => a + v, 0);
-  if (sum > 100) problems.push(`Targets add up to ${sum}% (max 100%).`);
-  for (const [s, v] of t) if (v > pct(d.perAssetPct)) problems.push(`${s} ${v}% is above the ${d.perAssetPct}% per-asset cap.`);
-  const pre = t.filter(([s]) => isPreIpo(s)).reduce((a, [, v]) => a + v, 0);
-  if (pre > pct(d.preIpoPct)) problems.push(`Pre-IPO targets total ${pre}%, above the ${d.preIpoPct}% pre-IPO cap.`);
-  if (!(pct(d.minutes) >= 1)) problems.push("Funding window must be at least 1 minute.");
+  if (sum > 10_000) problems.push(`Targets add up to ${formatBps(BigInt(sum))} (max 100%).`);
+  if (per !== null) for (const [s, v] of t) if (v > per) problems.push(`${s} ${formatBps(BigInt(v))} is above the ${formatBps(BigInt(per))} per-asset cap.`);
+  const preSum = t.filter(([s]) => isPreIpo(s)).reduce((a, [, v]) => a + v, 0);
+  if (pre !== null && preSum > pre) problems.push(`Pre-IPO targets total ${formatBps(BigInt(preSum))}, above the ${formatBps(BigInt(pre))} pre-IPO cap.`);
   return problems;
 }
 
@@ -640,11 +693,11 @@ function FirstCircleConnected({ account, onOpenCircle }: { account: UiWalletAcco
   const create = async () => {
     let circle: Address | null = null;
     const ok = await runGroups("Create Mandate & Circle", async () => {
-      const chosen = INSTRUMENTS.filter((i) => Number(draft.targets[i.symbol] ?? 0) > 0);
+      const chosen = INSTRUMENTS.filter((i) => (toBps(draft.targets[i.symbol] ?? "0") ?? 0) > 0);
       const out = await flows.createMandateAndCircle({
         author: signer, mandateSeed: (await generateKeyPairSigner()).address, usdcMint: USDC_MINT!, openFirstEpoch: false,
         params: paramsFrom(draft, FRONTIER_TECHNOLOGY.description),
-        assets: chosen.map((i) => ({ mint: i.mint as Address, tokenProgram: i.tokenProgram as Address, targetWeightBps: Math.round(Number(draft.targets[i.symbol]) * 100) })),
+        assets: chosen.map((i) => ({ mint: i.mint as Address, tokenProgram: i.tokenProgram as Address, targetWeightBps: toBps(draft.targets[i.symbol] ?? "0") ?? 0 })),
       });
       circle = out.circle;
       return out.groups;
@@ -667,7 +720,7 @@ function ForkCard({ view, signer, runGroups, busy, onOpenCircle }: {
   const m = view.mandate;
   const pct = (bps: number) => String(bps / 100);
   const [draft, setDraft] = useState<RuleDraft>(() => ({
-    name: `${m.name} — Fork`.slice(0, 48),
+    name: trimBytes(`${m.name} — Fork`, 48),
     preIpoPct: pct(Math.floor(m.maxPreIpoWeightBps / 2)), perAssetPct: pct(m.maxWeightPerAssetBps),
     minutes: String(Number(m.epochDuration) / 60),
     targets: Object.fromEntries(view.holdings.map((h) => [h.registry.symbol, pct(isPre(h) ? Math.floor(h.targetWeightBps / 2) : h.targetWeightBps)])),
@@ -685,7 +738,7 @@ function ForkCard({ view, signer, runGroups, busy, onOpenCircle }: {
         forker: signer, parentMandate: view.mandateAddress, newMandateSeed: (await generateKeyPairSigner()).address,
         params: paramsFrom(draft, `Fork of ${m.name}. DEVNET TEST.`), usdcMint: view.usdcMint, openFirstEpoch: false,
         // Fork copies assets in the parent's order, one by one.
-        assets: view.holdings.map((h) => ({ mint: h.asset.mint, tokenProgram: h.asset.tokenProgram, targetWeightBps: Math.round(Number(draft.targets[h.registry.symbol] ?? 0) * 100) })),
+        assets: view.holdings.map((h) => ({ mint: h.asset.mint, tokenProgram: h.asset.tokenProgram, targetWeightBps: toBps(draft.targets[h.registry.symbol] ?? "0") ?? 0 })),
       });
       circle = out.circle;
       return out.groups;

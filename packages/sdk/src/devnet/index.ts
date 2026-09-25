@@ -46,6 +46,8 @@ export const MAINNET_GENESIS_HASH = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9
 
 export const TUSDC_DECIMALS = 6;
 export const FAUCET_CLAIM_RAW = 1_000_000_000n;
+/** Mirrors tenet-devnet `FAUCET_SUPPLY_CAP_RAW`: 1,000,000,000 TUSDC ever. */
+export const FAUCET_SUPPLY_CAP = 1_000_000_000_000_000n;
 export const FAUCET_COOLDOWN_SECONDS = 60;
 export const PRICE_EXPONENT = -6;
 

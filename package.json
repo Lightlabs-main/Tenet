@@ -22,7 +22,8 @@
     "devnet:setup": "cd packages/sdk && node --import tsx scripts/devnet/setup.ts",
     "devnet:reset": "cd packages/sdk && node --import tsx scripts/devnet/reset.ts",
     "devnet:price": "cd packages/sdk && node --import tsx scripts/devnet/price.ts",
-    "devnet:e2e": "cd packages/sdk && node --import tsx scripts/devnet-e2e.ts"
+    "devnet:e2e": "cd packages/sdk && node --import tsx scripts/devnet-e2e.ts",
+    "devnet:status": "cd packages/sdk && node --import tsx scripts/devnet/status.ts"
   },
   "devDependencies": {
     "typescript": "^5.6.0"

@@ -14,7 +14,8 @@
     "devnet:setup": "node --import tsx scripts/devnet/setup.ts",
     "devnet:reset": "node --import tsx scripts/devnet/reset.ts",
     "devnet:price": "node --import tsx scripts/devnet/price.ts",
-    "devnet:e2e": "node --import tsx scripts/devnet-e2e.ts"
+    "devnet:e2e": "node --import tsx scripts/devnet-e2e.ts",
+    "devnet:status": "node --import tsx scripts/devnet/status.ts"
   },
   "dependencies": {
     "@solana/kit": "8.3.0",
