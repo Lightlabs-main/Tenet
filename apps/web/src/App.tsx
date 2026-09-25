@@ -62,7 +62,7 @@ function PublicLanding({ theme, setTheme }: { theme: ThemeChoice; setTheme: (the
     <div className="public-site">
       <header className="public-nav">
         <a className="brand" href="/" aria-label="Tenet home">
-          <span className="brand-mark">T</span>
+          <img className="brand-mark" src="/tenet-mark.png" alt="" aria-hidden="true" />
           <span className="brand-copy"><span className="brand-name">Tenet</span><span className="brand-tag">Invest together, by shared rules</span></span>
         </a>
         <nav className="public-links" aria-label="Public site navigation">
@@ -184,7 +184,7 @@ function Shell({ theme, setTheme }: { theme: ThemeChoice; setTheme: (theme: Them
     <>
       <nav className="nav">
         <a className="brand" href="/" aria-label="Tenet home">
-          <div className="brand-mark">T</div>
+          <img className="brand-mark" src="/tenet-mark.png" alt="" aria-hidden="true" />
           <div className="brand-copy">
             <span className="brand-name">Tenet</span>
             <span className="brand-tag">Group portfolio · Solana Devnet</span>
@@ -362,7 +362,7 @@ function LandingSurface({ view, circleLoadStatus, onExplore, onCircle, onMandate
           <span className="eyebrow">PEOPLE <i>+</i> CAPITAL <i>+</i> RULES</span>
           <h1 id="landing-title">Collective investing,<br /><em>governed by rules.</em></h1>
           <p className="landing-manifesto">Don’t copy someone’s trades.<br /><em>Fork their investment constitution.</em></p>
-          <p>Pool USDC with people you trust. The Mandate sets what the Circle may invest in. See what is actually held, and leave with your proportional claim or fork the rules into a new Circle.</p>
+          <p>Pool USDC with people you trust and invest together in tokenized stocks and pre-IPO stocks. The Mandate sets what the Circle may buy — and the program enforces it. See what is actually held, leave with your proportional claim, or fork the rules into a new Circle.</p>
           <div className="landing-actions">
             <button className="btn primary" type="button" onClick={onExplore}>Explore Circles <span aria-hidden>→</span></button>
             <a className="btn ghost" href="#model">See how Tenet works <span aria-hidden>↓</span></a>
@@ -376,7 +376,7 @@ function LandingSurface({ view, circleLoadStatus, onExplore, onCircle, onMandate
           <div className="flow-members"><img src="/tenet-community-hero.png" alt="Editorial illustration of four people gathered around a shared investment Circle" width="1536" height="1024" fetchPriority="high" /></div>
           <div className="flow-lines" aria-hidden="true"><span /><span /><span /><span /></div>
           <div className="human-contribution">Contributions enter together</div>
-          <div className="flow-circle"><span className="flow-circle-mark"><span className="brand-mark">T</span></span><span className="flow-circle-overline">SHARED PORTFOLIO</span><strong>A Circle</strong><small>Independent pooled capital</small></div>
+          <div className="flow-circle"><span className="flow-circle-mark"><img className="brand-mark" src="/tenet-mark.png" alt="" aria-hidden="true" /></span><span className="flow-circle-overline">SHARED PORTFOLIO</span><strong>A Circle</strong><small>Independent pooled capital</small></div>
           <div className="flow-mandate"><span className="flow-card-icon">≡</span><div><span className="flow-card-label">THE CONSTITUTION</span><strong>Mandate</strong></div><span className="flow-card-detail">{view ? `${view.holdings.length} permitted asset${view.holdings.length === 1 ? "" : "s"} · limits are on-chain` : circleLoadStatus === "loading" ? "Reading current on-chain rules…" : "Verified rule data unavailable"}</span></div>
           <div className="flow-branches" aria-hidden="true"><i /><i /><i /></div>
           <div className="flow-assets" aria-label="Investment categories, not current Circle holdings">
@@ -490,7 +490,7 @@ function LandingSurface({ view, circleLoadStatus, onExplore, onCircle, onMandate
       <section className="landing-final-cta">
         <span className="eyebrow">PEOPLE · CAPITAL · RULES</span><h2>Build a Circle around what you believe.</h2><p>Start with shared rules. Let members decide whether to contribute.</p><div><button className="btn primary" type="button" onClick={onExplore}>Explore Circles <span aria-hidden>→</span></button><button className="btn ghost" type="button" onClick={onCircle}>Open Devnet workspace</button></div></section>
 
-      <footer className="landing-footer"><span className="brand-mark">T</span><span>Tenet</span><p>Don’t copy someone’s trades. Fork their investment constitution.</p><button className="text-action" type="button" onClick={onCircle}>Open the Circle workspace <span aria-hidden>→</span></button></footer>
+      <footer className="landing-footer"><img className="brand-mark" src="/tenet-mark.png" alt="" aria-hidden="true" /><span>Tenet</span><p>Don’t copy someone’s trades. Fork their investment constitution.</p><button className="text-action" type="button" onClick={onCircle}>Open the Circle workspace <span aria-hidden>→</span></button></footer>
     </div>
   );
 }
