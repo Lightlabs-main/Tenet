@@ -219,9 +219,10 @@ pub struct BeginExecution<'info> {
         bump = epoch.bump,
         constraint = epoch.circle == circle.key() @ TenetError::AccountSubstitution,
         constraint = epoch.state == crate::state::EpochState::Completed @ TenetError::EpochNotFinalized,
-        // The most recently completed epoch: its NAV is the denominator for
-        // the target-weight check, so an older, smaller one must not be used.
-        constraint = epoch.index.checked_add(1) == Some(circle.current_epoch) @ TenetError::EpochIndexMismatch,
+        // Must be the most recently COMPLETED epoch — its NAV is the
+        // denominator of the target-weight check, so an older one must not be
+        // used. Proven in the handler: every epoch after it is passed as a
+        // remaining account and must be Cancelled (A-24).
     )]
     pub epoch: Box<Account<'info, Epoch>>,
 
@@ -294,13 +295,40 @@ pub struct BeginExecution<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn begin_handler(
-    ctx: Context<BeginExecution>,
+/// A-24: the NAV basis is the most recent Completed epoch. Epochs after it
+/// can only have been Cancelled (a timed-out valuation): they moved no capital
+/// — their contributions sit in their own escrow until refunded — so the last
+/// completed NAV is still the right basis. Each one must be passed, in order,
+/// as a remaining account and proven Cancelled; any gap or other state refuses.
+fn require_latest_completed<'info>(
+    circle: &Account<'info, Circle>,
+    epoch: &Account<'info, Epoch>,
+    later: &'info [AccountInfo<'info>],
+) -> Result<()> {
+    let first_after = epoch.index.checked_add(1).ok_or(TenetError::MathOverflow)?;
+    let gap = circle
+        .current_epoch
+        .checked_sub(first_after)
+        .ok_or(TenetError::EpochIndexMismatch)?;
+    require!(later.len() as u64 == gap, TenetError::EpochIndexMismatch);
+    for (i, info) in later.iter().enumerate() {
+        // try_from checks owner == this program and the Epoch discriminator.
+        let e: Account<'info, Epoch> = Account::try_from(info)?;
+        require_keys_eq!(e.circle, circle.key(), TenetError::AccountSubstitution);
+        require!(e.index == first_after + i as u64, TenetError::EpochIndexMismatch);
+        require!(e.state == crate::state::EpochState::Cancelled, TenetError::EpochIndexMismatch);
+    }
+    Ok(())
+}
+
+pub fn begin_handler<'info>(
+    ctx: Context<'info, BeginExecution<'info>>,
     nonce: u64,
     max_in: u64,
     min_out: u64,
     expires_at: i64,
 ) -> Result<()> {
+    require_latest_completed(&ctx.accounts.circle, &ctx.accounts.epoch, ctx.remaining_accounts)?;
     require!(max_in > 0, TenetError::AboveMaximumInput);
     require!(min_out > 0, TenetError::BelowMinimumOutput);
     require!(

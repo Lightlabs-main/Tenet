@@ -177,8 +177,8 @@ pub mod tenet {
 
     // ---- execution (fail-closed raw-delta boundary) -----------------------
 
-    pub fn begin_execution(
-        ctx: Context<BeginExecution>,
+    pub fn begin_execution<'info>(
+        ctx: Context<'info, BeginExecution<'info>>,
         nonce: u64,
         max_in: u64,
         min_out: u64,

@@ -372,6 +372,10 @@ fn test_rolling_epoch_opens_for_snapshot_pricing() {
     p.settle(1, &b.pubkey()).expect_err("cancelled contributions do not settle");
     let refund = cancel_ix(&b.pubkey(), &p.circle, &p.usdc, 1, &b_usdc);
     send(&mut p.e.svm, &[refund], &b, &[]).unwrap();
+    // A-24: a cancelled window no longer blocks the Circle.
+    assert_eq!(p.circle().current_epoch, 2, "cancellation advances to the next window");
+    assert!(!p.circle().execution_frozen);
+    p.open(2).expect("the next window opens after a cancellation");
 }
 
 #[test]

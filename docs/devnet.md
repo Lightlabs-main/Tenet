@@ -50,15 +50,23 @@ A single price adapter (`programs/tenet/src/price.rs`) turns either source into
 Pyth's `Price` struct, and the NAV snapshot, price-impact floor and
 target-weight check all run the same code on both.
 
-### Known limitation
+### Cancelled windows (A-24)
 
 A funding window whose valuation snapshot times out (~150 slots, ~60 s,
-between opening and finalizing) can only be cancelled; contributors are
-refunded, holdings, execution and exits are unaffected, but the deployed
-program cannot open further windows for that Circle. The app keeps a
-NAV-priced settlement to 4 wallet approvals (2 for a first window) and can
-resume a stalled valuation, so this is unlikely; the fix needs a Circle
-state change and is planned post-hackathon.
+between opening and finalizing) is cancelled with `cancel_epoch`, which now
+also advances `current_epoch`, so the next window can open. Nothing is lost:
+
+- contributors refund from the cancelled window's own escrow
+  (`cancel_contribution` accepts Cancelled windows);
+- execution keeps using the NAV of the most recent **Completed** window:
+  `begin_execution` receives every later window as a remaining account and
+  refuses unless each is Cancelled, in order, for this Circle — omitting one,
+  passing a different window, or using a Cancelled window as the NAV basis all
+  fail (`tests/program/tests/devnet_e2e.rs`,
+  `cancelled_valuation_reopens_windows_and_keeps_execution`).
+
+No account layout changed, so existing Circles need no migration. The web app
+finds the NAV basis with `flows.latestCompletedEpoch` and offers the refund.
 
 ### What the program enforces during Execute
 

@@ -528,11 +528,27 @@ impl World {
         spend: u64,
         tamper: impl FnOnce(&mut Vec<Instruction>),
     ) -> Result<(u64, u64), String> {
+        let current = read::<Circle>(&self.svm, circle).current_epoch;
+        self.execute_at(circle, mandate, symbol, spend, current - 1, &[], tamper)
+    }
+
+    /// Execute with an explicit NAV epoch; `later` are the (Cancelled) epochs
+    /// after it, passed as remaining accounts of begin_execution (A-24).
+    #[allow(clippy::too_many_arguments)]
+    fn execute_at(
+        &mut self,
+        circle: &Pubkey,
+        mandate: &Pubkey,
+        symbol: &str,
+        spend: u64,
+        nav_epoch: u64,
+        later: &[Pubkey],
+        tamper: impl FnOnce(&mut Vec<Instruction>),
+    ) -> Result<(u64, u64), String> {
         let executor = funded(&mut self.svm);
         let mint = self.mint(symbol);
         let tusdc = self.tusdc;
-        let current = read::<Circle>(&self.svm, circle).current_epoch;
-        let epoch = epoch_key(circle, current - 1);
+        let epoch = epoch_key(circle, nav_epoch);
         let market = read::<tenet_devnet::Market>(&self.svm, &market_pda(&mint));
         let inst = self.inst(symbol);
         let quote = tenet_devnet::quote_buy(spend, inst.price, inst.decimals, market.spread_bps).unwrap();
@@ -544,6 +560,9 @@ impl World {
             &mint, nonce, spend, 1, expires,
         );
         begin.accounts[9].pubkey = tusdc;
+        for l in later {
+            begin.accounts.push(anchor_lang::solana_program::instruction::AccountMeta::new_readonly(*l, false));
+        }
         let usdc_vault = tenet::pda::usdc_vault(circle).0;
         let dest = tenet::pda::asset_vault(circle, &mint).0;
         let venue = buy_ix(&executor.pubkey(), &mint, &usdc_vault, &dest, spend, quote);
@@ -812,3 +831,84 @@ fn devnet_pool_execute_value_exit_fork() {
     assert_ne!(tenet::pda::usdc_vault(&child_circle).0, usdc_vault);
 }
 
+
+/// A-24: a valuation that times out is cancelled; the Circle is NOT stuck.
+/// Contributors are refunded, execution continues on the last Completed NAV
+/// (proving every later epoch Cancelled), and the next window opens.
+#[test]
+fn cancelled_valuation_reopens_windows_and_keeps_execution() {
+    let mut w = World::new();
+    let tusdc = w.tusdc;
+    let (alice, alice_usdc) = w.wallet_with_tusdc();
+    let (bob, bob_usdc) = w.wallet_with_tusdc();
+    let author = funded(&mut w.svm);
+    let targets: Vec<u16> = w.instruments.iter().map(|i| i.target_bps).collect();
+    let (mandate, circle) = w.mandate_and_circle(&author, frontier_params(), &targets);
+    let p = funded(&mut w.svm);
+    send(&mut w.svm, &[open_epoch_ix(&p.pubkey(), &circle, &mandate, &tusdc, 0)], &p, &[]).unwrap();
+    w.contribute(&alice, &alice_usdc, &circle, &mandate, 0, 500 * TUSDC);
+    w.finish_epoch_zero(&circle, &[alice.pubkey()]);
+
+    // Window 1: bob contributes; the valuation snapshot opens and times out.
+    send(&mut w.svm, &[open_epoch_ix(&p.pubkey(), &circle, &mandate, &tusdc, 1)], &p, &[]).unwrap();
+    w.contribute(&bob, &bob_usdc, &circle, &mandate, 1, 200 * TUSDC);
+    let closes = read::<Epoch>(&w.svm, &epoch_key(&circle, 1)).closes_at;
+    warp_to(&mut w.svm, closes);
+    send(&mut w.svm, &[close_contributions_ix(&p.pubkey(), &circle, 1)], &p, &[]).unwrap();
+    w.refresh_all();
+    send(&mut w.svm, &[open_nav_snapshot_ix(&p.pubkey(), &circle, 1)], &p, &[]).unwrap();
+    let e1 = epoch_key(&circle, 1);
+    let snap = tenet::pda::nav_snapshot(&e1).0;
+    let slot = w.svm.get_sysvar::<anchor_lang::prelude::Clock>().slot;
+    w.svm.warp_to_slot(slot + tenet::NAV_SNAPSHOT_MAX_SLOTS + 5);
+    let cancel = Instruction {
+        program_id: tenet::ID,
+        accounts: tenet::accounts::CancelEpoch { payer: p.pubkey(), circle, epoch: e1, nav_snapshot: Some(snap) }.to_account_metas(None),
+        data: tenet::instruction::CancelEpoch {}.data(),
+    };
+    send(&mut w.svm, &[cancel], &p, &[]).expect("cancel the timed-out valuation");
+    let c: Circle = read(&w.svm, &circle);
+    assert_eq!(c.current_epoch, 2, "the Circle moves on");
+    assert!(!c.execution_frozen);
+    assert_eq!(read::<Epoch>(&w.svm, &e1).state, tenet::state::EpochState::Cancelled);
+
+    // The window-1 contribution comes back from that epoch's own escrow.
+    send(&mut w.svm, &[cancel_ix(&bob.pubkey(), &circle, &tusdc, 1, &bob_usdc)], &bob, &[]).expect("refund");
+    assert_eq!(token_balance(&w.svm, &bob_usdc), 1_000 * TUSDC);
+
+    // Execution uses the epoch-0 NAV, proving epoch 1 Cancelled ...
+    let nav0 = w.nav_of_epoch(&circle, 0);
+    assert_eq!(nav0, 500 * TUSDC as u128);
+    let spend = headroom(&w, &circle, nav0, "TNVDA", 2_500);
+    // ... and every way around the proof is refused:
+    let r = w.execute_at(&circle, &mandate, "TNVDA", spend, 0, &[], |_| {});
+    expect_err(r.map(|_| unreachable!()), TenetError::EpochIndexMismatch); // later epoch omitted
+    let e0 = epoch_key(&circle, 0);
+    let r = w.execute_at(&circle, &mandate, "TNVDA", spend, 0, &[e0], |_| {});
+    expect_err(r.map(|_| unreachable!()), TenetError::EpochIndexMismatch); // wrong epoch as proof
+    let r = w.execute_at(&circle, &mandate, "TNVDA", spend, 1, &[], |_| {});
+    expect_err(r.map(|_| unreachable!()), TenetError::EpochNotFinalized); // the cancelled one as NAV
+    w.execute_at(&circle, &mandate, "TNVDA", spend, 0, &[e1], |_| {}).expect("execute on the last completed NAV");
+
+    // The next window opens, prices at on-chain NAV and completes normally.
+    send(&mut w.svm, &[open_epoch_ix(&p.pubkey(), &circle, &mandate, &tusdc, 2)], &p, &[]).expect("window 2 opens");
+    w.contribute(&bob, &bob_usdc, &circle, &mandate, 2, 100 * TUSDC);
+    let closes = read::<Epoch>(&w.svm, &epoch_key(&circle, 2)).closes_at;
+    warp_to(&mut w.svm, closes);
+    send(&mut w.svm, &[close_contributions_ix(&p.pubkey(), &circle, 2)], &p, &[]).unwrap();
+    w.refresh_all();
+    send(&mut w.svm, &[open_nav_snapshot_ix(&p.pubkey(), &circle, 2)], &p, &[]).unwrap();
+    let mints: Vec<Pubkey> = w.instruments.iter().map(|i| i.mint).collect();
+    for m in &mints {
+        send(&mut w.svm, &[record_asset_nav_ix(&p.pubkey(), &circle, &mandate, 2, m, &feed_pda(m))], &p, &[]).unwrap();
+    }
+    send(&mut w.svm, &[finalize_rolling_ix(&p.pubkey(), &circle, &tusdc, 2)], &p, &[]).expect("finalize window 2");
+    send(&mut w.svm, &[settle_ix(&p.pubkey(), &circle, 2, &bob.pubkey())], &p, &[]).unwrap();
+    send(&mut w.svm, &[close_epoch_ix(&p.pubkey(), &circle, 2)], &p, &[]).unwrap();
+    assert_eq!(read::<Circle>(&w.svm, &circle).current_epoch, 3);
+    assert!(read::<Member>(&w.svm, &tenet::pda::member(&circle, &bob.pubkey()).0).shares > 0);
+    // Back on the ordinary path: epoch 2, nothing after it.
+    let nav2 = w.nav_of_epoch(&circle, 2);
+    let spend = headroom(&w, &circle, nav2, "TAAPL", 2_000);
+    w.execute(&circle, &mandate, "TAAPL", spend).expect("execute on the window-2 NAV");
+}

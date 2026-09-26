@@ -258,6 +258,8 @@ pub struct CancelEpoch<'info> {
         constraint = epoch.circle == circle.key() @ TenetError::AccountSubstitution,
         constraint = epoch.state == EpochState::Closed @ TenetError::EpochNotClosed,
         constraint = circle.total_shares > 0 @ TenetError::RollingEpochsDisabled,
+        // Only the Circle's current window can be Closed; asserted, not assumed.
+        constraint = epoch.index == circle.current_epoch @ TenetError::EpochIndexMismatch,
     )]
     pub epoch: Account<'info, Epoch>,
 
@@ -301,5 +303,10 @@ pub fn cancel_epoch_handler(ctx: Context<CancelEpoch>) -> Result<()> {
     }
     ctx.accounts.epoch.state = EpochState::Cancelled;
     ctx.accounts.circle.execution_frozen = false;
+    // A-24: the cancelled window is finished; the next one may open.
+    // Contributors refund from this epoch's own escrow (cancel_contribution
+    // accepts Cancelled), and execution keeps using the last Completed NAV.
+    let circle = &mut ctx.accounts.circle;
+    circle.current_epoch = circle.current_epoch.checked_add(1).ok_or(TenetError::MathOverflow)?;
     Ok(())
 }
