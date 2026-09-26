@@ -47,6 +47,22 @@
       "market": "C5C5EQ8twDHwLN12ZFbNnvEqMQ3NNvwU3kfdcsWJnohz"
     },
     {
+      "symbol": "TTSLA",
+      "mint": "Dr2PE4sfGXC8arr3A21kzjhuNBxSQ92JJnD26Uf3p15J",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "decimals": 6,
+      "feed": "229GU7oiXfuG8whWwDv6B7cyhrAMh61enWnELF5Ts6ao",
+      "market": "EMYui9cHjyx1zuEcB4SGEaN9RkXa4z5txY2FMbqGyGyV"
+    },
+    {
+      "symbol": "TVOO",
+      "mint": "EcmxudaEUuzHTRrpyAVYGw8USvTy5qDGRAJHdgqfd4mU",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "decimals": 6,
+      "feed": "5dStSP1iunsX2DaAn2nDAsze7CqDgsQ36mPx2mqcJLio",
+      "market": "76SUg77NAFqZ3m9yMvcL22RyDwgVomqftdNK8NLysLTA"
+    },
+    {
       "symbol": "TANTHROPIC",
       "mint": "FnqgdZK9rn7JkfuXNpxJQzm4oMs1T9iWxjKDYSA7Kg9N",
       "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
@@ -59,5 +75,5 @@
     "mandate": "H6Fq39VzQXHPyUYaGaDgkWBfKvrb4PMsFFt1FKp5dXmD",
     "circle": "3GY5s6ruwxqRWBq1dcE8TgMssPH6KwANme5qqBnwrLvR"
   },
-  "updatedAt": "2026-09-25T18:41:31.513Z"
+  "updatedAt": "2026-09-26T00:08:21.247Z"
 }

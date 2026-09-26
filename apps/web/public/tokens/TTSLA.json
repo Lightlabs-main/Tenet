@@ -1,0 +1,7 @@
+{
+  "name": "TSLA Devnet Test (Pyth price)",
+  "symbol": "TTSLA",
+  "description": "DEVNET TEST INSTRUMENT standing in for Tesla. Its devnet price follows the live Pyth feed (operator relay). NOT A REAL STOCK OR SECURITY. No monetary value.",
+  "image": "https://tenetstocks.website/tokens/TTSLA.png",
+  "external_url": "https://tenetstocks.website/app"
+}

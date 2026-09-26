@@ -30,6 +30,8 @@ export interface InstrumentSpec {
   /** Stable 1-byte ids for the registry's issuer / underlying fields. */
   issuerId: number;
   underlyingId: number;
+  /** Pyth feed this instrument's devnet price follows (operator relay), if any. */
+  pyth?: string;
 }
 
 export const INSTRUMENTS: readonly InstrumentSpec[] = [
@@ -57,6 +59,18 @@ export const INSTRUMENTS: readonly InstrumentSpec[] = [
     symbol: "TOPENAI", name: "OpenAI Exposure — DEVNET TEST INSTRUMENT", reference: "OpenAI (pre-IPO)",
     assetClass: "preIpo", decimals: 6, extension: { kind: "transferFee", bps: 25, maxFee: 18_446_744_073_709_551_615n },
     price: 35_000_000n, mark: 0n, underlying: 0n, issuerId: 5, underlyingId: 5,
+  },
+  {
+    // Priced live from Pyth Equity.US.TSLA/USD by the operator relay.
+    symbol: "TTSLA", name: "TSLA — DEVNET TEST INSTRUMENT", reference: "Tesla (price from Pyth)",
+    assetClass: "public", decimals: 6, extension: { kind: "none" },
+    price: 372_500_000n, mark: 0n, underlying: 372_500_000n, issuerId: 7, underlyingId: 7, pyth: "Equity.US.TSLA/USD",
+  },
+  {
+    // Priced live from Pyth Equity.US.VOO/USD by the operator relay.
+    symbol: "TVOO", name: "VOO — DEVNET TEST INSTRUMENT", reference: "Vanguard S&P 500 ETF (price from Pyth)",
+    assetClass: "public", decimals: 6, extension: { kind: "none" },
+    price: 711_470_000n, mark: 0n, underlying: 711_470_000n, issuerId: 8, underlyingId: 8, pyth: "Equity.US.VOO/USD",
   },
   {
     symbol: "TANTHROPIC", name: "Anthropic Exposure — DEVNET TEST INSTRUMENT", reference: "Anthropic (pre-IPO)",

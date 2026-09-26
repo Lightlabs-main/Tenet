@@ -85,6 +85,8 @@ Any failure reverts every token movement.
 | TSPACEX | SpaceX Exposure — DEVNET TEST INSTRUMENT | pre-IPO | 6 | — | 40 | 50 (−20%) | — |
 | TOPENAI | OpenAI Exposure — DEVNET TEST INSTRUMENT | pre-IPO | 6 | transfer fee 0.25% | 35 | — | — |
 | TANTHROPIC | Anthropic Exposure — DEVNET TEST INSTRUMENT | pre-IPO | 6 | — | 30 | 32 | — |
+| TTSLA | TSLA — DEVNET TEST INSTRUMENT | public | 6 | — | live Pyth `Equity.US.TSLA/USD` | — | same |
+| TVOO | VOO — DEVNET TEST INSTRUMENT | public | 6 | — | live Pyth `Equity.US.VOO/USD` | — | same |
 
 Prices are TUSDC per token, fixed-point 1e-6. Defined once in
 `packages/sdk/src/devnet/instruments.ts`.
@@ -111,6 +113,16 @@ pnpm devnet:metadata  # wallet name + logo for the instruments and TUSDC (idempo
 `status` daily at 06:00 UTC and `refresh` (republish every price unchanged, so
 feeds never pass the program's 30-day freshness limit) Mondays at 06:30 UTC,
 logged to `/var/log/tenet-devnet.log`.
+
+**Pyth.** The web app reads live Pyth data through Tenet's proxy
+(`/api/pyth` → `services/solana-rpc-proxy`): a fixed server-side allowlist of
+feeds, the API key read from a root-only systemd `EnvironmentFile`
+(`/etc/tenet/pyth.env`) and never sent to the browser. `pnpm devnet:pyth-relay`
+(cron, every 2 minutes) publishes each fresh Pyth price (≤ 60 s, confidence ≤
+1% — the program's own mainnet rules) into the TTSLA / TVOO devnet feeds;
+while the US market is closed it relays nothing and the feed keeps its last
+Pyth price. This is an operator relay of Pyth data, not Pyth's on-chain
+verification, which the program performs on mainnet.
 
 **Wallet metadata.** Every instrument and TUSDC carries Metaplex Token
 Metadata (Fungible) pointing at `https://tenetstocks.website/tokens/<SYMBOL>.json`,

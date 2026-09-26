@@ -32,8 +32,9 @@ test("assertDevnet refuses mainnet and accepts devnet", async () => {
   await assert.rejects(assertDevnet(rpc(MAINNET_GENESIS_HASH)), /REFUSING/);
 });
 
-test("catalog: six labelled test instruments, and the reference Mandate fits its own caps", () => {
-  assert.equal(INSTRUMENTS.length, 6);
+test("catalog: eight labelled test instruments, and the reference Mandate fits its own caps", () => {
+  assert.equal(INSTRUMENTS.length, 8);
+  assert.equal(new Set(INSTRUMENTS.map((i) => i.symbol)).size, 8, "symbols are unique");
   for (const i of INSTRUMENTS) {
     assert.match(i.name, /DEVNET TEST INSTRUMENT$/);
     assert.ok(new TextEncoder().encode(i.name).length <= 48, `${i.symbol} name fits the registry`);
@@ -53,4 +54,12 @@ test("catalog: six labelled test instruments, and the reference Mandate fits its
 test("amounts must be bigint", () => {
   assert.equal(TENET_DEVNET_PROGRAM_ADDRESS, "6ZXVyvYPPLhoMTF4BDa2M3SLpWRvHxPCLjD9WFQzBdNm");
   assert.throws(() => buy({ amountInRaw: 1, minOutRaw: 1n } as never), TypeError);
+});
+
+test("Pyth -> devnet feed scaling is exact and floors", async () => {
+  const { toMicros } = await import("../scripts/devnet/pyth-relay.ts");
+  assert.equal(toMicros(37_250_999n, -5), 372_509_990n); // TSLA 372.50999 at expo -5
+  assert.equal(toMicros(9_999_123_456n, -8), 99_991_234n); // expo -8 floors to 1e-6
+  assert.equal(toMicros(12n, -6), 12n);
+  assert.equal(toMicros(3n, 0), 3_000_000n);
 });

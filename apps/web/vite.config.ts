@@ -81,6 +81,13 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         rewrite: () => "/api/prestocks",
       },
+      // Pyth needs an API key, which lives only in Tenet's server-side proxy;
+      // the dev server uses the public deployment's fixed, key-less endpoint.
+      "/api/pyth": {
+        target: "https://tenetstocks.website",
+        changeOrigin: true,
+        rewrite: () => "/api/pyth",
+      },
     },
     // packages/domain is imported by relative path (it has no package.json);
     // allow Vite to serve files from the repo root.

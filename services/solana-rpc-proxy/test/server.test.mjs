@@ -140,3 +140,31 @@ test("per-client rate limit is enforced", async (t) => {
   assert.equal((await request()).status, 200);
   assert.equal((await request()).status, 429);
 });
+
+test("Pyth route: fixed feed allowlist, key only sent upstream, exact strings, cached", async (t) => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    const ids = [...new URL(url).searchParams.getAll("ids[]")];
+    return new Response(JSON.stringify({ parsed: ids.map((id) => ({ id, price: { price: "37241500000", conf: "1880000", expo: -8, publish_time: 1_790_000_000 } })) }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  const base = await startServer(t, { fetchImpl, pythUrl: "https://pyth.example/hermes", pythKey: "secret-key" });
+  const res = await fetch(base + "/api/pyth?ids[]=deadbeef");
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.feeds.length, 7);
+  assert.equal(body.feeds[0].symbol, "Equity.US.TSLA/USD");
+  assert.equal(body.feeds[0].price, "37241500000");
+  assert.equal(JSON.stringify(body).includes("secret-key"), false, "key never returned");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].init.headers.authorization, "Bearer secret-key");
+  assert.equal(calls[0].url.includes("deadbeef"), false, "client-supplied ids are ignored");
+  await fetch(base + "/api/pyth");
+  assert.equal(calls.length, 1, "served from the 3 s cache");
+  assert.equal((await fetch(base + "/api/pyth", { method: "POST" })).status, 405);
+});
+
+test("Pyth route fails closed without a configured key", async (t) => {
+  const base = await startServer(t, { fetchImpl: async () => { throw new Error("must not be called"); }, pythUrl: undefined, pythKey: undefined });
+  assert.equal((await fetch(base + "/api/pyth")).status, 503);
+});

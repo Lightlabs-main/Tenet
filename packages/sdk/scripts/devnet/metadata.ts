@@ -17,7 +17,8 @@ const SITE = process.env.TENET_SITE ?? "https://tenetstocks.website";
 export const TOKEN_NAMES: Record<string, string> = {
   TNVDA: "NVDA Devnet Test", TAAPL: "AAPL Devnet Test", TSPY: "SPY Devnet Test",
   TSPACEX: "SpaceX Pre-IPO Devnet Test", TOPENAI: "OpenAI Pre-IPO Devnet Test",
-  TANTHROPIC: "Anthropic Pre-IPO Devnet Test", TUSDC: "Tenet Devnet USDC",
+  TANTHROPIC: "Anthropic Pre-IPO Devnet Test", TTSLA: "TSLA Devnet Test (Pyth price)",
+  TVOO: "VOO Devnet Test (Pyth price)", TUSDC: "Tenet Devnet USDC",
 };
 
 const utf8 = (s: string) => new TextEncoder().encode(s);

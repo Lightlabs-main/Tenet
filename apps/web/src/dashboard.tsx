@@ -13,7 +13,10 @@ import {
   getClaimRedemptionAssetInstruction, getClaimRedemptionUsdcInstruction, getReserveRedemptionAssetInstruction,
   getReserveRedemptionUsdcInstruction, type MandateParamsInput,
 } from "@tenet/sdk";
-import { FRONTIER_TECHNOLOGY, faucetIxs } from "@tenet/sdk/devnet";
+import { FRONTIER_TECHNOLOGY, INSTRUMENTS as CATALOG, faucetIxs } from "@tenet/sdk/devnet";
+
+/** Devnet instruments whose price follows a live Pyth feed (operator relay). */
+const PYTH_FOLLOWED = new Map(CATALOG.filter((i) => i.pyth).map((i) => [i.symbol, i.pyth!] as const));
 import { entitlementForRedemption, sharesForContribution } from "../../../packages/domain/src/accounting.ts";
 import { valuePortfolio, type HoldingInput } from "../../../packages/domain/src/portfolio.ts";
 import { CASH_TICKER, CHAIN, INSTRUMENTS, TOKEN_2022_PROGRAM, TOKEN_PROGRAM, TRANSACTIONS_ENABLED, USDC_DECIMALS, USDC_MINT } from "./config.ts";
@@ -23,6 +26,7 @@ import {
 } from "./chain.ts";
 import { executionProvider, priceProvider } from "./adapters.ts";
 import { PreStocksMarketSurface } from "./prestocks.tsx";
+import { PythLivePanel } from "./pyth.tsx";
 import { formatRaw, formatShares, parseAmount } from "./money.ts";
 import { ActionButton, trim, usdc, useNow, useRunner, type Run, type RunGroups } from "./runner.tsx";
 import { AddressLink, Badge, Meter, Stepper, explorerTx, formatBps, formatSignedBps, ratioBps } from "./ui.tsx";
@@ -370,6 +374,7 @@ function ValueSurface({ view }: { view: CircleView }) {
               <td><strong>{h.registry.symbol}</strong>{isPre(h) ? <> <Badge tone="pre">Pre-IPO</Badge></> : null}
                 {v.marketVsMarkBps !== null ? <div className={`asset-sub ${v.marketVsMarkBps < 0n ? "discount" : "premium"}`}>Market vs mark {formatSignedBps(v.marketVsMarkBps)} · mark {usdc(h.price!.mark!)}</div> : null}
                 {v.tokenVsUnderlyingBps !== null ? <div className={`asset-sub ${v.tokenVsUnderlyingBps < 0n ? "discount" : "premium"}`}>Token vs underlying {formatSignedBps(v.tokenVsUnderlyingBps)} · underlying {usdc(h.price!.underlyingPrice!)}</div> : null}
+                {PYTH_FOLLOWED.get(h.registry.symbol) ? <div className="asset-sub premium">Price from Pyth {PYTH_FOLLOWED.get(h.registry.symbol)} (relayed)</div> : null}
                 <div className="asset-sub">{age !== null ? `price published ${age < 120n ? `${age}s` : age < 7200n ? `${age / 60n} min` : `${age / 3600n} h`} ago` : "no price"}</div></td>
               <td className="r">{h.price ? usdc(h.price.price) : "—"}</td>
               <td className="r">{v.valueRaw === null ? "—" : usdc(v.valueRaw)}</td>
@@ -396,6 +401,7 @@ function ValueSurface({ view }: { view: CircleView }) {
       </div>
       <PreStocksMarketSurface holdings={view.holdings} />
     </section>
+    <PythLivePanel />
   </>);
 }
 

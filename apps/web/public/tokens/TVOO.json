@@ -1,0 +1,7 @@
+{
+  "name": "VOO Devnet Test (Pyth price)",
+  "symbol": "TVOO",
+  "description": "DEVNET TEST INSTRUMENT standing in for Vanguard S&P 500 ETF. Its devnet price follows the live Pyth feed (operator relay). NOT A REAL STOCK OR SECURITY. No monetary value.",
+  "image": "https://tenetstocks.website/tokens/TVOO.png",
+  "external_url": "https://tenetstocks.website/app"
+}

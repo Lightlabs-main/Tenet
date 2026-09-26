@@ -37,7 +37,7 @@ Details, all instrument addresses, operator commands and a demo script: **[docs/
 ### Built with
 
 - **PreStocks** — pre-IPO economic exposure is a first-class asset class: a hard pre-IPO cap in every Mandate, market price vs issuer reference mark kept separate, registry verified against real PreStocks mints ([docs/verification.md](docs/verification.md) V-001, V-005).
-- **Pyth** — the program's single price adapter reads Pyth `PriceUpdateV2` on mainnet (freshness, confidence ≤ 1%, feed binding) and drives NAV, the price-impact floor and Mandate weight checks; the mainnet Config refuses any other price source ([programs/tenet/src/price.rs](programs/tenet/src/price.rs)).
+- **Pyth** — live in the app: *Prices & value* shows real Pyth feeds (`Equity.US.TSLA/QQQ/VOO`, `Crypto.SOL/BTC/ETH/USDC`), each judged by the exact rules the Tenet program applies before a price may value a Circle or bound a trade (≤ 60 s old, confidence ≤ 1%) — stale equity prices outside US hours are shown as refused, never guessed. Devnet instruments **TTSLA** and **TVOO** are priced from Pyth (`Equity.US.TSLA`, `Equity.US.VOO`) by a relay, so Circles holding them get NAV, execution price floors and weight checks from live Pyth data. On mainnet the program's single price adapter reads Pyth `PriceUpdateV2` directly (feed binding, freshness, confidence) and the mainnet Config refuses any other source ([programs/tenet/src/price.rs](programs/tenet/src/price.rs)). The Pyth API key stays server-side (`/api/pyth`, fixed feed allowlist).
 - **Solana / Anchor / Token-2022** — transfer fees, ScaledUiAmount and 6/9-decimal mints handled with raw integer accounting.
 
 ---
