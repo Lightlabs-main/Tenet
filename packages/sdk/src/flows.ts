@@ -295,8 +295,9 @@ export async function closeEpoch(input: { payer: TransactionSigner; circle: Addr
 
 /**
  * One execution: [compute limit, begin_execution, ...venue, end_execution].
- * `epochIndex` is the most recently COMPLETED epoch (circle.current_epoch - 1);
- * its NAV bounds the post-trade target weight. The venue must spend from the
+ * `epochIndex` is the most recently COMPLETED epoch; its NAV bounds the
+ * post-trade target weight. Any epochs after it (only ever Cancelled ones,
+ * A-24) go in `laterEpochs`, in order — see `latestCompletedEpoch`. The venue must spend from the
  * Circle's USDC vault (the executor is its delegate for `maxIn` inside the
  * window) and deliver into the Circle's asset vault.
  */
@@ -313,6 +314,7 @@ export async function execute(input: {
   minOut: bigint;
   expiresAt: bigint;
   venue: Instruction[];
+  laterEpochs?: Address[];
 }): Promise<Instruction[]> {
   const { executor, circle, mandate, usdcMint, asset } = input;
   const [epoch] = await pda.epoch(circle, input.epochIndex);
@@ -328,11 +330,15 @@ export async function execute(input: {
     vaultAuthority: (await pda.vaultAuthority(circle))[0],
     config: (await pda.config())[0],
   };
-  const begin = getBeginExecutionInstruction({
+  const beginIx = getBeginExecutionInstruction({
     ...shared, destTokenProgram: asset.tokenProgram, instructionsSysvar: INSTRUCTIONS_SYSVAR, systemProgram: SYSTEM_PROGRAM,
     nonce: u64(input.nonce, "nonce"), maxIn: u64(input.maxIn, "maxIn"), minOut: u64(input.minOut, "minOut"),
     expiresAt: i64(input.expiresAt, "expiresAt"),
   });
+  const begin: Instruction = {
+    ...beginIx,
+    accounts: [...beginIx.accounts, ...(input.laterEpochs ?? []).map((a) => ({ address: a, role: AccountRole.READONLY }))],
+  };
   const end = getEndExecutionInstruction({
     ...shared, registryEntry: (await pda.registry(asset.mint))[0], priceAccount: input.priceAccount,
   });
@@ -425,4 +431,27 @@ export async function forkMandateAndCircle(input: {
   const finalize = await finalizeMandateIx(forker, newMandate, input.assets.map((a) => a.mint));
   const circleGroups = await circleForMandate({ creator: forker, mandate: newMandate, assets: input.assets, usdcMint: input.usdcMint, openFirstEpoch: input.openFirstEpoch });
   return { mandate: newMandate, circle: (await pda.circle(newMandate))[0], groups: [fork, [finalize], ...circleGroups] };
+}
+
+/**
+ * The epoch whose NAV execution uses: the most recent Completed one, plus the
+ * Cancelled epochs after it (A-24). Returns null before any epoch completes.
+ * `readState(address)` returns the epoch's state (EpochState numeric) or null.
+ */
+export async function latestCompletedEpoch(
+  circle: Address,
+  currentEpoch: bigint,
+  readState: (epoch: Address) => Promise<number | null>,
+): Promise<{ index: bigint; laterEpochs: Address[] } | null> {
+  const COMPLETED = 4;
+  const CANCELLED = 5;
+  const later: Address[] = [];
+  for (let i = currentEpoch - 1n; i >= 0n && later.length <= 16; i--) {
+    const [e] = await pda.epoch(circle, i);
+    const state = await readState(e);
+    if (state === COMPLETED) return { index: i, laterEpochs: later.reverse() };
+    if (state !== CANCELLED) return null;
+    later.push(e);
+  }
+  return null;
 }

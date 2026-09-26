@@ -286,18 +286,23 @@ function planExecution(view: CircleView, nav: bigint | null): Plan[] {
   });
 }
 
+/** NAV basis for execution: the latest Completed epoch, skipping Cancelled ones (A-24). */
 function useSettledNav(view: CircleView, circle: Address) {
-  const [nav, setNav] = useState<bigint | null>(null);
+  const [basis, setBasis] = useState<{ nav: bigint; index: bigint; laterEpochs: Address[] } | null>(null);
   useEffect(() => {
-    if (view.circle.currentEpoch === 0n) { setNav(null); return; }
     let live = true;
-    void pda.epoch(circle, view.circle.currentEpoch - 1n)
-      .then(([e]) => fetchMaybeEpoch(rpc, e))
-      .then((e) => { if (live) setNav(e.exists ? e.data.navBefore + e.data.pendingUsdcRaw : null); })
-      .catch(() => { if (live) setNav(null); });
+    void (async () => {
+      const found = await flows.latestCompletedEpoch(circle, view.circle.currentEpoch, async (e) => {
+        const ep = await fetchMaybeEpoch(rpc, e);
+        return ep.exists ? ep.data.state : null;
+      });
+      if (!found) return null;
+      const ep = await fetchMaybeEpoch(rpc, (await pda.epoch(circle, found.index))[0]);
+      return ep.exists ? { nav: ep.data.navBefore + ep.data.pendingUsdcRaw, ...found } : null;
+    })().then((b) => { if (live) setBasis(b); }).catch(() => { if (live) setBasis(null); });
     return () => { live = false; };
   }, [view, circle]);
-  return nav;
+  return basis;
 }
 
 function ExecutePreview({ view }: { view: CircleView }) {
@@ -308,10 +313,11 @@ function ExecutePreview({ view }: { view: CircleView }) {
 function ExecuteConnected({ view, circle, account, onChanged }: { view: CircleView; circle: Address; account: UiWalletAccount; onChanged: () => Promise<void> }) {
   const signer = useWalletAccountTransactionSendingSigner(account, CHAIN);
   const { busy, runGroups } = useRunner(signer, onChanged);
-  const nav = useSettledNav(view, circle);
+  const basis = useSettledNav(view, circle);
+  const nav = basis?.nav ?? null;
   const plan = planExecution(view, nav);
   const todo = plan.filter((p) => p.spend > 0n);
-  const blocked = view.circle.currentEpoch === 0n ? "Settle the first funding window before executing." :
+  const blocked = !basis ? "Settle the first funding window before executing." :
     view.circle.executionFrozen ? "A valuation snapshot is in progress; execution resumes when it completes." :
     view.circle.pendingReservations > 0 ? "An exit is being prepared; finish it first (Exit page)." : null;
   const executeIxs = async (p: Plan): Promise<Instruction[]> => {
@@ -322,7 +328,7 @@ function ExecuteConnected({ view, circle, account, onChanged }: { view: CircleVi
     const fee = await withheldFee(i.asset.mint, q.outRaw);
     const minOut = q.outRaw - (fee?.fee ?? 0n);
     return flows.execute({
-      executor: signer, circle, mandate: view.mandateAddress, usdcMint: view.usdcMint, epochIndex: view.circle.currentEpoch - 1n,
+      executor: signer, circle, mandate: view.mandateAddress, usdcMint: view.usdcMint, epochIndex: basis!.index, laterEpochs: basis!.laterEpochs,
       asset: { mint: i.asset.mint, tokenProgram: i.asset.tokenProgram }, priceAccount: i.price!.account,
       nonce: BigInt(Date.now()) * 100n + BigInt(i.asset.index), maxIn: p.spend, minOut,
       expiresAt: BigInt(Math.floor(Date.now() / 1000) + 300), venue,
@@ -549,6 +555,10 @@ function EpochCard({ view, circle, signer, usdcBalance, runGroups, busy }: {
           <p className="card-intro">{e ? "Money waits in escrow — refundable — until the window closes. Then shares are set for everyone at once." : `The window opens with the first contribution and stays open ${formatDuration(mandate.epochDuration)} so others can join.`}</p></div>
         <Badge tone="info">{e ? ["Open", "Closed", "Shares ready", "Executing", "Complete", "Cancelled"][e.state] : "Ready"}</Badge>
       </div>
+      {view.cancelledRefund ? <div className="preview" style={{ marginBottom: 14 }}>
+        <div className="preview-row"><span className="k">Window {view.cancelledRefund.index.toString()} was cancelled (its valuation timed out)</span>
+          <span className="v"><ActionButton block={false} busy={busy} label={`Refund my ${usdc(view.cancelledRefund.amount)} TUSDC`} onClick={() => { void runGroups("Refund contribution", async () => [await flows.cancelContribution({ contributor: signer, circle, usdcMint, index: view.cancelledRefund!.index })]); }} /></span></div>
+      </div> : null}
       {e ? <Stepper steps={["Taking contributions", "Window closed", "Shares ready", "Complete"]} current={STEP_OF[e.state] ?? 0} /> : null}
       {open ? <div className="countdown"><div className="countdown-top"><span>{remaining > 0n ? "Window closes in" : "Window has ended"}</span><strong className="num">{remaining > 0n ? `${remaining}s` : "—"}</strong></div><Meter bps={span > 0n ? ratioBps(span - (remaining > 0n ? remaining : 0n), span) : 10_000n} /></div> : null}
 

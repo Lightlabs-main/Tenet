@@ -11,7 +11,8 @@ import {
 } from "@solana/kit";
 import {
   CIRCLE_ASSET_DISCRIMINATOR, CIRCLE_DISCRIMINATOR, CONTRIBUTION_RECEIPT_DISCRIMINATOR, MANDATE_DISCRIMINATOR,
-  TENET_PROGRAM_ADDRESS, createAtaIdempotentIx, decodeAssetRegistryEntry, decodeCircleAsset, decodeMandateAsset, fetchCircle, fetchConfig,
+  EpochState, TENET_PROGRAM_ADDRESS, createAtaIdempotentIx, decodeAssetRegistryEntry, decodeCircleAsset,
+  decodeContributionReceipt, decodeEpoch, decodeMandateAsset, fetchCircle, fetchConfig,
   fetchMandate, fetchMaybeContributionReceipt, tokenAmount, fetchMaybeEpoch, fetchMaybeMember, fetchMaybeNavSnapshot,
   fetchMaybeRedemption, fetchMaybeRedemptionAsset, findAta, getCircleAssetDecoder, getCircleDecoder,
   getContributionReceiptDecoder, getMandateDecoder, mintSupply, pda,
@@ -139,6 +140,8 @@ export interface CircleView {
   receipts: { address: Address; data: ContributionReceipt }[];
   member: Member | null;
   receipt: ContributionReceipt | null;
+  /** This wallet's unrefunded contribution to the previous window, if that window was cancelled (A-24). */
+  cancelledRefund: { index: bigint; amount: bigint } | null;
   exits: ExitView[];
 }
 
@@ -187,6 +190,7 @@ export async function loadCircle(circleAddr: Address, wallet: Address | null): P
 
   let member: Member | null = null;
   let receipt: ContributionReceipt | null = null;
+  let cancelledRefund: CircleView["cancelledRefund"] = null;
   const exits: ExitView[] = [];
   if (wallet) {
     const m = await fetchMaybeMember(rpc, (await pda.member(circleAddr, wallet))[0]);
@@ -194,6 +198,16 @@ export async function loadCircle(circleAddr: Address, wallet: Address | null): P
     if (epoch) {
       const r = await fetchMaybeContributionReceipt(rpc, (await pda.receipt(epoch.address, wallet))[0]);
       receipt = r.exists ? r.data : null;
+    }
+    if (circle.currentEpoch > 0n) {
+      const prevIndex = circle.currentEpoch - 1n;
+      const [prevEpoch] = await pda.epoch(circleAddr, prevIndex);
+      const [prevEpochAcc, prevReceiptAcc] = await fetchEncodedAccounts(rpc, [prevEpoch, (await pda.receipt(prevEpoch, wallet))[0]]);
+      if (prevEpochAcc?.exists && prevReceiptAcc?.exists) {
+        const pe = decodeEpoch(prevEpochAcc).data;
+        const pr = decodeContributionReceipt(prevReceiptAcc).data;
+        if (pe.state === EpochState.Cancelled && !pr.settled && pr.amountUsdcRaw > 0n) cancelledRefund = { index: prevIndex, amount: pr.amountUsdcRaw };
+      }
     }
     for (let seq = 0n; member && seq < member.nextRedemptionSeq; seq++) {
       const [rAddr] = await pda.redemption(circleAddr, wallet, seq);
@@ -232,7 +246,7 @@ export async function loadCircle(circleAddr: Address, wallet: Address | null): P
 
   return {
     circle, mandate, mandateAddress: circle.mandate, usdcMint, assets, holdings, activeUsdcRaw, epoch, navSnapshot,
-    receipts, member, receipt, exits,
+    receipts, member, receipt, cancelledRefund, exits,
   };
 }
 
